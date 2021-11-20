@@ -1,0 +1,947 @@
+Learning to Superoptimize Real-world Programs
+Alex Shypula1
+, Pengcheng Yin1
+, Jeremy Lacomis2
+,
+Claire Le Goues2
+, Edward Schwartz3
+, Graham Neubig1
+1Carnegie Mellon University Language Technologies Institute
+2Carnegie Mellon University Institute for Software Research
+3Carnegie Mellon University Software Engineering Institute
+Abstract
+Program optimization is the process of modifying software
+to execute more efficiently. Because finding the optimal program is generally undecidable, modern compilers usually resort to expert-written heuristic optimizations. In contrast, superoptimizers attempt to find the optimal program by employing significantly more expensive search and constraint solving techniques. Generally, these methods do not scale well
+to programs in real development scenarios, and as a result
+superoptimization has largely been confined to small-scale,
+domain-specific, and/or synthetic program benchmarks. In
+this paper, we propose a framework to learn to superoptimize real-world programs by using neural sequence-tosequence models. We introduce the Big Assembly benchmark, a dataset consisting of over 25K real-world functions
+mined from open-source projects in x86-64 assembly, which
+enables experimentation on large-scale optimization of realworld programs. We propose an approach, Self Imitation
+Learning for Optimization (SILO) that is easy to implement
+and outperforms a standard policy gradient learning approach
+on our Big Assembly benchmark. Our method, SILO, superoptimizes programs an expected 6.2% of our test set when
+compared with the gcc version 10.3 compiler’s aggressive
+optimization level -O3. We also report that SILO’s rate of
+superoptimization on our test set is over five times that of a
+standard policy gradient approach and a model pre-trained on
+compiler optimization demonstration.
+1 Introduction
+Program optimization is a classical problem in computer science that has existed for over 50 years (McKeeman 1965;
+Allen and Cocke 1971), and most years, entire tracks at compiler conferences are dedicated to it (Pouchet and Jimborean
+2020). The standard tool for generating efficient programs
+is an optimizing compiler that not only converts humanwritten programs into executable machine code, but also
+performs a number of semantics-preserving code transformations to increase speed, reduce energy consumption, or
+improve memory footprint (Aho et al. 2006). Most optimizing compilers use semantics-preserving heuristic-based
+optimizations. These optimizing transformations generally
+need to be written by experts for an individual compiler, and
+are applied to an intermediate representation of the code produced over the course of transforming high-level code into
+executable machine code. In an effort to automatically create optimized programs that surpass human-defined heuristics, the research community has pioneered automated optimization methods, or “superoptimizers,” based on bruteforce search (Massalin 1987), heuristic search (Schkufza,
+Sharma, and Aiken 2013), and satisfiability modulo theories (SMT) solvers (Sasnauskas et al. 2017). These superoptimizers may outperform compiler-based optimizations, but
+are difficult to employ in practice.
+Recent work by the machine learning community has
+demonstrated the ability of deep learning models to reason
+about and even generate code to assist developers for a variety of tasks (Allamanis et al. 2018; Chen et al. 2021). Despite this, research in machine learning-based program optimization remains underexplored. Existing work focused on
+the highly constrained problem of expression simplification
+in a simple domain-specific language (DSL), and has only
+been tested on synthetic examples (Shi et al. 2020). While
+this is an important stepping stone demonstrating the feasibility of machine learning-based program optimization, it
+also avoids many of the interesting but more complex optimization opportunities that emerge with the combination of
+control flow, memory reasoning, and sheer scale, as seen in
+real world software.
+In this work, we demonstrate the ability of deep neural networks to optimize real-world programs on Github.
+For this, we introduce Big Assembly, a dataset consisting
+of over 25K functions in x86-64 assembly mined from online open-source projects from Github, which enables experimentation on large-scale optimization of real-world programs. We also propose an easy to implement algorithm Self
+Imitation Learning for Optimization (SILO) that progressively improves its superoptimization ability with training.
+Our results indicate that it superoptimizes an expected 6.2%
+of our test set beyond gcc -O3, over five times the rate of a
+model pre-trained on the outputs of an optimizing compiler
+as well as a model fine-tuned with policy gradient methods.
+Instead of focusing on customized search method unique to
+a language’s implementation and semantics, our methodology relies on a dataset of demonstrations for pre-training as
+well as a test case generator, a sandbox for executing programs, and a method for verifying program equivalence. We
+find examples of our model applying compiler optimizaiton
+techniques such as register allocation, redundant instruction
+arXiv:2109.13498v1 [cs.LG] 28 Sep 2021
+elimination, and instruction combination to superoptimize
+programs.
+2 Problem Formulation
+The superoptimization task is, when given a specification
+for a program S and a reference program Fref (which meets
+the specification), to generate an optimized program Fo that
+runs more efficiently and is equivalent to the reference program Fref . In this paper we focus on program optimization
+at the assembly level, so S, Fref , and Fo are all programs
+written in X86-64 assembly code. S is a program with no
+optimizations applied at all and its purpose is to demonstrate
+desired program semantics. Fref is an assembly program
+produced by the optimizing compiler gcc at its aggressive
+-O3 optimization level.
+We assume that programs are deterministic, and as a result model each program as a function that maps inputs to
+outputs. We will use I to represent the hardware state prior
+to executing the program (i.e., input) and O to represent
+the hardware state after executing the program (i.e., output).
+Specifically, our goal is to learn a model fθ : S 7→ Fo
+such that a model-generated (optimized) program Fˆ
+o attains lower cost, and ideally minimal cost, under a cost
+function C(·) evaluated on a suite of K input-output test
+cases {IO}
+K
+k=1: for example energy consumption or runtime. This model-generated program must meet the specification, which is determined by a verification function
+V(·) ∈ {0, 1}. More details about C and V are located in
+Section 5. The learned model’s objective is then to produce
+rewrites that meet the condition:
+C
+
+Fˆ
+o; {IOk}
+k
+k=1
+< C
+
+Fref ; {IOk}
+K
+k=1
+s.t. V( Fˆ
+o, S) = 0
+(1)
+In order to train our model on some of the optimizations
+that are present in modern compilers in a supervised manner
+and to improve it by learning from experience a dataset is
+necessary. Our training set Do therefore consists of N tuples
+of (1) an I/O test suite {IOk}
+K
+k=1, (2) a compiled and unoptimized program specification S, (3) and a compiled and
+aggressively optimized program as Fref :
+Do =
+
+{IOi
+k}k=1...K, S
+i
+, F
+i
+ref ,
+ 
+i=1...N
+(2)
+In Section 4 we explain our methodology for learning to
+superoptimize programs; before this, however, we first introduce our benchmark dataset for optimizing real-world programs in Section 3.
+3 Big Assembly Benchmark
+There is no standard benchmark for evaluating superoptimization research. Some researchers have evaluated on
+randomly-generated programs in a simplified domain specific language (Chen and Tian 2019; Shi et al. 2020),
+while others have tested on small and hand-picked programs (Joshi, Nelson, and Randall 2002; Gulwani et al.
+Table 1: A list of program optimization benchmarks from
+machine learning and programming languages / systems
+works. The three criteria for evaluating listed are the number
+of individual examples in the benchmark (Sz.), are the programs written by humans (H.), are the programs found “in
+the wild” (i.e. in open source projects) (R.W.), and does the
+benchmark contain either branching or control flow (CTL.)
+DATASET SZ H. R.W. CTL.
+SHI ET AL. (2020) 12,000 ✗ ✗ ✗
+GULWANI ET AL. (2011) 25 ✓ ✗ ✗
+CHURCHILL ET AL. (2017) 13 ✓ ✓ ✓
+OURS 25,141 ✓ ✓ ✓
+2011; Churchill et al. 2017). While these datasets are sufficient for demonstrating methodological capabilities, they
+do not necessarily reflect the properties of real code, and
+thus do not predict their performance relative to modern optimizing compilers on real-world programs. Lastly, smallscale benchmarks are insufficient for data-hungry modern
+deep learning.
+In our work, we introduce the Big Assembly benchmark,
+which contains 25,141 C functions that we compiled using
+gcc, both with (-O3) and without (-O0) aggressive optimizations. We started by collecting 1.61 million functions
+from open source projects on Github that were written in
+C. Of these 1.61M, we were able to mine testcases for a
+dataset of over 100,000 functions. We performed two stages
+of sanity checks and analysis to compute a conservative approximation of the live out registers. The first involved using SMT solvers to find equivalence between the gcc -O0
+function used as the specification S and the gcc -O3 function used as Fref and filtered out trivial programs such as
+those equivaent to return 0, this reduced our dataset to
+77,813 functions. We then performed a similar pass, but instead using the test case suite {IO}
+K
+k=1 reducing our total
+dataset to 25,141 functions (19,819 train, 2,193 dev, 3129
+test). For testcases, we automatically generated random testcases, which are part of the dataset. These testcases can be
+used to test for equivalent behavior and to estimate the performance of the code. We used the STOKE toolkit1 with
+additional modifications for this purpose.
+Table 1 compares the basic properties of our dataset to
+those from existing work; beyond its size, our dataset is
+salient in that it is representative of functions from real world
+code. It also contains examples with more complex operations such as SIMD instructions, branching, and loops. Additional details on how the dataset was collected are available in the supplementary materials section.
+4 Learning Program Optimizations
+In this section we elaborate on our approach that learns to
+optimize real-world programs. We first describe the underlying neural model before introducing the learning algorithm.
+1
+https://github.com/StanfordPL/stoke
+Neural Program Optimizer
+Our program optimization model fθ is a neural sequenceto-sequence network, where the input specification (unoptimized program) and output (optimized program) are represented as sequences of tokens. Specifically, fθ is parameterized with a standard Transformer-based encoder-decoder
+model (Vaswani et al. 2017).
+Learning Algorithms
+For learning to optimize, we develop a two-stage learning approach. First, in a pre-training stage, to capture
+commonly-used optimization heuristics adopted by existing
+optimizing compilers, we use supervised learning to train the
+model on the mined corpus Do of gcc-optimized programs
+(E.q. 2) described in Section 3. Next, to discover more efficient optimization strategies, we investigate fine-tuning using policy-gradient methods and a proposed iterative learning approach, SILO.
+Policy Gradient Approach As in Eq. (1), our goal is to
+synthesize a correct program Fˆ
+o verified by V and outperforms a reference program Fref on the cost function C. An
+intuitive choice is to use policy gradient methods to learn a
+policy that directly minimizes our cost function C and produces correct programs under V in expectation. Specifically,
+we express this dual objective via the Lagrangian relaxation:
+J(Fˆ
+o) = C
+
+Fˆ
+o; {IOk}
+k
+k=1
++ λ V( Fˆ
+o, S). (3)
+A commonly used policy gradient approach is REINFORCE with baseline (Williams 1992). Based on our minimization objective, we can express the loss using the following equation, where b(S) is a baseline value for the given
+specification and p(at|a<t; S) is the model-given probability for generating a token at time step t for sequence Fˆ
+o. In a
+traditional reinforcement learning context we would seek to
+perform gradient ascent on the following term; because we
+are trying to minimize the objective, we perform gradient
+descent instead.
+L =
+X
+T
+t=1
+log p(at|a<t; S)
+J(Fˆ
+o) − b(S)
+(4)
+Self Imitation Learning for Optimization (SILO) Algorithm 1 illustrates our SILO learning approach. It consists of two steps, an exploration step (lines 4-11) where
+the model seeks to discover alternative optimizations that
+are more efficient than the compiler generated targets used
+in pre-training, and a learning step (lines 12-13), where the
+model parameters are updated using newly discovered optimized programs. First, in the exploration step, an exploration batch Bex is sampled from the dataset D initialized
+with program specifications (in our case, unoptimized assembly programs) S
+i
+and their compiler-optimized outputs
+F
+i
+ref . For each input specification S
+i
+in Bex, we sample a
+model-predicted optimization Fˆi
+o
+, and execute Fˆi
+o on the I/O
+test suite {IO}
+K
+k=1 to compute the cost function C. If any
+of the new samples are both functionally equivalent by our
+Algorithm 1: SILO for Program Optimization
+1: Initialize model f parameters θ from pre-trained model
+2: Initialize dataset of program function pairs and test
+cases:
+D = Do =
+n
+{IOi}
+K
+k=1, S
+i
+, F
+i
+ref ,
+ o
+i=1...N
+3: while budget not exhausted do
+4: Sample a batch Bex from Do
+5: for
+{IOi}
+K
+k=1, S
+i
+, F
+i
+ref ,
+
+in Bex do
+6: sample Fˆ
+i
+o ∼ fθ(Si
+)
+7: calculate C(Fˆ
+i
+o
+), and V(Fˆ
+i
+o
+, S
+i
+)
+8: if V(Fˆ
+i
+o
+, S
+i
+) = 0 and C(Fˆ
+i
+o
+) < C(F
+i
+ref ) then
+9: Replace Fi
+ref with sample Fˆ
+i
+o
+in D
+10: end if
+11: end for
+12: Sample a batch Btr from D
+13: Update θ via supervised learning on Btr from D
+14: end while
+verification function V and also achieve a lower cost under
+C compared to the compiler-optimized targets in the original dataset, the compiler-optimized target in the dataset is
+then replaced with the model’s newly-discovered optimal
+rewrite. After the exploration step is taken, in the learning
+step, a separate training batch Btr is sampled for maximumlikelihood training from the dataset which may now contain
+model-optimized targets.
+Self-imitation learning (Oh et al. 2018) is an off-policy reinforcement learning algorithm intended to help agents solve
+challenging exploration problems by learning from good
+past actions. Intuitively, besides the ordinary on-policy reinforcement learning using the latest model-predicted actions,
+the model is also trained on historical states s and actions a
+that achieve high rewards R using a cross-entropy loss:
+Lsil = − log p(a|s) max
+(R − Vθ(s)), 0
+
+(5)
+where each sample ha, si is weighted by how much better
+the off-policy return was compared to the learned baseline
+Vθ(s). Our algorithm, SILO, has a few differences with standard self-imitation learning. First, for sequences that outperform Fref we omit a learned value function and train on the
+entire sequence using cross-entropy loss, as opposed to individual actions. Additionally, we do not interpolate our loss
+with an on-policy reinforcement learning algorithm. Rather,
+we avoid the policy gradient altogether, and instead train
+only on the best sequence found so far in our dataset, be it
+the compiler-optimized outputs Fref or a sequence discovered that outperforms it Fo. This is also broadly related to
+the “hard” EM algorithm that uses the currently best modelpredicted results as optimization targets (Kearns, Mansour,
+and Ng 1998).
+Actor-Learner with Evaluation Server
+Architecture
+One hurdle to performing program optimization at scale is
+that the the time required to evaluate C and V is costly, li
+Actor
+Actor
+Actor
+Learner Parameters
+Experiences
+Program
+Rewrites
+Assess I/O Correctness
+Approximate Performance
+Verify with SMT Solvers
+Feedback
+Evaluation
+Server
+Figure 1: An overview of our actor-learner setup. It features
+interaction between a centralized learner module, numerous
+asynchronously-operating actors, as well as a server for evaluating program rewrites.
+ing model throughput of learning examples. To alleviate this
+bottleneck, we utilize an actor-learner set up (Liang et al.
+2018; Espeholt et al. 2018). Before the training process begins, multiple actor threads inheriting the parameters of the
+parent learner are created. For every iteration, each of the
+actor threads independently samples a batch of program rewrites from the distribution of the inherited model.
+After sampling a batch of re-writes, an attempt is made
+the evaluate the rewrites by sending them to an evaluation
+server. Inside the evaluation server, the programs are assembled and tested for correctness and performance to calculate
+C and V; more details on evaluation are located in Section 5.
+The actor then sends the samples with their related cost and
+correctness information to the learner module for learning.
+Then, the actor attempts to synchronize its parameters by
+inheriting a new copy, if available, from the learner module.
+Fig. 1 contains an overall diagram for our entire system.
+Model Configuration and Training
+Our neural optimizer fθ uses a 3-layer transformer encoderdecoder with embedding dimension of 512 with 8 attentionheads. We utilize the Adam optimizer (Kingma and
+Ba 2014) with the inverse square root schedule from
+Vaswani et al. (2017). We pre-trained the model for 88K
+steps and subsequently performed our fine-tuning algorithms for an additional 5K steps. We additionally use
+SentencePiece2
+to pre-process the assembly with bytepair encoding (Sennrich, Haddow, and Birch 2015). Additional details on training hyperparameters and data preprocessing are located in our supplementary materials section.
+5 Evaluation
+A primary concern in constructing the verification function
+V in Eq. (1) is the undecidability of program equivalence
+for programs with control flow such as loops. If using testcases for equivalence V as well as the cost function C chal2
+https://github.com/google/sentencepiece
+lenges also lie in utilizing a testcase suite {IO}
+K
+k=1 for either
+benchmarking a program’s performance or coming up with
+an approximate estimate for performance.
+Measuring Program Correctness
+A key claim of this work is that our superoptimizer outputs
+correct programs — that is, programs that are more efficient,
+but still semantically equivalent, to the input programs. Program equivalence is undecidable in the general case, motivating a complementary set of mechanisms for verifying
+output program correctness. In our experiments, we confirm output program correctness for our verification function
+V in two ways. First, we run synthesized programs on the
+provided test cases. Second, we formally verify correctness
+using two solver based verifiers: the bounded SMT solver
+based verifier from the standard STOKE toolkit, and an additional verifier available from the artifacts in the program
+verification work in Churchill et al. (2019). These program
+verifiers are based on the state-of-the-art Z3 SMT solver
+(De Moura and Bjørner 2008); SMT (“Satisfiability Modulo
+Theories”) solvers decide the satisfiability of boolean formulas with respect to a set of underlying theories (such as
+the theory of integer arithmetic).
+We use both test cases and the two verifiers for several
+reasons. High coverage test suites are informative in terms
+of program correctness, but intrinsically incomplete. Meanwhile, verifiers do not always scale, especially to programs
+with arbitrary numbers of loop iterations to ensure termination. As is standard we configured a maximum bound of b
+(set to 4) loop iterations, and the process does not timeout
+by taking over T seconds (set to 150). Verification is thus
+also incomplete past those bounds, and limited by the correctness of the verifiers’ underlying models.
+Indeed, we manually observed cases where our finetuning methods exploited either gaps in test suite coverage,
+or bugs in the verifiers’ models of x86-64 semantics.3 Motivated by this, we use both testcases and the two verifiers
+for additional robustness. While this would intuitively help
+mitigate spuriousness during evaluation, it could still remain
+an issue when evaluating optimization of open-domain programs. As we later explain in Section 7, we also resort to human verification to get reliable results when reporting model
+performance on test sets.
+Measuring Program Performance
+We follow previous work on superoptimization of x86 assembly and primarily calculate the cost function C (E.q. 1)
+as a static heuristic approximation of expected CPU-clock
+cycles. We compute the sum of both performance cost
+functions from Schkufza, Sharma, and Aiken (2013) and
+Churchill et al. (2017). The former is a sum of all expected
+latencies for all instructions in the assembly function (denoted as Call), while the latter computes expected latencies
+only using executed instructions (Cexe) from the randomly
+generated test suite {IO}
+K
+k=1. Cexe is a better approximation, especially for functions that contain loop constructs,
+3We have since reached out to the authors of (Churchill et al.
+2019) regarding issues we have found
+while Call may additionally penalize redundant instructions
+that are not executed. Expected latencies were calculated by
+the authors of the STOKE toolkit for the Intel Haswell architecture by benchmarking and measuring instructions for
+servers.
+Testing
+In our experiments, we test our methods by taking our final
+model, and generate 10 model-optimized candidates through
+beam search, and then calculate C and V for each. We then
+report results based on the best result of all 10 candidate
+programs.
+6 Application to Hacker’s Delight
+We apply our methods to the 25 functions chosen from the
+HACKER’S DELIGHT benchmark (Warren 2002), first used
+in Gulwani et al. (2011) for program synthesis and later in
+Schkufza, Sharma, and Aiken (2013) for x86-64 program
+superoptimization. In the latter work, authors express they
+were able to either match or outperform gcc -O3 when
+provided programs compiled with LLVM -O0. The superoptimization benchmark consists of bit-vector manipulation
+challenges such as “take the absolute value of x.” Before
+evaluating on our large scale Big Assembly dataset in Section 7, we perform controlled experiments on HACKER’S
+DELIGHT allowing for interpretable optimizations and consistency with prior work.
+Results We examined the results of REINFORCE and
+SILO with respect to two quantities: (1) the number of programs where a superoptimized version was found at least
+once during the training process, and (2) the number of programs for which a superoptimized version was found within
+the top-10 hypotheses generated by beam search from the
+last model at the end of training. Regarding the former metric, REINFORCE and SILO respectively found 3 and 2
+superoptimized programs during the training. For the latter metric, the final models produced by REINFORCE and
+SILO output 1 and 2 superoptimized programs respectively.
+This can be explained by the fact that policy gradient methods have a wider breadth for exploration during the training
+process compared to SILO, but also are less stable in their
+final solutions.
+Interpretation of Superoptimizations We include examples of the two programs found by both algorithms that illustrate interesting patterns of program superoptimization.
+The first example in Fig. 2 comes from the challenge of
+creating a mask to identify the trailing zeros in a program.
+In this example, our model combines the first two instructions into one using the x86 “load effective address” instruction, which is named after the ability to compute an offset
+from a memory address, but highly useful for simplifying
+some simple arithmetic. It is an example of a peephole optimization, an optimization applied to a small window of instructions with a scope metaphorical of peering through a
+door’s peephole. This one optimization is commonly used
+in compilers, and was likely learned from demonstration. It
+may be surprising that the compiler did not apply such a
+.trailing_zeros_mask:
+movl %edi, %eax
+subl $0x1, %edi
+notl %eax
+andl %edi, %eax
+retq
+(a) -O3 code
+.trailing_zeros_maski:
+leal -0x1(%edi), %eax
+notl %eax
+andl %edi, %eax
+retq
+(b) Model-optimized code
+Figure 2: An example of the trailing zeros mask from
+HACKER’S DELIGHT demonstrating a commonly used instruction combine optimization for x86 assembly.
+.absolute_value:
+movl %edi, %eax
+sarl $0x1f, %eax
+xorl %eax, %edi
+subl %eax, %edi
+movl %edi, %eax
+retq
+(a) -O3 code
+.absolute_value:
+movl %edi, %eax
+sarl $0x1f, %edi
+xorl %edi, %eax
+subl %edi, %eax
+retq
+(b) Model-optimized code
+Figure 3: An example of the HACKER’S DELIGHT absolute
+value function, demonstrating superior register allocation.
+commonly-used optimization on the fast -O3 setting; however, it is known that compilers may not always choose the
+best optimizations to apply (Leather and Cummins 2020).
+The second example in Fig. 3 comes from the task of taking the absolute value of the input integer, and demonstrates
+more sophisticated behavior in performing efficient procedural optimizations. In the gcc -O3 optimized assembly,
+the program performs an auxiliary computation in the %eax
+(return) register and majority of the computation in the %edi
+argument register, and finally moving it into the %eax register. A more clever solution lies in eliminating the last move
+instruction by switching the auxiliary computation into the
+%edi register and then performing majority of the computation directly in the %eax register used for returning the result. This is an example of more-efficient register allocation
+which is the process of assigning hardware register locations, of which there are a small number, to the variables and
+computations performed by the program. Improving register allocation can result in the program copying data fewer
+times, which can improve performance. For a human, realizing such an optimization would require ingenuity to realize
+that the final instruction may be redundant and a competent
+procedural understanding of assembly to realize and re-write
+with the computation flipped. A plausible explanation for
+this result is that by pre-training our model with gcc -O0
+unoptimized code as the original reference program and optimized gcc -O3 code as the optimized target program, the
+model may have learned a degree of competence in register allocation via demonstration, thereby placing probability
+mass on an alternative, yet more efficient implementation.
+7 Application to Big Assembly
+In applying our methods to the Big Assembly dataset, we
+followed the same general experimental setup as HACKER’S
+DELIGHT; however, we evaluated our results on held-out
+sets. As mentioned in Section 5, we observed cases where
+our models exploited bugs in the verifiers’ models of x86-64
+semantics, thus we also incorporated manual human evaluation into our reporting methodology for the benchmark.
+For both learning methods, we chose the best model of the
+ones checkpointed every 1K steps during fine-tuning. We did
+this by choosing the model with the highest proportion of
+programs that were superoptimized on a randomly-sampled
+subset of 329 functions from the validation set according
+to our cost function C, correct according to our verification
+methodology V, and correct again by manual human evaluation.
+Using the chosen model, we then evaluated performance
+on the test set. We manually evaluated 25% of our test set
+to find what proportion of reported superoptimizations were
+actually correct. In Table 2 we report (1) the proportion of
+the entire test set that was superoptimzied according to our
+automatic methods discussed in Section 5 as well as (2) our
+estimate of the actual proportion that would manually verify
+correct. For the latter (2), we use our measured proportion
+of reported superoptimizations that manually verified correct from the 25% subset along with (1) the proportion of
+reported superoptimizations for the entire test set to generate our expected number of programs that verified correct.
+Results We witness that our proposed algorithm SILO far
+outperformed REINFORCE with baseline on this task: on
+the test set, SILO superoptimized an expected 6.2% of programs and REINFORCE with baseline superoptimized an
+expected 0.9%. We also note that despite the fact we used
+two separate SMT based verifiers to prove correctness, our
+SILO approach was capable of finding and learning generalizable exploits in a manner that REINFORCE did not.
+In our study of manually verifying assembly programs,
+we witnessed that across all earlier and later stages of training, the REINFORCE model consistently superoptimized
+the same 5 to 6 programs in the validation set; in other
+words, it did not seem to apply superoptimization patterns
+to any new programs or learn any new superoptimization
+patterns. In contrast, the SILO model consistently increased
+the number of programs it superoptimized in the held-out
+set over time: it seemed to broaden its capacity to apply
+patterns to new programs and simultaneously learn different strategies to superoptimize or even exploit the verifier;
+this trend is reflected in the Fig. 4 plot. We hypothesize that
+the reward space for program superoptimizations is highly
+sparse: while training, we saw that less than 1 in every 1,000
+samples the REINFORCE model sampled were program superoptimizations. We believe, without a method to re-learn
+from past experience, the on-policy REINFORCE algorithm
+struggles to find the signal in the noise, and instead is faced
+with optimizing a challenging objective of synthesizing syntactically and semantically correct programs. This is a nontrivial objective, because making a small error in program
+syntax or semantics can have a dramatic effect on the reward
+0
+2
+4
+6
+8
+10
+12
+0 1000 2000 3000 4000 5000
+Percent Verified
+Step Number
+SMT (SILO)
+SMT and Human (SILO)
+SMT (RL)
+SMT and Human (RL)
+Figure 4: A plot reflecting the proportion of the validation
+set sub-sample population (329 programs) superoptimized
+every 1000 steps of training.
+Table 2: Test set results on the Big Assembly benchmark
+comparing the pre-trained model, SILO and REINFORCE
+with baseline. The first column (SMT Ver.) reports the proportion of programs that beat the gcc -O3 baseline and verify using our automated evaluation methods in Section 5.
+The second column (SMT + Human Ver.) presents our expected proportion of programs that would additionally pass
+a human evaluation step, based on the 25% sample of the
+test set we manually verified.
+Model SMT Ver. SMT + Human Ver.
+PRE-TRAIN 1.2% 1.0%
+SILO 8.3% 6.2%
+REINFORCE 0.9% 0.9%
+the model gets.
+Interpretation of Superoptimizations In our study of the
+assembly that outperformed gcc -O3 we saw two main patterns emerge: pushing operations out to branches and removal of redundant instructions; Fig. 5 contains an example
+of both. In this one function, the first instruction, movl $0x1,
+%eax, is overwritten by later instructions and is only useful
+if the first jump of the program is taken. Given this fact, it
+is more efficient under our cost model to push out the computation after the first jump is taken to prevent it from being
+executed redundantly.
+The second example of an optimization lies in removing
+the redundant line highlighted in red xorl %eax, %eax which
+zeros out the lower 32 bits of the return register %rax. This
+instruction is redundant because the same instruction is executed two instructions earlier, and in between, there is no
+operation with side-effects on the %rax register. As a result,
+it is safe to remove the second operation. We do note that
+it is possible that on modern pipelines architectures, such
+optimizations may or may not speed up the runtime of a
+program depending on how instruction level parallelism and
+branch prediction is handled on hardware: this is a challenge
+.prstree_empty:
+movl $0x1, %eax
+testq %rdi, %rdi
+je .L1
+xorl %eax, %eax
+cmpl $0xb, (%rdi)
+je .L1
+xorl %eax, %eax
+cmpq $0x0, 0x10(%rdi)
+sete %al
+.L1:
+retq
+(a) -O3 code
+.prstree_empty:
+testq %rdi, %rdi
+je .L1
+xorl %eax, %eax
+cmpl $0xb, (%rdi)
+je .L2
+cmpq $0x0, 0x10(%rdi)
+sete %al
+.L1:
+movl $0x1, %eax
+.L2:
+retq
+(b) Model-optimized code
+Figure 5: An example from the Big Assembly benchmark of
+simultaneously removing a redundant instruction and pushing operations to branches.
+in count-based models of CPU runtime that are common in
+the program superoptimization works we are aware of. Being said, we have seen examples where our model created
+superoptimized assembly removing redundant instructions
+in straight line code as well as nop that were executed, and
+not just used as padding.
+8 Related Work
+Program Optimization The general undecidability of
+program equivalence means that there may always be room
+for improvement in optimizing programs (Rice 1953). This
+is especially true as hardware options and performance goals
+become more diverse: what transformations are best for a
+scenario may vary greatly on performance objectives such
+as such as energy consumption or runtime or other factors.
+There are classes of functions that are amenable to exhaustive search, where the optimal sequence of calculations is found (Massalin 1987). However, these are limited
+to very small sequences of machine instructions. State-ofthe-art methods for superoptimization either rely on searchbased procedures (Schkufza, Sharma, and Aiken 2013), or
+constraint-based methods (Sasnauskas et al. 2017). However, these methods have difficulty scaling to larger problems, and as a result, typically do not meet the performance
+requirements of real development scenarios at compile time.
+Machine-Learning-Based Program Optimization Perhaps the closest work to ours is Shi et al. (2020) which
+attempted to learn symbolic expression simplification on a
+dataset of synthetically generated symbolic expressions in
+Halide by re-writing sub-trees of the parsed expression with
+reinforcement learning. The domain differs from ours; however, as the domain specific language contains simple expressions and randomly generated programs may contain redundancies not seen in assembly optimized by a compiler
+like gcc.
+Another work that addressed automatic program optimization is Bunel et al. (2016). Unlike the Halide-based experiments, the work used reinforcement learning to learn a
+proposal distribution for stochastic search used in Schkufza,
+Sharma, and Aiken (2013). While the learned proposal
+distribution showed improvements over the baseline, the
+method ultimately still used stochastic search, except with
+new hyper-parameters. Unlike our work, the model is unable to fully control program transformations end-to-end as
+it provides no learned priors on where in a program to apply
+program transformations.
+A recent body of work centers on learning and searching
+for more efficient schedules for tensor computations (Chen
+et al. 2018; Adams et al. 2019). These works address realworld problems of performance in image processing and
+deep learning performance and often utilize machine learning to achieve these goals. However, these works differ in
+that the search space is defined over how a program is run on
+hardware, a schedule. This search space is decoupled from
+the underlying algorithms themselves. Whereas in optimizing x86-64 assembly, both the algorithm and how it is computed on hardware are in the domain of our search space.
+9 Conclusion
+In our work, we explored the task of program superoptimization with neural sequence models. Towards this goal,
+we introduced the Big Assembly benchmark consisting of
+1.61 million programs mined from open source projects on
+Github for pre-training along with and a subset of over 25K
+functions with testcases that can additionally be passed off to
+the SMT based verifiers in the STOKE toolkit. We proposed
+SILO, a learning approach with a two step process (1) an
+exploration step to search for program superoptimizations,
+and (2) a learning step on the best sequences found during training. Our experiments on the Big Assembly dataset
+demonstate that SILO is able to outperform REINFORCE
+with baseline. We believe that REINFORCE struggles, because program superoptimziation is a highly-challenging exploration task with a very sparse reward space. By incorporating supervision on superoptimized sequences, SILO is
+able to learn optimizations more effectively from its exploration.
+Recently, large neural sequence models have been proposed as an effective method for program synthesis in highlevel programming languages such as python from natural
+language specifications (Yin and Neubig 2017; Chen et al.
+2021); however, to our knowledge, relatively little work
+has been done to refine these models to go beyond simply synthesizing correct programs, and additionally optimize for important metrics such as performance or readability. Given the increased availability of natural language to
+code datasets with testcases, tuning neural sequence models
+to go beyond program synthesis and optimize for additional
+metrics is a promising direction for future work.
+10 Acknowledgments
+We would like to thank Bogdan Vasilescu, Vincent Hellendoorn, Chris Cummins, Berkeley Churchill, and Qibin Chen
+for their feedback, thoughts, and ideas during the drafting of
+this work. This work was supported in part by the National
+Science Foundation under grants 1815287 and 1910067
+References
+Adams, A.; Ma, K.; Anderson, L.; Baghdadi, R.; Li, T.-M.;
+Gharbi, M.; Steiner, B.; Johnson, S.; Fatahalian, K.; Durand, F.; et al. 2019. Learning to optimize halide with tree
+search and random programs. ACM Transactions on Graphics (TOG), 38(4): 1–12.
+Aho, A. V.; Lam, M. S.; Sethi, R.; and Ullman, J. D. 2006.
+Compilers: Principles, Techniques, and Tools. Pearson Education, Inc., 2 edition.
+Allamanis, M.; Barr, E. T.; Devanbu, P.; and Sutton, C. 2018.
+A survey of machine learning for big code and naturalness.
+ACM Computing Surveys (CSUR), 51(4): 1–37.
+Allen, F. E.; and Cocke, J. 1971. A Catalogue of Optimizing
+Transformations. Technical report, IBM Thomas J. Watson
+Research Center.
+Bunel, R.; Desmaison, A.; Kumar, M. P.; Torr, P. H.; and
+Kohli, P. 2016. Learning to superoptimize programs. arXiv
+preprint arXiv:1611.01787.
+Chen, M.; Tworek, J.; Jun, H.; Yuan, Q.; Ponde, H.; Kaplan,
+J.; Edwards, H.; Burda, Y.; Joseph, N.; Brockman, G.; et al.
+2021. Evaluating large language models trained on code.
+arXiv preprint arXiv:2107.03374.
+Chen, T.; Zheng, L.; Yan, E.; Jiang, Z.; Moreau, T.; Ceze, L.;
+Guestrin, C.; and Krishnamurthy, A. 2018. Learning to optimize tensor programs. In Advances in Neural Information
+Processing Systems, 3389–3400.
+Chen, X.; and Tian, Y. 2019. Learning to perform local
+rewriting for combinatorial optimization. In Advances in
+Neural Information Processing Systems, 6281–6292.
+Churchill, B.; Padon, O.; Sharma, R.; and Aiken, A. 2019.
+Semantic program alignment for equivalence checking. In
+Proceedings of the 40th ACM SIGPLAN Conference on Programming Language Design and Implementation, 1027–
+1040.
+Churchill, B.; Sharma, R.; Bastien, J.; and Aiken, A. 2017.
+Sound loop superoptimization for google native client. ACM
+SIGPLAN Notices, 52(4): 313–326.
+De Moura, L.; and Bjørner, N. 2008. Z3: An efficient
+SMT solver. In International conference on Tools and Algorithms for the Construction and Analysis of Systems, 337–
+340. Springer.
+Espeholt, L.; Soyer, H.; Munos, R.; Simonyan, K.; Mnih,
+V.; Ward, T.; Doron, Y.; Firoiu, V.; Harley, T.; Dunning, I.;
+et al. 2018. Impala: Scalable distributed deep-rl with importance weighted actor-learner architectures. arXiv preprint
+arXiv:1802.01561.
+Gulwani, S.; Jha, S.; Tiwari, A.; and Venkatesan, R. 2011.
+Synthesis of loop-free programs. ACM SIGPLAN Notices,
+46(6): 62–73.
+Joshi, R.; Nelson, G.; and Randall, K. 2002. Denali: A goaldirected superoptimizer. ACM SIGPLAN Notices, 37(5):
+304–314.
+Kearns, M.; Mansour, Y.; and Ng, A. Y. 1998. An
+information-theoretic analysis of hard and soft assignment
+methods for clustering. In Learning in graphical models,
+495–520. Springer.
+Kingma, D. P.; and Ba, J. 2014. Adam: A method for
+stochastic optimization. arXiv preprint arXiv:1412.6980.
+Leather, H.; and Cummins, C. 2020. Machine learning in
+compilers: Past, present and future. In 2020 Forum for Specification and Design Languages (FDL), 1–8. IEEE.
+Liang, C.; Norouzi, M.; Berant, J.; Le, Q. V.; and Lao, N.
+2018. Memory augmented policy optimization for program
+synthesis and semantic parsing. In Advances in Neural Information Processing Systems, 9994–10006.
+Massalin, H. 1987. Superoptimizer: a look at the smallest program. ACM SIGARCH Computer Architecture News,
+15(5): 122–126.
+McKeeman, W. M. 1965. Peephole optimization. Communications of the ACM, 8(7): 443–444.
+Oh, J.; Guo, Y.; Singh, S.; and Lee, H. 2018. Self-imitation
+learning. arXiv preprint arXiv:1806.05635.
+Pouchet, L.; and Jimborean, A., eds. 2020. CC 2020: Proceedings of the 29th International Conference on Compiler
+Construction. Association for Computing Machinery.
+Rice, H. G. 1953. Classes of recursively enumerable sets
+and their decision problems. Transactions of the American
+Mathematical Society.
+Sasnauskas, R.; Chen, Y.; Collingbourne, P.; Ketema, J.;
+Taneja, J.; and Regehr, J. 2017. Souper: A Synthesizing Superoptimizer. arXiv preprint arXiv:1711.04422.
+Schkufza, E.; Sharma, R.; and Aiken, A. 2013. Stochastic
+superoptimization. ACM SIGARCH Computer Architecture
+News, 41(1): 305–316.
+Sennrich, R.; Haddow, B.; and Birch, A. 2015. Neural machine translation of rare words with subword units. arXiv
+preprint arXiv:1508.07909.
+Shi, H.; Zhang, Y.; Chen, X.; Tian, Y.; and Zhao, J. 2020.
+Deep Symbolic Superoptimization Without Human Knowledge. In International Conference on Learning Representations.
+Vaswani, A.; Shazeer, N.; Parmar, N.; Uszkoreit, J.; Jones,
+L.; Gomez, A. N.; Kaiser, Ł.; and Polosukhin, I. 2017. Attention is all you need. In Advances in neural information
+processing systems, 5998–6008.
+Warren, H. S. 2002. Hacker’s Delight.
+Williams, R. J. 1992. Simple statistical gradient-following
+algorithms for connectionist reinforcement learning. Machine learning, 8(3): 229–256.
+Yin, P.; and Neubig, G. 2017. A Syntactic Neural Model for
+General-Purpose Code Generation. In Proceedings of the
+55th Annual Meeting of the Association for Computational
+Linguistics (Volume 1: Long Papers), 440–450. Vancouver,
+Canada: Association for Computational Linguistics.
+A SMT based Verifier Exploits Found
+In our manual evaluation stage, we witnessed the primary
+pattern of exploiting the SMT solver based verifier was that
+of branch deleation. We present a concrete example of one
+such exploit paired with the verifier’s output in Fig. 6. In
+the first subfigure we demonstrate the pattern exploiting the
+verifier from the original STOKE toolkit4
+, and in the second
+subfigure we show the output when running on the verifier
+included in the artifacts from a follow up work on program
+verification.5
+In this example, a comparison is done between
+the hex constant 0x2e and the value located at the address
+in register %rdi; if the two are equal, the program jumps to
+location .L1 executing a sequence of code to place a value
+in the %eax register conditional on multiple tests. If the constant is not equal to the value in memory, the jump is not
+taken, and the program returns with a 0 in the %eax register:
+this is because the very first line of the program xorl %eax,
+%eax zeros out the the %eax register. Deletion of the branch
+following .L1 is incorrect. We believe that the verifiers struggle with forms of branching and jump statements very often
+found in real-world programs. This is despite the fact that
+previous works the verifiers were used for included loops
+(which depend on jump statements) or branching. We found
+that when we removed the jump and location statement from
+the spurious rewrite, thereby preserving function semantics
+and eliminating all branching, both verifiers correctly identified that the two programs were not equivalent.
+B Additional Information on the Big
+Assembly Benchmark
+Data Collection Our Big Assembly benchmark was
+mined from open source projects implemented in the C
+programming language on Github. Our programs were disassembled using GNU Binutils’ objdump into x86-64 assembly, and split into individual functions. We performed
+the process twice on the same set of source code, so that
+we could create a parallel corpus of functions. We split
+our dataset into train, development, and test sets based at
+the level of entire individual github projects. We deduplicated by removing any overlapping binaries between the
+datasets. We also deduplicated at the individual function
+level by removing string matches after removing function
+names from assembly functions. Lastly, we removed programs pairs from the dataset if either the source or target
+program had length greater than 512 after byte-pair encoding tokenization.
+Setting Live out and Filter Spurious Examples As mentioned in Section 3 for our each function in our dataset, we
+were required to determine the live out set, the portion of the
+CPU state required for determining the equivalence between
+programs. We also determine heap out, which is a boolean
+flag that determines whether or not we should also check the
+heap for equivalence as well. We perform this sanity check
+by determining what parts of the CPU state are equivalent
+4
+https://github.com/StanfordPL/stoke
+5
+https://github.com/bchurchill/pldi19-equivalence-checker
+Target Rewrite
+.smtp_is_end.s: .smtp_is_end.s:
+xorl %eax, %eax xorl %eax, %eax
+cmpb $0x2e, (%rdi) cmpb $0x2e, (%rdi)
+je .L1 je .L1
+retq .L1:
+.L1: retq
+movzbl 0x1(%rdi), %edx
+cmpb $0xd, %dl
+sete %al
+cmpb $0xa, %dl
+sete %dl
+orl %edx, %eax
+movzbl %al, %eax
+retq
+Equivalent: yes
+(a) Output from the original STOKE bounded verifier
+Target Rewrite
+.smtp_is_end.s: .smtp_is_end.s:
+xorl %eax, %eax xorl %eax, %eax
+cmpb $0x2e, (%rdi) cmpb $0x2e, (%rdi)
+je .L1 je .L1
+retq .L1:
+.L1: retq
+movzbl 0x1(%rdi), %edx
+cmpb $0xd, %dl
+sete %al
+cmpb $0xa, %dl
+sete %dl
+orl %edx, %eax
+movzbl %al, %eax
+retq
+[bv] Checking pair: 0 1 2 4; 0 1 2 3
+Couldn’t take short-circuit option without memory.
+[bv] Paths 0 1 2 4 / 0 1 2 3
+verified: true
+[bv] Checking pair: 0 1 2 4; 0 1 2 3
+Couldn’t take short-circuit option without memory.
+[bv] Paths 0 1 2 4 / 0 1 2 3
+verified: true
+[bv] Checking pair: 0 1 3 4; 0 1 2 3
+We’ve finished early without modeling memory!
+[bv] Paths 0 1 3 4 / 0 1 2 3
+verified: true
+[bv] Checking pair: 0 1 3 4; 0 1 2 3
+We’ve finished early without modeling memory!
+[bv] Paths 0 1 3 4 / 0 1 2 3
+verified: true
+Equivalent: yes
+(b) Output from verifier in the artifacts from (Churchill et al. 2019).
+Figure 6: An example of the common exploit where the right
+hand side deletes the branch of code following .L1. If the
+third and fourth lines (je .L1; .L1:) are removed, then the
+verifier actually returns correctly.
+between the gcc -O0 function and the gcc -O3. Pseudocode for how live out is described in Algorithm 2, in this
+algorithm we refer to the gcc -O0 function as Fu.
+In line 1, the algorithm begins by initializing live out with
+all possible CPU registers. In lines 2-5, until either the computation budget is exhausted or the live out set reaches a
+fixed point, we iteratively execute the function get live out
+which incrementally determines the candidate live out set. It
+works by either executing the testcase suite or runs the SMT
+solver based verifier, analyzing any difference in the resulting CPU state, pruning any part of the CPU state that differs,
+and then returning the subset of the CPU state that may be
+equivalent between Fuand Fref . This may need to be run iteratively, because after pruning live out with respect to one
+counter example, it is possible another counterexample may
+still trigger a difference in other parts of the CPU state. For
+most of the general purpose CPU registers, we also perform
+this pruning at the sub-register level, allowing the register
+size for equivalence to be pruned down to the lower 32, 16,
+and 8 bits. If the computation budget is exhausted, the program returns early, and the program is discarded from the
+dataset.
+After determining live out, in lines 6-10 an additional
+check is done to see if both programs are equivalent when
+checking the heap. If they are, heap out is set to true, and
+this information is recorded to be used for the fine-tuning
+phases. Lastly in lines 12-15, we perform a final sanity check
+to ensure that none of our programs are equivalent to a set
+of spurious programs such as a null program, a return 0,
+and a return 1. If a program is equivalent to one of these
+highly simplistic programs, it is discarded from our dataset.
+Algorithm 2: Set Live Out and Filter Examples
+1: Initialize: live out = ALL LIVE OUT
+2: repeat
+3: old live out = live out
+4: live out = get live out(Fu, Fref , live out)
+5: until old live out 6= live out or budget exhausted
+6: if diff (Fu, Fref , live out, heap out = True) then
+7: heap out = False
+8: else
+9: heap out = True
+10: end if
+11: is spurious = False
+12: for Fspur in SPURIOUS do
+13: if ¬diff (Fspur , Fref , live out, heap out) then
+14: is spurious = True
+15: end if
+16: end for
+Data Preprocessing for Training We perform additional
+processing on our programs that we feed into the model to
+remove noise; we do this for the gcc -O0 function S as well
+as the gcc -O3 functions used for pre-training Fref . x86-64
+assembly often uses GOTO-like instructions to jump to different parts of a binary: this is one way that control flow
+is implemented. The jump targets are often marked as offsets in the binary itself; however, at the individual function
+level these may be canonicalized with ordinal locations (i.e.
+.L1, .L2, and so on). This fully preserves function semantics
+while removing noise from the prediction task.
+C Hyperparameters and Settings
+In this section we report the hyperparameters used for finetuning our models.
+General Hyperparameters We found that our SILO algorithm did not need hyperparameter fine-tuning; whereas,
+our REINFORCE with baseline experiments were more brittle. We witnessed that without a lower learning rate and
+a carefully tuned learning rate schedule, our REINFORCE
+experiments would very often diverge before the full finetuning budget was exhausted. For all fine-tuning, we used
+2,000 steps warmup. For the SILO experiments, we utilized
+a constant factor of .50 applied to the “noam scheduler”
+from Vaswani et al. (2017). For the REINFORCE models,
+we used a factor of .01 for the Big Assembly dataset and a
+factor of .0025 for the HACKER’S DELIGHT dataset.
+REINFORCE Hyperparameters For our baseline in
+Eq. (3), we used a mean of the objective function for the previous 256 samples for each unique program. After subtracting the mean from the return, we then subsequently normalized by the standard deviation of the objective function of
+the previous 256 samples. For the lagrangian multiplier λ in
+Eq. (3), we used a penalty of 50,000. Additionally, we follow
+Schkufza, Sharma, and Aiken (2013) in adding an additional
+penalty of 100 for every bit in the CPU state that differed between the reference implementations and the rewrite output
+such that functions with similar semantics would be penalized less than those with dramatically different semantics.
+To prevent our objective function from growing too great,
+we also clipped the maximum cost so it would not exceed
+100,000. As is typical in many policy gradient algorithms,
+we also included an entropy bonus β to encourage additional
+exploration: we used a constant entropy bonus of β = 0.01
+for both our HACKER’S DELIGHT and Big Assembly experiments.

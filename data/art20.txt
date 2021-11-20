@@ -1,0 +1,3093 @@
+Sinkhorn Distributionally Robust Optimization
+Jie Wang
+School of Industrial and Systems Engineering, Georgia Institute of Technology, Atlanta, GA 30332, jwang3163@gatech.edu
+Rui Gao
+Department of Information, Risk, and Operations Management, University of Texas at Austin, Austin, TX 78712,
+rui.gao@mccombs.utexas.edu
+Yao Xie
+School of Industrial and Systems Engineering, Georgia Institute of Technology, Atlanta, GA 30332, yao.xie@isye.gatech.edu
+We study distributionally robust optimization with Sinkorn distance—a variant of Wasserstein distance based on
+entropic regularization. We derive convex programming dual reformulations when the nominal distribution is an
+empirical distribution and a general distribution, respectively. Compared with Wasserstein DRO, it is computationally
+tractable for a larger class of loss functions, and its worst-case distribution is more reasonable. To solve the dual
+reformulation, we propose an efficient batch gradient descent with a bisection search algorithm. Finally, we provide
+various numerical examples using both synthetic and real data to demonstrate its competitive performance.
+Key words: Wasserstein distributionally robust optimization, Sinkhorn distance, Duality theory
+1. Introduction
+Decision-making problems under uncertainty have broad applications in operations research, machine
+learning, engineering, and economics. When the data involves uncertainty due to measurement error,
+insufficient sample size, contamination, and anomalies, or model misspecification, distributionally
+robust optimization (DRO) is a promising approach to data-driven optimization, by seeking a minimax
+robust optimal decision that minimizes the expected loss under the most adverse distribution within
+a given set of relevant distributions, called ambiguity set. It provides a principled framework to
+produce a solution with more promising out-of-sample performance than the traditional sample average
+approximation (SAA) method for stochastic programming [86]. We refer to [81] for a recent survey on
+DRO.
+At the core of DRO is the choice of the ambiguity set. Ideally, a good ambiguity set should take
+account of the properties of practical applications while maintaining the computational tractability
+of resulted DRO formulation; and it should be rich enough to contain all distributions relevant to
+the decision-making but, at the same time, should not include unnecessary distributions that lead
+to overly conservative decisions. Various DRO formulations have been proposed in the literature.
+Among them, the ambiguity set based on Wasserstein distance has recently received much attention
+[104, 67, 17, 46]. The Wasserstein distance incorporates the geometry of sample space, and thereby
+is suitable for comparing distributions with non-overlapping supports and hedging against data
+perturbations [46]. Nice statistical performance guarantees have been established for Wasserstein
+DRO both asymptotically [16, 19, 18], non-asymptotically [44, 24, 84], and empirically in a variety of
+applications in operations research [13, 30, 87, 73, 88, 100], machine learning [85, 25, 66, 14, 72, 93],
+stochastic control [106, 1, 91, 38, 107, 99], etc; see [61] and references therein for more discussions.
+We also provide a more detailed literature survey by the end of this section.
+On the other hand, the current Wasserstein DRO framework is not without limitation. First, from the
+computational efficiency perspective, the tractability of Wasserstein DRO is usually available only under
+somewhat stringent conditions on the loss function, as its dual formulation involves a subproblem that
+requires the global supremum of some regularized loss function over the sample space. In particular,
+for 1-Wasserstein DRO, a convex reformulation is only known when the loss function can be expressed
+1
+arXiv:2109.11926v1 [math.OC] 24 Sep 2021
+2
+as a pointwise maximum of finitely many concave functions [67] and efficient first-order algorithm is
+proposed only for special loss functions such as logistic loss [62]; and for 2-Wasserstein DRO, efficient
+first-order algorithms have been developed only for smooth loss functions and sufficiently small radius
+(or equivalently, sufficiently large Lagrangian multiplier) so that the involved subproblem becomes
+strongly convex [89, 20, 63, 26]. Second, from the modeling perspective, for data-driven Wasserstein
+DRO in which the nominal distribution is finitely supported (usually the empirical distribution),
+the worst-case distribution is shown to be a discrete distribution [46], despite that the underlying
+true distribution in many practical applications may well be continuous. This raises the concern of
+whether Wasserstein DRO hedges the right family of distribution and whether it causes potentially
+over-conservative performance.
+To address these potential issues while maintaining the advantages of Wasserstein DRO, in this
+paper, we propose Sinkhorn DRO, which hedges against distributions that are close to some nominal
+distribution in Sinkhorn distance [35]. The Sinkhorn distance can be viewed as a smoothed Wasserstein
+distance, defined as the cheapest transport cost between two distributions associated with an optimal
+transport problem with entropic regularization (see Definition 1 in Section 2). As far as we know, this
+paper is the first to study the DRO formulation using the Sinkhorn distance. Our main contributions
+are summarized as follows.
+(I) We derive a strong duality reformulation for Sinkhorn DRO (Theorem 1), both when the
+nominal distribution is a data-driven empirical distribution (Section 3.2) and when the nominal
+distribution is any arbitrary distribution (Section 3.3). The Sinkhorn dual objective smooths
+the maximization subproblem in the Wasserstein dual objective, and converges to Wasserstein
+dual objective as the entropic regularization parameter goes to zero (Remark 3). Moreover, the
+dual objective of Sinkhorn DRO is upper bounded by that of the KL-divergence DRO with the
+nominal distribution being a kernel density estimator (Remark 4).
+(II) As a byproduct of our duality proof, we characterize the worst-case distribution of the Sinkhorn
+DRO (Remark 5), which is absolutely continuous with respect to some reference measure such
+as Lebesgue or counting measure. Compared with Wasserstein DRO, the worst-case distribution
+of Sinkhorn DRO is not necessarily finitely supported even when the nominal distribution is a
+finitely supported distribution. This indicates that Sinkhorn DRO is a more flexible modeling
+choice for many applications.
+(III) On the algorithmic aspect, we propose a computationally efficient first-order method for solving
+the Sinkhorn DRO problem (Section 4), based on batch gradient descent and bisection search.
+Its convergence guarantees are also developed. Compared with Wasserstein DRO, the dual
+problem of Sinkhorn DRO is computationally tractable for any measurable loss functions.
+(IV) We provide experiments (Section 5) to validate the performance of the proposed Sinkhorn
+DRO model in the context of newsvendor problem, mean-risk portfolio optimization, and
+semi-supervised learning, using both synthetic and real data sets. Numerical results demonstrate
+its superior out-of-sample performances compared with several benchmarks including SAA,
+Wasserstein DRO, and KL-divergence DRO.
+Related Literature
+On DRO Models Construction of ambiguity sets plays a key role in the performance of DRO models.
+Generally, there are two ways to construct ambiguity sets in literature. First, ambiguity sets can be
+defined using descriptive statistics, such as the support information [11], moment conditions [83,
+36, 52, 112, 103, 29, 12], shape constraints [80, 94], marginal distributions [43, 69, 2, 39]. Second, a
+more recently popular approach that makes full use of the available data is to consider distributions
+within a pre-specified statistical distance from a nominal distribution, usually chosen as the empirical
+distribution of samples. Commonly used statistical distances used in literature include 𝜙-divergence [57,
+10, 102, 9, 41], Wasserstein distance [78, 104, 67, 110, 17, 46, 28, 105], and maximum mean discrepancy
+3
+[92, 111]. Our proposed Sinkhorn DRO can be viewed as a variant of Wasserstein DRO. In the
+literature on Wasserstein DRO, besides the computational tractability, its regularization effects and
+statistical inference have also be investigated. In particular, it has been shown that Wasserstein DRO is
+asymptotically equivalent to a statistical learning problem with variation regularization [45, 16, 84],
+and when the radius is chosen properly, the worst-case loss of Wasserstein DRO serves as an upper
+confidence bound on the true loss [16, 19, 44, 18] . Other variants of Wasserstein DRO have been
+explored, by combining with other information such as moment information [48, 96] and marginal
+distributions [47, 42].
+Finally, we remark that a recent work [42] on distributionally robust optimization with given
+marginals share a somewhat similar spirit as our work. They start from a dual formulation and propose
+to replace its supremum subproblem with a smooth penalization, and then dualize the dual problem to
+obtain a primal problem that penalizes the entropy of the distribution. The main differences between
+their formulation and ours are that: (i) we do not impose marginal distribution constraints in the
+primal formulation; (ii) our entropic regularization is on the transport plan (joint distribution) between
+the nominal distribution and a candidate distribution in the ambiguity set, but their entropic penalty
+is imposed only on the candidate distributions in the ambiguity set; (iii) our dual formulation smooths
+the supremum subproblem by log-exp-sum function, which is not covered in their considered family of
+penalizations.
+On Sinkhorn Distance Sinkhorn distance [35] is proposed to improve the computational complexity of Wasserstein distance by regularizing the original mass transportation problem with relative
+entropy penalty on the transport mapping. In particular, this distance can be computed from its dual
+form by optimizing two blocks of decision variables alternatively, which only requires simple matrixvector products and therefore significantly improves the computation speed [77]. Such an approach
+first aroused in the areas of economics and survey statistics [60, 109, 37, 7], and its convergence
+analysis is attributed to the mathematician Sinkhorn [90], which gives the name of Sinkhorn distance.
+A recent work [3] further designs an accelerated algorithm to compute Sinkhorn distance in near-linear
+time. Using Sinkhorn distance other than Wasserstein distance has been demonstrated to be beneficial
+because of lower computational cost in various applications, including domain adaptations [32, 33, 31],
+generative modeling [50, 76, 65, 75], dimensionality reduction [64, 97, 98, 58], etc. To the best of
+our knowledge, the study of Sinkhorn distance for distributionally robust optimization is new in the
+literature.
+The rest of the paper is organized as follows. In Section 2, we describe the main formulation for
+the Sinkhorn DRO model. In Section 3, we develop its strong dual reformulation. In Section 4, we
+propose a first-order optimization algorithm that solves the reformulation efficiently. We report several
+numerical results in Section 5, and conclude the paper in Section 6. All omitted proofs can be found in
+Appendix.
+2. Model Setup
+Notation. Assume that the logarithm function log is taken with base 𝑒. For a positive integer 𝑁,
+we write [𝑁] for {1, 2, . . . , 𝑁}. For a measurable set Z, denote by M(Z) the set of measures (not
+necessarily probability measures) on Z, and P(Z) the set of probability measures on Z. Given a
+probability distribution ℙ and a measure 𝜇, we denote supp(ℙ) the support of ℙ, and write ℙ  𝜇
+if ℙ is absolutely continuous with respect to 𝜇. For a given element 𝑥, denote by 𝛿𝑥 the one-point
+probability distribution supported on {𝑥}. Denote ℙ ⊗ ℚ as the product measure of two probability
+distributions ℙ and ℚ. Denote by Proj1#𝛾 and Proj2#𝛾 the first and the second marginal distributions
+of 𝛾, respectively. For a given set 𝐴, define the characteristic function 1𝐴 (𝑥) such that 1𝐴 (𝑥) = 1 when
+𝑥 ∈ 𝐴 and otherwise 1𝐴 (𝑥) = 0, and define the indicator function 𝜏𝐴 (𝑥) such that 𝜏𝐴 (𝑥) = 0 when 𝑥 ∈ 𝐴
+4
+and otherwise 𝜏𝐴 (𝑥) = ∞. Define the distance between two sets 𝐴 and 𝐵 in the Euclidean space as
+Dist(𝐴, 𝐵) = sup𝑥 ∈𝐴 inf𝑦∈𝐵 k𝑥 −𝑦k2.
+We first review the definition of Sinkhorn distance.
+Definition 1 (Sinkhorn Distance). Let Z be a measurable set. Consider distributions ℙ,ℚ ∈ P(Z),
+and let 𝜇,𝜈 ∈ M(Z) be two reference measures such that ℙ  𝜇, ℚ  𝜈. For regularization parameter
+𝜖 ≥ 0, the Sinkhorn distance between two distributions ℙ and ℚ is defined as
+W𝜖 (ℙ,ℚ) = inf
+𝛾 ∈Γ(ℙ,ℚ)
+
+𝔼(𝑋,𝑌)∼𝛾 [𝑐(𝑋,𝑌)] +𝜖𝐻(𝛾 | 𝜇 ⊗𝜈)
+	
+,
+where Γ(ℙ,ℚ) denotes the set of joint distributions whose first and second marginal distributions are
+ℙ and ℚ respectively, 𝑐(𝑥,𝑦) denotes the cost function, and 𝐻(𝛾 | 𝜇 ⊗𝜈) denotes the relative entropy of
+𝛾 with respect to the product measure 𝜇 ⊗𝜈:
+𝐻(𝛾 | 𝜇 ⊗𝜈) =
+∫
+log 
+d𝛾 (𝑥,𝑦)
+d𝜇(𝑥) d𝜈 (𝑦)
+
+d𝛾 (𝑥,𝑦).
+♦
+Remark 1 (Variants of Sinkhorn Distance). Sinkhorn distance in Definition 1 is based on general
+reference measures 𝜇 and 𝜈. Special forms of the distance has been investigated in the literature, for
+instance, when the reference measures 𝜇 and 𝜈 were chosen to be ℙ,ℚ, i.e., marginal distributions
+of 𝛾, respectively [49, Section 2]. The relative entropy regularization term can also be considered
+as a hard-constrained variant for the optimal transport problem, which has been discussed in [35,
+Definition 1] and [8]:
+WInfo
+𝑅
+(ℙ,ℚ) = inf
+𝛾 ∈Γ(ℙ,ℚ)
+
+𝔼(𝑋,𝑌)∼𝛾 [𝑐(𝑋,𝑌)] : 𝐻(𝛾 | ℙ ⊗ ℚ) ≤ 𝑅
+	
+,
+where 𝑅 ≥ 0 quantifies the upper bound for the relative entropy between distributions 𝛾 and ℙ ⊗ ℚ. Another variant of the optimal transport problem is to consider the negative entropy for regularization [35,
+Equation (2)]:
+WEnt
+𝜖
+(ℙ,ℚ) = inf
+𝛾 ∈Γ(ℙ,ℚ)
+
+𝔼(𝑋,𝑌)∼𝛾 [𝑐(𝑋,𝑌)] +𝜖𝐻(𝛾)
+	
+,
+where 𝐻(𝛾) =
+∫
+log 
+d𝛾 (𝑥,𝑦)
+d𝑥 d𝑦
+
+d𝛾 (𝑥,𝑦) and d𝑥, d𝑦 are Lebesgue measures if the corresponding marginal
+distributions are continuous, or counting measures if the marginal distributions are discrete. For given
+ℙ and ℚ, the two regularized optimal transport distances above are equivalent up to a constant. ♣
+In this paper, we study the Sinkhorn DRO model. Given a loss function 𝑓 , a nominal distribution ℙb
+and the Sinkhorn radius 𝜌, the primal form of the worst-case expectation problem of Sinkhorn DRO is
+given by
+𝑉 := sup
+ℙ∈𝔹𝜌,𝜖 (ℙb)
+𝔼𝑧∼ℙ[𝑓 (𝑧)],
+where 𝔹𝜌,𝜖 (ℙb) =
+
+ℙ : W𝜖 (ℙb,ℙ) ≤ 𝜌
+	
+,
+(Sinkhorn DRO)
+where 𝔹𝜌,𝜖 (ℙb) is the Sinkhorn ball of the radius 𝜌 centered at the nominal distribution ℙb. Due to the
+convex entropic regularizer [34] in W𝜖 (ℙb,ℙ), the Sinkhorn distance W𝜖 (ℙb,ℙ) is convex in ℙ and the
+Sinkhorn ball is a convex set. Therefore, the problem (Sinkhorn DRO) is an (infinite-dimensional)
+convex program.
+Remark 2 (Choice of Reference Measures). We discuss below the choices of the two references
+measures 𝜇 and 𝜈 in Definition 1.
+5
+For the reference measure 𝜇, observe from the definition of relative entropy and the law of probability,
+we can see that the regularization term in W𝜖 (ℙb,ℙ) can be written as
+𝐻(𝛾 | 𝜇 ⊗𝜈) =
+∫
+log
+d𝛾 (𝑥,𝑦)
+dℙb(𝑥) d𝜈 (𝑦)
+!
+log
+ℙb(𝑥)
+d𝜇(𝑥)
+!
+d𝛾 (𝑥,𝑦)
+=
+∫
+log
+d𝛾 (𝑥,𝑦)
+dℙb(𝑥) d𝜈 (𝑦)
+!
+d𝛾 (𝑥,𝑦) + ∫
+log
+ℙb(𝑥)
+d𝜇(𝑥)
+!
+dℙb(𝑥).
+Therefore, any choice of the reference measure 𝜇 satisfying ℙb  𝜇 is equivalent up to a constant. For
+simplicity, in the sequel we will take 𝜇 = ℙb.
+For the reference measure 𝜈, observe that the worst-case solution ℙ in (Sinkhorn DRO) should satisfy
+that ℙ  𝜈 since otherwise the entropic regularization in Definition 1 is undefined. As a consequence,
+we can choose 𝜈 such that the underlying true distribution is absolutely continuous with respect to it.
+Typical choices include the Lebesgue measure or Gaussian measure for continuous random variables,
+and counting measure for discrete measures. See [79, Section 3.6] for the construction of a general
+reference measure. ♣
+In the following sections, we first derive the tractable formulation of the Sinkhorn DRO model and
+then develop an efficient first-order method to solve it. Finally, we examine its performance by several
+numerical examples.
+3. Strong Duality Reformulation
+Problem (Sinkhorn DRO) is an infinite-dimensional optimization problem over probability distributions.
+To obtain a more tractable form, in this section, we derive a strong duality result for (Sinkhorn DRO).
+Our main goal is to derive the strong dual problem
+𝑉D := inf
+𝜆≥0
+
+𝜆𝜌 + 𝜆𝜖 ∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  dℙb(𝑥)
+
+, (Dual)
+where the dual decision variable 𝜆 corresponds to the Sinkhorn distance constraint in (Sinkhorn DRO),
+and by convention we define the dual objective evaluated at 𝜆 = 0 as the limit of the objective values
+with 𝜆 ↓ 0, which equals the essential supremum of the objective function with respect to the measure
+𝜈; and we define the constant
+𝜌 := 𝜌 +𝜖
+∫
+log ∫
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧)
+
+dℙb(𝑥), (1)
+and the kernel probability distribution
+dℚ𝑥,𝜖 (𝑧) :=
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖
+∫
+𝑒
+−𝑐 (𝑥,𝑢)/𝜖 d𝜈 (𝑢)
+d𝜈 (𝑧). (2)
+To make the above primal (Sinkhorn DRO) and dual (Dual) problems well-defined, we introduce
+the following assumptions on the cost function 𝑐, the reference measure 𝜈, and the loss function 𝑓 .
+Assumption 1. (I) 𝜈{𝑧 : 0 ≤ 𝑐(𝑥, 𝑧) < ∞} = 1 for ℙb-almost every 𝑥;
+(II) ∫
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) < ∞ for ℙb-almost every 𝑥;
+(III) Z is a measurable space, and the function 𝑓 : Z → ℝ ∪ {∞} is measurable.
+6
+Assumption 1(I) ensures that the Sinkhorn distance is well-defined. If Assumption 1(II) is not satisfied,
+then the Sinkhorn ball 𝔹𝜌,𝜖 (ℙb) = P(Z) and the problem (Sinkhorn DRO) has a simple optimal value
+𝑉 = sup𝑧∈Z 𝑓 (𝑧). Assumption 1(III) ensures the expected loss 𝔼𝑧∼ℙ[𝑓 (𝑧)] to be well-defined and lower
+bounded for any distribution ℙ. In Appendix A, we present sufficient conditions for Assumption 1 that
+are easy to verify.
+To distinguish the cases 𝑉𝐷 < ∞ and 𝑉𝐷 = ∞, we introduce the following light-tail condition on 𝑓 .
+Condition 1. There exists 𝜆 > 0 such that 𝔼ℚ𝑥,𝜖
+[𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+] < ∞ for ℙb-almost every 𝑥.
+Our main result in this section is as follows.
+Theorem 1 (Strong Duality). Let ℙb ∈ P(Z). Assume Assumption 1 is in force. Then the following holds:
+(I) The primal problem (Sinkhorn DRO) is feasible if and only if 𝜌 ≥ 0;
+(II) Whenever 𝜌 ≥ 0, it holds that 𝑉 =𝑉𝐷.
+(III) If, in addition, Condition 1 holds, then 𝑉 =𝑉D < ∞; otherwise 𝑉 =𝑉D = ∞.
+We remark that if 𝜌 < 0, by convention, 𝑉 = −∞ and 𝑉𝐷 = −∞ as well by Lemma 2 in Section 3.3 below.
+Therefore, we have 𝑉 =𝑉𝐷 as long as Assumption 1 holds.
+3.1. Discussions
+Before we present the proof of Theorem 1, we would like to make several remarks.
+Remark 3 (Connection with Wasserstein DRO). As the regularization parameter 𝜖 → 0, the dual
+objective of the Sinkhorn DRO converges to the dual formulation of the Wasserstein DRO problem [46,
+Theorem 1]
+𝜆𝜌 +
+∫
+sup
+𝑧
+
+𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+	
+dℙb(𝑥).
+The proof is given in Appendix EC.3, which essentially follows from the fact that the log-sum-exp
+function is a smooth approximation of the supremum. There are several advantages of Sinkhorn DRO.
+(I) As we will demonstrate in Section 4, Sinkhorn DRO is tractable for a large class of loss functions.
+For the empirical nominal distribution, the worst-case loss can be evaluated efficiently for any
+measurable loss function 𝑓 . In contrast, the main computational difficulty in Wasserstein DRO
+is to solve the maximization problem inside the integration above. In fact, 1-Wasserstein DRO is
+shown to be tractable only when the loss function can be expressed as a pointwise maximum
+of finitely many concave functions [67, Theorem 4.2], and 2-Wasserstein DRO is shown to be
+tractable only when the loss function is smooth and the radius of the ambiguity set is sufficiently
+small [20, Theorem 3].
+(II) The strong duality of Sinkhorn DRO holds in an even more general setting. Essentially, the only
+requirements on the space Z and the nominal distribution ℙb are measurability. In contrast, the
+strong duality for Wasserstein DRO ([46, Theorem 1], [17, Theorem 1]) requires the nominal
+distribution ℙb to be a Borel probability measure and the set Z to be a Polish space.
+We remark that Sinkorn DRO and Wasserstein DRO result in different conditions for finite worst-case
+values. From Condition 1 we see that the Sinkhorn DRO is finite if and only if under a light-tail condition
+on 𝑓 , while the Wasserstein DRO [46, Theorem 1] is finite iff and only if the loss function satisfies a
+growth condition 𝑓 (𝑧) ≤ 𝐿𝑐(𝑧, 𝑧0) + 𝑀,∀𝑧 ∈ Z for some constants 𝐿, 𝑀 > 0 and some 𝑧0 ∈ Z. ♣
+Remark 4 (Connection with KL-DRO). Using Jensen’s inequality, we can see that the dual objective
+function of the Sinkhorn DRO model can be upper bounded as
+𝜆𝜌 + 𝜆𝜖 log ∫
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i
+dℙb(𝑥)
+
+,
+7
+which corresponds to the dual objective function [57] for the following KL-divergence DRO
+sup
+ℙ
+
+𝔼𝑧∼ℙ[𝑓 (𝑧)] : 𝐷KL (ℙkℙ
+0
+) ≤ 𝜌/𝜖
+	
+,
+where ℙ
+0
+satisfies dℙ
+0
+(𝑧) =
+∫
+𝑥
+dℚ𝑥,𝜖 (𝑧) dℙb(𝑥), which can be viewed as a non-parametric kernel density
+estimation constructed from ℙb. Particularly, when ℙb =
+1
+𝑛
+P𝑛
+𝑖=1
+𝛿𝑥ˆ𝑖
+, Z = ℝ𝑑 and 𝑐(𝑥,𝑦) = k𝑥 −𝑦k
+2
+2
+, ℙ
+0
+is
+kernel density estimator with Gaussian kernel and bandwidth 𝜖:
+dℙ
+0
+(𝑧)
+d𝑧
+=
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝐾𝜖 (𝑧 −𝑥𝑖), 𝑧 ∈ ℝ
+𝑑
+,
+where 𝐾𝜖 (𝑥) ∝ exp(−k𝑥 k
+2
+2
+/𝜖) represents the Gaussian kernel. By decomposing 𝛾 (𝑥, 𝑧) = ℙb(𝑥) ⊗𝛾𝑥 (𝑧),
+similar to the proof in Section 3.2 below, (Sinkhorn DRO) can be reformulated as a generalized
+KL-divergence DRO problem:
+𝑉 = sup
+𝛾𝑥 ∈P (Z),∀𝑥 ∈Z
+∫
+𝔼𝑧∼𝛾𝑥
+[𝑓 (𝑧)] dℙb(𝑥) :
+∫
+𝐷KL (𝛾𝑥 kℚ𝑥 ) dℙb(𝑥) ≤ 𝜌/𝜖
+
+. (3)
+Using Divergence inequality [34, Theorem 2.6.3], we can see the Sinkhorn DRO with 𝜌 = 0 is reduced
+to the following SAA model based on the distribution ℙ
+0
+:
+𝑉 = 𝔼ℙ0 [𝑓 (𝑧)] =
+∫
+𝔼ℚ𝑥,𝜖
+[𝑓 (𝑧)] dℙb(𝑥). (4)
+In non-parameteric statistics, the optimal bandwidth to minimize the mean-squared-error between
+the estimated distribution and the underlying true one is at rate 𝜖 =𝑂(𝑛
+−1/(𝑑+4)
+) [54, Theorem 4.2.1].
+However, such an optimal choice for the kernel density estimator may not be the optimal choice for
+optimizing the out-of-sample performance of the Sinkhorn DRO. In our numerical experiments in
+Section 5, we select 𝜖 based on cross-validation. ♣
+Let us illustrate our result for a linear loss function 𝑓 , which turns out to be equivalent to a simple
+optimization problem.
+Example 1. Suppose that 𝑓 (𝑧) = 𝑎
+T
+𝑧, Z = ℝ𝑑 and 𝜈 is the corresponding Lebesgue measure, and the
+cost function is the Mahalanobis distance, i.e.,𝑐(𝑥,𝑦) =
+1
+2
+(𝑥 −𝑦)
+TΩ(𝑥 −𝑦), where Ω is a positive definite
+matrix. In this case, we have the reference measure
+ℚ𝑥,𝜖 ∼ N (𝑥, 𝜖Ω
+−1
+).
+As a consequence, the dual problem can be written as
+𝑉D = inf
+𝜆>0
+
+𝜆𝜌 + 𝜆𝜖 ∫
+Λ𝑥 (𝜆) dℙb(𝑥)
+
+,
+where
+Λ𝑥 (𝜆) = log 
+𝔼(𝑥,𝜖Ω−1)
+h
+𝑒
+𝑎
+>𝑧/(𝜆𝜖)
+i  =
+𝑎
+T
+𝑥
+𝜆𝜖 +
+𝑎
+TΣ𝑎
+2𝜆
+2𝜖
+2
+.
+Therefore
+𝑉D = 𝑎
+T𝔼ℙb[𝑥] + √︁
+2𝜌
+√︁
+𝑎
+TΩ−1𝑎 := 𝔼ℙb[𝑎
+T
+𝑥] + √︁
+2𝜌 · k𝑎kΩ−1 .
+This indicates that the Sinkhorn DRO is equivalent to an empirical risk minimization with norm
+regularization, and can be solved using efficiently using algorithms for the second-order cone
+program. ♣
+In the following, we first show that 𝑉 =𝑉D when ℙb is an empirical distribution supported on 𝑛 points,
+as it is relatively straightforward to prove. Then we show that the same results hold when ℙb is a
+general distribution, as it provides more insights on the worst-case distribution.
+8
+3.2. Proof for an Empirical Nominal distribution
+Given data points 𝑥ˆ𝑖 for 𝑖 = 1, . . . , 𝑛, denote 1
+𝑛
+P𝑛
+𝑖=1
+𝛿𝑥ˆ𝑖
+as the corresponding empirical distribution. In
+this subsection, we discuss the dual reformulation provided that the nominal distribution ℙb is taken in
+this form. Although our strong duality result holds for arbitrary nominal distribution, this is still an
+interesting case, as the proof is relatively simple and ℙb is often chosen as the empirical distribution in
+practice.
+The key to the proof is to write the primal problem in a Lagrangian form and then apply the minimax
+inequality to obtain a weak dual. Observe that the primal can be reformulated as a generalized
+KL-divergence DRO problem. Hence, by leveraging the strong duality result for the existing DRO
+model [57], the minimax inequality does not incur any duality gap.
+Proof of Theorem 1 when ℙb =
+1
+𝑛
+P𝑛
+𝑖=1
+𝛿𝑥ˆ𝑖
+. Based on Definition 1, we reformulate 𝑉 as
+𝑉 = sup
+𝛾 ∈P (Z×Z):Proj1#𝛾=ℙb
+(
+𝔼ℙ[𝑓 (𝑧)] : 𝔼𝛾
+"
+𝑐(𝑥, 𝑧) +𝜖 log
+d𝛾 (𝑥, 𝑧)
+dℙb(𝑥) d𝜈 (𝑧)
+! # ≤ 𝜌
+)
+.
+By the disintegration theorem [23] we represent the joint distribution 𝛾 =
+1
+𝑛
+P𝑛
+𝑖=1
+𝛿𝑥ˆ𝑖 ⊗𝛾𝑖
+, where 𝛾𝑖
+is the
+conditional distribution of 𝛾 given the first marginal of 𝛾 equals 𝑥ˆ𝑖
+. Thereby the constraint is equivalent
+to
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼𝛾𝑖
+
+𝑐(𝑥ˆ𝑖
+, 𝑧) +𝜖 log 
+d𝛾𝑖(𝑧)
+d𝜈 (𝑧)
+  ≤ 𝜌, 𝛾𝑖 ∈ P(Z),𝑖 ∈ [𝑛].
+We remark that any feasible solution 𝛾 satisfies that 𝛾  ℙb ⊗ 𝜈 and hence 𝛾𝑖  𝜈. Consequently the
+term log 
+d𝛾𝑖 (𝑧)
+d𝜈 (𝑧)
+
+is well-defined. For notational simplicity, we write ℚ𝑖 for ℚ𝑥ˆ𝑖
+,𝜖 . Based on the changeof-measure identity log 
+d𝛾𝑖 (𝑧)
+d𝜈 (𝑧)
+
+= log 
+dℚ𝑖 (𝑧)
+d𝜈 (𝑧)
+
++ log 
+d𝛾𝑖 (𝑧)
+dℚ𝑖 (𝑧)
+
+and the expression of ℚ𝑖
+, the constraint
+can be reformulated as
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼𝛾𝑖
+"
+𝑐(𝑥ˆ𝑖
+, 𝑧) +𝜖 log
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖
+∫
+𝑒
+−𝑐 (𝑥,𝑢)/𝜖 d𝜈 (𝑢)
+!
++𝜖 log 
+d𝛾𝑖(𝑧)
+dℚ𝑖(𝑧)
+
+#
+≤ 𝜌, 𝛾𝑖 ∈ P(Z),𝑖 ∈ [𝑛].
+Combining the first two terms within the expectation term and substituting the expression of 𝜌, it is
+equivalent to
+𝜖
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼𝛾𝑖
+
+log 
+d𝛾𝑖(𝑧)
+dℚ𝑖(𝑧)
+  ≤ 𝜌, 𝛾𝑖 ∈ P(Z),𝑖 ∈ [𝑛].
+Similarly, the objective function of (Sinkhorn DRO) can be written as 1
+𝑛
+P𝑛
+𝑖=1
+𝔼𝛾𝑖
+[𝑓 (𝑧)]. Consequently,
+the primal problem (Sinkhorn DRO) can be reformulated as a generalized KL-divergence DRO problem
+𝑉 = sup
+𝛾𝑖 ∈P (Z),𝑖 ∈ [𝑛]
+(
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼𝛾𝑖
+[𝑓 (𝑧)] :
+𝜖
+𝑛
+∑︁𝑛
+𝑖=1
+𝐷KL (𝛾𝑖 kℚ𝑖) ≤ 𝜌
+)
+.
+Then Theorem 1(I) holds based on the non-negativity of KL-divergence.
+Introducing the Lagrange multiplier 𝜆 associated with the constraint, we reformulate (Sinkhorn DRO)
+as
+𝑉 = sup
+𝛾𝑖 ∈P (Z),𝑖 ∈ [𝑛]
+inf
+𝜆≥0
+(
+𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼𝛾𝑖
+
+𝑓 (𝑧) −𝜆𝜖 log 
+d𝛾𝑖(𝑧)
+dℚ𝑖(𝑧)
+ )
+.
+Interchanging the supremum and infimum operators, we have that
+𝑉 ≤ inf
+𝜆≥0
+(
+𝜆𝜌 + sup
+𝛾𝑖 ∈P (Z),𝑖 ∈ [𝑛]
+(
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼𝛾𝑖
+
+𝑓 (𝑧) −𝜆𝜖 log 
+d𝛾𝑖(𝑧)
+dℚ𝑖(𝑧)
+ )) .
+9
+Since the optimization over 𝛾𝑖
+,𝑖 ∈ [𝑛] is separable, by defining for each 𝑖
+𝑣𝑖(𝜆) := sup
+𝛾𝑖 ∈P (Z)
+
+𝔼𝛾𝑖
+
+𝑓 (𝑧) −𝜆𝜖 log 
+d𝛾𝑖(𝑧)
+dℚ𝑖(𝑧)
+  ,
+it holds that
+𝑉 ≤ inf
+𝜆≥0
+(
+𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝑣𝑖(𝜆)
+)
+.
+When Condition 1 holds, leveraging a well-known results on entropy regularized linear optimization
+(Lemma EC.1), we can see that
+𝑣𝑖(𝜆) = 𝜆𝜖 log 
+𝔼ℚ𝑖
+h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  < ∞,
+hence we obtain the weak duality 𝑉 ≤ 𝑉D < ∞. Otherwise, for any 𝜆 > 0, there exists an index 𝑖 such
+that
+𝔼ℚ𝑖
+h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i
+= ∞.
+We also obtain that 𝑉 ≤ 𝑉D = ∞, and the weak duality still holds.
+Next we prove the strong duality. Recall that the primal problem is a generalized KL-divergence DRO
+problem. By leveraging the strong duality result from [57], the minimax inequality above does not
+incur any duality gap when 𝜌 > 0. When 𝜌 = 0, since 𝐷KL (𝛾𝑖 kℚ𝑖) = 0 if and only if 𝛾𝑖 = ℚ𝑖
+, one can see
+that
+𝑉 =
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼ℚ𝑖
+[𝑓 (𝑧)].
+On the other hand, denote by ℎ(𝜆) the objective function for the dual problem. Then we have the
+inequality
+𝑉D ≤ lim
+𝜆→∞
+ℎ(𝜆) =
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼ℚ𝑖
+[𝑓 (𝑧)] =𝑉.
+This, together with the weak duality result, completes the proof for Theorem 1(II). Theorem 1(III) also
+follows based on the discussion of the finiteness of 𝑉D.
+When the sample space Z is finite, the following result presents a conic programming reformulation.
+Corollary 1 (Conic Reformulation for Finite Sample Space). Suppose that the sample space contains 𝐿 elements, i.e., Z = {𝑧ℓ }
+𝐿
+ℓ=1
+. If Condition 1 holds and 𝜌 ≥ 0, the dual problem (Dual) can be
+formulated as the following conic optimization:
+𝑉D = min
+𝜆≥0,𝑠 ∈ℝ𝑛,
+𝑎∈ℝ𝑛×𝐿
+𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝑠𝑖
+s.t. 𝜆𝜖 ≥
+∑︁
+𝐿
+ℓ=1
+𝑞𝑖,ℓ𝑎𝑖,ℓ,𝑖 ∈ [𝑛],
+(𝜆𝜖,𝑎𝑖,ℓ, 𝑓 (𝑧ℓ) −𝑠𝑖) ∈ Kexp,𝑖 ∈ [𝑛], ℓ ∈ [𝐿].
+(5)
+where 𝑞𝑖,ℓ := Pr𝑧∼ℚ𝑥ˆ𝑖
+,𝜖
+{𝑧 = 𝑧ℓ }, with the distribution ℚ𝑥ˆ𝑖
+,𝜖 defined in (2), and Kexp denotes the exponential
+cone Kexp = {(𝜈, 𝜆, 𝛿) ∈ ℝ+ × ℝ+ × ℝ : exp(𝛿/𝜈) ≤ 𝜆/𝜈}.
+Problem (5) is a convex program that minimizes a linear function with respect to linear and conic
+constraints, which can be solved using interior point algorithms [71, 95]. We will develop a customized
+first-order optimization algorithm in Section 4 that is able to solve a more general problem (without a
+finite sample space).
+10
+3.3. Proof for a General Nominal Distribution
+In this subsection, we outline the proof of Theorem 1 when ℙb is an arbitrary nominal distribution and
+discuss the worst-case distribution.
+The feasibility result in Theorem 1(I) can be easily shown using the reformulation (3). To show
+𝑉 =𝑉D, it is easy to show the weak duality result following a similar argument as in Section 3.2, by
+replacing the finite-sum with the integration with respect to ℙb.
+When Condition 1 holds, we prove the strong duality by constructing the worst-case distribution. We
+first show the existence of the dual minimizer (Lemma 2), and then build the corresponding first-order
+optimality condition (Lemma 3 and Lemma 4). Those results help us to construct a primal optimal
+solution for (Sinkhorn DRO) that shares the same optimal value as 𝑉D, which completes the first part
+of Theorem 1(III). When Condition 1 does not hold, we construct a sequence of DRO problems with
+finite optimal values converging into 𝑉 and consequently 𝑉 =𝑉D = ∞, which completes the second part
+of Theorem 1(III). Putting these two parts together imply Theorem 1(II).
+Lemma 1 (Weak Duality). Assume Assumption 1 holds. Then 𝑉 ≤ 𝑉D.
+Below we provide the proof of the first part of Theorem 1(III) for the case 𝜌 > 0 under Condition 1,
+defer proofs of other degenerate cases to Appendix EC.4. To prove the strong duality, we will construct
+a feasible solution of (Sinkhorn DRO) whose loss coincides with 𝑉D. To this end, we first show that the
+dual minimizer exists.
+Lemma 2 (Existence of Dual Minimizer). Suppose 𝜌 > 0 and Condition 1 is satisfied, then the dual
+minimizer 𝜆
+∗
+exists, which either equals to 0 or satisfies Condition 1.
+We separate two cases: 𝜆
+∗ > 0 and 𝜆
+∗ = 0, corresponding to whether the Sinkhorn distance constraint
+in (Sinkhorn DRO) is binding or not.
+Lemma 3 below presents a necessary and sufficient condition for the dual minimizer 𝜆
+∗ = 0,
+corresponding to the case where the Sinkhorn distance constraint in (Sinkhorn DRO) is not binding.
+Lemma 3 (Necessary and Sufficient Condition for 𝜆
+∗ = 0). Suppose 𝜌 > 0 and Condition 1 is satisfied,
+then the dual minimizer 𝜆
+∗ = 0 if and only if all the following conditions hold:
+(I) ess sup
+𝜈
+𝑓 , inf{𝑡 : 𝜈{𝑓 (𝑧) > 𝑡 } = 0} < ∞.
+(II) 𝜌
+0 = 𝜌 +𝜖
+∫
+log
+𝔼ℚ𝑥,𝜖
+[1𝐴]
+
+dℙb(𝑥) ≥ 0, where 𝐴 := {𝑧 : 𝑓 (𝑧) = ess sup
+𝜈
+𝑓 }.
+Recall that we have the convention that the dual objective evaluated at 𝜆 = 0 equals ess sup
+𝜈
+𝑓 . Thus
+Condition (I) ensures that the dual objective function evaluated at the minimizer is finite. When the
+minimizer 𝜆
+∗ = 0, the Sinkhorn ball should be large enough to contain at least one distribution with
+objective value ess sup
+𝜈
+𝑓 , and the condition (II) characterizes the lower bound of 𝜌.
+Lemma 4 below considers the optimality condition when the dual minimizer 𝜆
+∗ > 0, obtained by
+simply setting the derivative of the dual objective function to be zero.
+Lemma 4 (First-order Optimality Condition when 𝜆
+∗ > 0). Suppose 𝜌 > 0 and Condition 1 is satisfied,
+and assume further that the dual minimizer 𝜆
+∗ > 0, then 𝜆
+∗
+satisfies
+𝜆
+∗
+
+𝜌 +𝜖
+∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆
+∗
+𝜖)
+i  dℙb(𝑥)
+
+=
+∫
+𝔼ℚ𝑥,𝜖
+𝑒
+𝑓 (𝑧)/(𝜆
+∗
+𝜖)
+𝑓 (𝑧)
+
+𝔼ℚ𝑥,𝜖
+𝑒
+𝑓 (𝑧)/(𝜆
+∗𝜖)
+ dℙb(𝑥). (6)
+Now we are ready to prove Theorem 1.
+Proof of Theorem 1(III) under Condition 1 with 𝜌 > 0. The proof is separated for two cases: 𝜆
+∗ > 0
+or 𝜆
+∗ = 0. For each case we prove by constructing a primal (approximate) optimal solution.
+When 𝜆
+∗ > 0, we take a probability measure 𝛾∗ such that
+d𝛾∗ (𝑥, 𝑧) =
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑧)
+𝜆
+∗𝜖
+
+∫
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑢)
+𝜆
+∗𝜖
+
+d𝜈 (𝑢)
+d𝜈 (𝑧) dℙb(𝑥), where 𝜙 (𝜆;𝑥, 𝑧) = 𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+11
+Also define the primal (approximate) optimal distribution
+ℙ∗ := Proj2#𝛾∗.
+Recall the expression of the Sinkhorn distance in Definition 1, one can verify that
+W𝜖 (ℙb,ℙ∗)
+= inf
+𝛾 ∈Γ(ℙb,ℙ∗)
+(
+𝔼𝛾
+"
+𝑐(𝑥, 𝑧) +𝜖 log
+d𝛾 (𝑥, 𝑧)
+dℙb(𝑥) d𝜈 (𝑧)
+! #)
+≤ 𝔼𝛾∗
+"
+𝑐(𝑥, 𝑧) +𝜖 log
+d𝛾∗ (𝑥, 𝑧)
+dℙb(𝑥) d𝜈 (𝑧)
+! #
+= 𝔼𝛾∗
+
+
+
+
+
+
+
+𝑐(𝑥, 𝑧) +𝜖 log
+©
+­
+­
+«
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑧)
+𝜆
+∗𝜖
+
+∫
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑢)
+𝜆
+∗𝜖
+
+d𝜈 (𝑢)
+ª
+®
+®
+¬
+
+
+
+
+
+
+
+=
+1
+𝜆
+∗
+
+
+
+∬ 𝑓 (𝑧) exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑧)
+𝜆
+∗𝜖
+
+∫
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑧)
+𝜆
+∗𝜖
+
+d𝜈 (𝑧)
+d𝜈 (𝑧) dℙb(𝑥) −𝜆
+∗
+𝜖
+∫
+log ∫
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑢)
+𝜆
+∗𝜖
+
+d𝜈 (𝑢)
+
+dℙb(𝑥)
+
+
+
+,
+where the second relation is because 𝛾∗ is a feasible solution in Γ(ℙb,ℙ∗), the third and the fourth
+relation is by substituting the expression of 𝛾∗. Since 𝜌 > 0 and the dual minimizer 𝜆
+∗ > 0, the optimality
+condition in (6) holds, which implies that W𝜖 (ℙb,ℙ∗) ≤ 𝜌, i.e., the distribution ℙ∗ is primal feasible for
+the problem (Sinkhorn DRO). Moreover, we can see that the primal optimal value is lower bounded by
+the dual optimal value:
+𝑉 ≥ 𝔼ℙ∗
+[𝑓 (𝑧)] =
+∫
+𝑓 (𝑧) d𝛾∗ (𝑥, 𝑧)
+=
+∬
+𝑓 (𝑧)
+
+d𝛾∗ (𝑥, 𝑧)
+dℙb(𝑥) d𝜈 (𝑧)
+!
+d𝜈 (𝑧) dℙb(𝑥)
+=
+∬
+𝑓 (𝑧)
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑧)
+𝜆
+∗𝜖
+
+∫
+exp 
+𝜙 (𝜆
+∗
+;𝑥,𝑢)
+𝜆
+∗𝜖
+
+d𝜈 (𝑢)
+d𝜈 (𝑧) dℙb(𝑥)
+=𝜆
+∗
+
+𝜌 +𝜖
+∫
+log ∫
+exp 
+𝜙 (𝜆
+∗
+;𝑥, 𝑧)
+𝜆
+∗𝜖
+
+d𝜈 (𝑧)
+
+dℙb(𝑥)
+
+=𝑉D,
+where the third equality is based on the optimality condition in Lemma 4. This, together with the
+weak duality result, completes the proof for 𝜆
+∗ > 0.
+When 𝜆
+∗ = 0, the optimality condition in Lemma 3 holds. We construct the primal (approximate)
+solution ℙ∗ = Proj2#𝛾∗, where 𝛾∗ satisfies
+d𝛾∗ (𝑥, 𝑧) = d𝛾
+𝑥
+∗
+(𝑧) dℙb(𝑥), where d𝛾
+𝑥
+∗
+(𝑦) =
+(
+0, if 𝑧 ∉𝐴,
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧)
+∫
+𝑒
+−𝑐 (𝑥,𝑢)/𝜖1𝐴 d𝜈 (𝑢)
+, if 𝑧 ∈ 𝐴.
+We can verify easily that the primal solution is feasible based on the optimality condition 𝜌
+0 ≥ 0 in
+Lemma 3. Moreover, we can check that the primal optimal value is lower bounded by the dual optimal
+value:
+𝑉 ≥
+∫
+𝑓 (𝑧) d𝛾∗ (𝑥, 𝑧) =
+∬
+𝑓 (𝑧) d𝛾
+𝑥
+∗
+(𝑧) dℙb(𝑥) =
+∬
+ess sup
+𝜈
+𝑓 d𝛾
+𝑥
+∗
+(𝑧) dℙb(𝑥) = ess sup
+𝜈
+𝑓 =𝑉D,
+12
+where the second equality is because that 𝑧 ∈ 𝐴 so that 𝑓 (𝑧) = ess sup
+𝜈
+𝑓 . This, together with the weak
+duality result, completes the proof for 𝜆
+∗ = 0.
+Remark 5 (Worst-case Distribution). From the proof presented above we observe that when
+𝜆
+∗ > 0, the worse-case distribution for (Sinkhorn DRO) can be expressed as
+dℙ∗ (𝑧) =
+∫
+𝑥
+
+𝑒
+𝑓 (𝑧)/(𝜆
+∗
+𝜖) dℚ𝑥,𝜖 (𝑧)
+𝔼ℚ𝑥,𝜖
+𝑒
+𝑓 (𝑧)/(𝜆
+∗𝜖)
+
+!
+dℙb(𝑥),
+from which we can see that the worst-case distribution shares the same support as the measure 𝜈.
+Particularly, when ℙb is the empirical distribution 1
+𝑛
+P𝑛
+𝑖=1
+𝛿𝑥ˆ𝑖
+and 𝜈 is any continuous distribution on ℝ𝑑
+,
+the worst-case distribution ℙ∗ is supported on the entire ℝ𝑑
+. In contrast, the worst-case distribution
+for Wasserstein DRO is supported on at most 𝑛 + 1 points [46]. This is another difference, or advantage
+possibly, of Sinkhorn DRO compared with Wasserstein DRO. Indeed, for many practical problems,
+the underlying distribution can be modeled as a continuous distribution. The worst-case distribution
+for Wasserstein DRO is often finitely supported, raising the concern of whether it hedges against the
+wrong family of distributions and thus results in suboptimal solutions. The numerical results in Section
+5 demonstrate some empirical advantages of Sinkhorn DRO. ♣
+4. Efficient First-order Algorithm for Data-driven Sinkhorn Robust Learning
+In this section, we consider the data-driven Sinkhorn robust learning problem, where we seek an
+optimal decision to minimize the worst-case risk
+inf
+𝜃 ∈Θ
+sup
+ℙ∈𝔹𝜌,𝜖 (ℙb)
+𝔼𝑧∼ℙ[𝑓𝜃 (𝑧)],
+(7)
+where the feasible set Θ contains all possible candidates of decision vector 𝜃, and we take ℙb as the
+empirical distribution corresponding to sample points 𝑥ˆ𝑖
+,𝑖 = 1, . . . , 𝑛. Based on our strong dual (Dual),
+we reformulate (7) as
+inf
+𝜃 ∈Θ,𝜆≥0
+(
+𝐹 (𝜆,𝜃) := 𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝜆𝜖 log 
+𝔼ℚ𝑥ˆ𝑖
+,𝜖 h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i )
+, (8)
+where the constant 𝜌 and the distribution ℚ𝑥ˆ𝑖
+,𝜖 are defined in (1) and (2), respectively.
+In Example 1 we have seen an instance of (8) where we can get a closed-form expression for the
+above integration. In general, when a closed-form expression is not available, in the following we
+present a first-order algorithm to solve this problem, and discuss some alternatives in Section 4.1.
+Observe that the objective function of (8) involves a nonlinear transformation of the expectation, thus
+an unbiased gradient estimate could be challenging when ℚ𝑥ˆ𝑖
+,𝜖 is a general probability distribution.
+We propose to solve the following approximation
+inf
+𝜃 ∈Θ,𝜆≥0
+(
+𝐹ˆ(𝑚)
+(𝜆,𝜃) := 𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝜆𝜖 log 
+𝔼ℚˆ𝑚
+𝑖
+h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i )
+, (9)
+where ℚˆ𝑚
+𝑖
+=
+1
+𝑚
+P𝑚
+𝑗=1
+𝛿𝑧ˆ𝑖, 𝑗 denotes the empirical distribution constructed from {𝑧ˆ𝑖,𝑗 }
+𝑚
+𝑗=1
+, independent
+and identically distributed samples from ℚ𝑥ˆ𝑖
+,𝜖 . In many cases, generating samples from ℚ𝑥ˆ𝑖
+,𝜖 is easy.
+For instance, choosing the cost function 𝑐(·, ·) =
+1
+2
+k · − · k2
+2
+and Z = ℝ𝑑
+, then the distribution ℚ𝑥ˆ𝑖
+,𝜖
+becomes a Gaussian distribution N (𝑥ˆ𝑖
+, 𝜖𝐼𝑑 ). Otherwise we can generate samples by, for example, the
+acceptance-rejection method [5]. As a brief summary of our proposed method, we first simulate a batch
+of samples to approximate the original Sinkhorn DRO dual objective function, and then use projected
+13
+Algorithm 1 A batch gradient descent with bisection search for solving (9)
+Require: An interval [𝜆𝑙
+, 𝜆𝑢] so that 0 < 𝜆𝑙 ≤ 𝜆
+∗ ≤ 𝜆𝑢, where 𝜆
+∗
+is an optimal dual variable for (9).
+Terminating tolerance Δ > 0.
+1: for 𝑡 = 0, 1, . . . ,𝑇 − 1 do
+2: 𝜆0 ← (𝜆𝑙 + 𝜆𝑢)/2.
+3: Solve the subproblem (10) at 𝜆0 to get 𝜃0.
+4: Compute 𝑎 ∈
+𝜕
+𝜕𝜆 𝐹ˆ(𝑚)
+(𝜆0,𝜃0).
+5: Terminate the iteration if 𝑎 = 0 or 𝜆𝑢 −𝜆𝑙 < Δ.
+6: Let 𝑡𝑢 ←𝑡0 when 𝑎 > 0. Let 𝑡𝑙 ←𝑡0 when 𝑎 < 0.
+7: end for
+Return 𝜆0 and 𝜃0.
+gradient descent with bisection search to solve the approximated problem. Hence our method is named
+the batch gradient descent with bisection search.
+When the function 𝑓𝜃 (𝑧) is convex in 𝜃, problem (9) is a finite convex programming because the
+second term of the objective function 𝐹ˆ(𝑚)
+(𝜆,𝜃) in (9) is a perspective transformation [22, Section 2.3.3]
+of the log-sum-exp function in composition of a convex function. We develop a customized batch
+gradient descent with bisection search method to solve problem (9) efficiently. The gradient of the
+objective function of (9) can be calculated as
+∇𝜃 𝐹ˆ(𝑚)
+(𝜆,𝜃) =
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)∇𝜃 𝑓𝜃 (𝑧)
+
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+ ,
+𝜕
+𝜕𝜆 𝐹ˆ(𝑚)
+(𝜆,𝜃) = 𝜌 +
+𝜖
+𝑛
+∑︁𝑛
+𝑖=1
+log 
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i
+
+−
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+𝑓𝜃 (𝑧)
+
+𝜆𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+ .
+For fixed 𝜆 > 0, denote 𝐹ˆ
+(𝑚)
+𝜆
+as the optimal value of the following problem
+𝐹ˆ
+(𝑚)
+𝜆
+= 𝜆𝜌 + inf
+𝜃 ∈Θ
+(
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝜆𝜖 log 
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i
+
+)
+. (10)
+By the convexity of 𝐹ˆ(𝑚)
+(𝜆,𝜃), the function 𝐹ˆ
+(𝑚)
+𝜆
+is convex in 𝜆. This, together with the fact that 𝐹ˆ
+(𝑚)
+𝜆
+is
+sub-differentiable with respect to 𝜆, motivates us to use the bisection search method in Algorithm 1 to
+solve problem (9). In particular, in each iteration we first find the optimal solution to problem (10) for
+a fixed 𝜆, and then use the bisection method to search for the optimal 𝜆. When the gradient ∇𝜃 𝑓𝜃 (𝑧) is
+bounded for any 𝜃 and 𝑧, the sub-problem (10) can be solved using the projected gradient method
+with convergence rate 𝑂(1/
+√
+𝑀), where 𝑀 denotes the number of inner iterations [59, Theorem 2.5].
+We also argue that the iteration points of Algorithm 1 converge to the optimal solution of inf𝜆≥0 𝐹ˆ
+(𝑚)
+𝜆
+with a linear rate.
+Proposition 1. Suppose the function 𝑓𝜃 (𝑧) is convex in 𝜃. Then the iteration points {𝜆
+𝑡
+}𝑡 of Algorithm 1
+converge into 𝜆∗ linearly, i.e., |𝜆
+𝑡 −𝜆
+∗
+| =𝑂(2
+−𝑡
+), where 𝜆
+∗
+is the optimal solution of inf𝜆≥0 𝐹ˆ
+(𝑚)
+𝜆
+.
+Our last result in this section establishes the consistency for the Monte Carlo approximation (9).
+Proposition 2. Let S
+∗ and 𝑉
+∗ be the set of optimal solutions and the corresponding optimal value of
+problem (8), respectively. And let S
+(𝑚) and 𝑉
+(𝑚) be the set of optimal solutions and the optimal value to
+problem (9), respectively. Assume that
+(I) The function 𝑓𝜃 (𝑧) is random lower semi-continuous, and convex in 𝜃. The set Θ is closed, convex,
+and contains a non-empty interior.
+14
+(II) The value function 𝐹 (𝜆,𝜃) defined in (8) is lower semi-continuous, and there exists a point (𝜆, ¯ 𝜃¯) ∈ Ξ
+such that 𝐹 (𝜆,𝜃) < ∞ for all (𝜆,𝜃) in a neighborhood of (𝜆, ¯ 𝜃¯).
+(III) The set S
+∗
+is non-empty and bounded.
+Then as 𝑚 → ∞, 𝑉
+(𝑚) →𝑉
+∗ almost surely and Dist(S
+(𝑚)
+,S
+∗
+) → 0 almost surely.
+This indicates that we can obtain a near-optimal solution of (Sinkhorn DRO) with an arbitrarily
+small sub-optimality gap as long as we increase the number of simulation times for Monte Carlo
+approximation. The proof leverages results from [86], while the key difference is that the objective
+function studied in this paper involves the nonlinear transform of the expectation such that the existing
+result in [86] cannot be applied directly. A detailed proof can be found in Appendix EC.5.
+4.1. Alternative Algorithmic Choices
+In this subsection, we discuss some other possibilities for designing an algorithm to solve (8).
+As the objective in (8) involves the composition of two expectations, a natural idea to solve this
+problem is to design algorithms leveraging techniques from stochastic compositional optimization
+problem [101, 51, 108], but they cannot be applied directly here because they assume that the inner
+expected-value is independent of the randomness in the outer expectation, while the inner expectation
+of our objective in (8) depends on samples 𝑥ˆ𝑖
+,𝑖 = 1, . . . , 𝑛. The recent conditional stochastic compositional
+(CSCO) optimization [55, 56], which aims to minimize a composition of two expected-value functions
+with the inner expectation taken with respect to a conditional distribution, also opens the door for
+designing efficient algorithms for solving (8). Although the objective in (8) cannot be written as
+a CSCO problem, it naturally fits the structure when the dual variable 𝜆 > 0 is fixed. However, we
+find that it takes relatively long time to obtain an optimal variable 𝜃 when 𝜆 is fixed, as the lack of
+strong-convexity and smoothness structure of the objective makes the state-of-the-art CSCO algorithm
+(BSGD in [55]) difficult to converge empirically. Since we need to optimize variables (𝜆,𝜃) jointly, the
+global convergence of CSCO for the problem (8) is even more challenging. In extensive simulations
+that we omit, we find that our proposed method solves the Sinkhorn DRO problem more efficiently
+than the state-of-the-art CSCO algorithm and standard projected gradient descent without bisection
+search.
+In our algorithm, we optimize 𝜃 for a fixed 𝜆. An alternative would be to optimize (𝜆,𝜃) jointly.
+However, as pointed out in [68], for 𝜆 of a small value, the variance of the gradient estimate of the
+objective function with respect to 𝜆 is unstable. Hence, we develop a bisection method to update 𝜆 in
+outer iterations in Algorithm 1.
+Moreover, we observe that in each inner iteration for solving the sub-problem (10), the most
+computationally expansive step is to obtain the gradient of 𝐹ˆ
+(𝑚)
+𝜆
+, the complexity of which is of 𝑂(𝑛𝑚).
+For large-scale statistical learning problems, it is therefore promising to use the projected stochastic
+gradient method instead of projected gradient descent to solve the sub-problem (10), but the condition
+that guarantees convergence is more restrictive, which can be a topic for future study. For small-scale
+problems, one can also write the problem in standard conic optimization form and use the interior
+point method [70, 53] to solve it.
+It is worth mentioning that the strategy in [21] can be applied to obtain an unbiased gradient
+estimate for the expectation term in (8), but the presence of the logarithm makes it not easy to use
+standard stochastic gradient descent with unbiased gradient estimate for optimization. Instead, we
+use the Monte Carlo samples problem (9) to approximate (8). It is promising to use other numerical
+integration techniques such as Quasi-Monte Carlo method [74] and Wavelet method [6] to approximate
+the objective (8) efficiently, which is of research interest for future study.
+5. Applications
+In this section, we apply our methodology on three applications: the newsvendor model, meanrisk portfolio optimization, and semi-supervised learning. We examine the performance of the
+(Sinkhorn DRO) model by comparing it with three benchmarks: (i) the classical sample average
+15
+approximation (SAA) model; (ii) the Wasserstein DRO model; and (iii) the KL-divergence DRO model.
+Unless otherwise specified, the cost function is chosen to be 𝑐(·, ·) =
+1
+2
+k · − · k2
+, and the reference
+measure 𝜈 for the Sinkhorn distance is chosen to be the Lebesgue measure.
+For each of the three applications, with 𝑛 training samples, we select the pair of hyper-parameters
+(𝜖, 𝜌) using the 𝐾-fold cross-validation method with 𝐾 = 10. Since the grid search for an optimal pair
+of hyper-parameters is more costly than the search for a single hyper-parameter, we first tune the
+hyper-parameter 𝜖 while fixing 𝜌 = 0, which corresponds to the SAA problem in (4). Then for the
+chosen 𝜖, we tune the Sinkhorn radius 𝜌. We run the repeated experiments for 200 times.
+In Section 5.1 and Section 5.2, we measure the out-of-sample performance of a solution 𝜃 by its
+relative performance gap 𝐽 (𝜃)−𝐽
+∗
+1+
+
+
+𝐽
+∗
+
+
+, where 𝐽
+∗ denotes the true optimal value when the true distribution
+is known exactly, and 𝐽 (𝜃) the expected loss of the solution 𝜃 under the true distribution, estimated
+through an SAA objective value with 105
+testing samples. Thus, the smaller the relative performance
+gap is, the better out-of-sample performance the solution has.
+Further details are included in Appendix EC.1.
+5.1. Newsvendor Model
+We consider the following distributionally robust newsvendor model:
+min
+𝜃
+max
+ℙ∈𝔹𝜌,𝜖 (ℙb)
+𝔼ℙ
+
+𝑘𝜃 −𝑢 min(𝜃, 𝑧)
+
+,
+where the random variable 𝑧 stands for the random demand; its empirical distribution ℙb consists of
+𝑛 = 20 independent samples from an exponential distribution ℙ∗ with the density 𝑓 (𝑥;𝑠) =
+1
+𝑠
+exp
+−
+𝑥
+𝑠
+
+,
+where 𝑠 ∈ {0.25, 0.5, 0.75, 1, 2, 4}; the decision variable 𝜃 represents the inventory level; and 𝑘 = 5,𝑢 = 7
+are constants corresponding to overage and underage costs, respectively.
+Values of hyper-parameters are recorded in Table 1, from which we can see that the optimal entropic
+regularization parameter 𝜖 increases when the distribution scale parameter 𝑠 increases. This is because
+a distribution ℙ∗ with larger value of 𝑠 has larger variance, and to achieve better out-of-sample
+performance, a larger entropic regularization parameter 𝜖 is needed to encourage larger spread of
+probability mass.
+Table 1 Values of selected hyper-parameters by cross-validation for the newsvendor problem.
+Parameter 𝑠 Regularization 𝜖 Sinkhorn Radius 𝜌 Wasserstein Radius 𝜌 KL-DRO Radius 𝜂
+0.25 2e-2 1e-2 1e-3 2e-3
+0.5 5e-2 6e-3 2e-3 7e-3
+0.75 8e-2 1e-3 1e-2 2e-2
+1 2e-1 6e-3 3e-1 1e-2
+2 4e-1 1e-2 3e-1 4e-2
+4 1e-0 6e-2 4e-1 5e-3
+We report the violin plots, i.e., box plots with shapes formed by kernel density estimation, for the
+relative performance gap across different approaches in Fig. 1. We find that Sinkhorn DRO has the
+best out-of-sample mean/median performance in all figures, and has the most stable performance as
+indicated by the most concentrated violin plot. Wasserstein DRO, one the other hand, has a comparable
+performance as SAA when 𝑠 is small (and small radius 𝜌, as indicated in Table 1), but is even worse
+than SAA for large 𝑠 (and large 𝜌, as indicated in Table 1). This is because for small 𝜌, the Wasserstein
+robust solution coincides with the SAA solution and thus does not regularizer the problem, similar to
+the observation made in [67, Remark 6.7] when the support of ℙ∗ is ℝ; whereas for large 𝜌, it hedges
+distributions that are too extreme (which puts positive probability mass on zero demand), leading t
+16
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.00
+0.02
+0.04
+0.06
+0.08
+0.10
+Relative Performance Gap
+n = 20 and s = 0.25
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.00
+0.05
+0.10
+0.15
+0.20
+Relative Performance Gap
+n = 20 and s = 0.5
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.00
+0.05
+0.10
+0.15
+0.20
+0.25
+Relative Performance Gap
+n = 20 and s = 0.75
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.05
+0.00
+0.05
+0.10
+0.15
+0.20
+0.25
+0.30
+Relative Performance Gap
+n = 20 and s = 1
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.0
+0.1
+0.2
+0.3
+0.4
+0.5
+Relative Performance Gap
+n = 20 and s = 2
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.0
+0.2
+0.4
+0.6
+Relative Performance Gap
+n = 20 and s = 4
+Figure 1 Out-of-sample performances for the newsvendor model with parameters 𝑠 ∈ {0.25, 0.5, 0.75, 1, 2, 4} and the fixed
+sample size 𝑛 = 20.
+an overly conservative solution. Moreover, the KL-divergence DRO does not have much improvement
+compared with the SAA model, likely because the induced worst-case distribution shares the same
+support as the empirical distribution.
+5.2. Mean-risk Portfolio Optimization
+We consider the following distributionally robust mean-risk portfolio optimization problem
+min
+𝜃
+max
+ℙ∈𝔹𝜌,𝜖 (ℙb)
+𝔼ℙ∗
+[−𝜃
+T
+𝑧] + 𝜚 · ℙ-CVaR𝛼 (−𝜃
+T
+𝑧)
+s.t. 𝜃 ∈ Θ = {𝜃 ∈ ℝ
+𝑑
++
+: 𝜃
+T
+1 = 1},
+where the random vector 𝑧 ∈ ℝ𝑑
+stands for the returns of assets; the decision variable 𝜃 ∈ Θ represents
+the portfolio strategy that invests a certain percentage 𝜃𝑖 of the available capital in the 𝑖-th asset; and
+the term ℙ-CVaR𝛼 (−𝜃
+T
+𝑧) quantifies conditional value-at-risk [82], i.e., the average of the 𝛼 × 100%
+worst portfolio losses under the distribution ℙ. We follow a similar setup as in [67]. Specifically, we set
+𝛼 = 0.2, 𝜚 = 10. The random asset 𝑧 ∼ ℙ∗ can be decomposed into a systematic risk factor 𝜓 ∈ ℝ and
+idiosyncratic risk factors 𝜖 ∈ ℝ𝑑
+:
+𝑧𝑖 =𝜓 +𝜖𝑖
+, 𝑖 = 1, 2, . . . , 𝐷,
+where 𝜓 ∼ N (0, 0.02) and 𝜖𝑖 ∼ N (𝑖 ×0.03,𝑖 ×0.025). We fixed the training sample size 𝑛 = 20 and vary
+the number of assets 𝐷 ∈ {10, 20, 50}. We solve this problem using Algorithm 1, in which the projected
+gradient descent step to update 𝜃 follows the implementation in [27] to project onto the probability
+simplex Θ.
+The violin plots for the relative performance gap across different approaches are reported in Fig. 2.
+Similar as the finding in Section 5.1, both the Wasserstein DRO and KL-divergence DRO models do not
+outperform the SAA method too much, while Sinkhorn DRO has the best out-of-sample performance
+for all plots as indicated by the smallest mean/median as well as the most concentrated violin plots,
+and the contrast is more apparent when the dimension 𝐷 is large.
+17
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.00
+0.05
+0.10
+0.15
+0.20
+0.25
+0.30
+0.35
+Relative Performance Gap
+n = 20 and D = 10
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.00
+0.05
+0.10
+0.15
+0.20
+0.25
+0.30
+0.35
+Relative Performance Gap
+n = 20 and D = 20
+SAA Sinkhorn Wasserstein KL-divergence
+Method
+0.00
+0.05
+0.10
+0.15
+0.20
+0.25
+Relative Performance Gap
+n = 20 and D = 50
+Figure 2 Out-of-sample performances for the portfolio optimization problem with the dimension 𝐷 ∈ {10, 20, 50} and a
+fixed sample size 𝑛 = 20.
+5.3. Semi-supervised Learning
+Our last example is a semi-supervised learning task following a similar setup as in [15]. Suppose we
+have a training data set D𝑛 = {(𝑋𝑖
+,𝑌𝑖)}𝑛
+𝑖=1
+, where 𝑌𝑖 ∈ {−1, 1} denotes the label of the 𝑖-th observation.
+Additionally, we have a set of unlabeled observations {𝑋𝑖 }
+𝑁
+𝑖=𝑛+1
+. We build the set E𝑁 −𝑛 = {(𝑋𝑖
+, 1)}𝑁
+𝑖=𝑛+1
+∪
+{(𝑋𝑖
+,−1)}𝑁
+𝑖=𝑛+1
+, which means we replicate each unlabeled data point twice, recognizing that the
+missing label can be any of the two available alternatives. Then we formulate an empirical distribution
+consisting of samples from the set X𝑁 = D𝑛 ∪ E𝑁 −𝑛, which is denoted as ℙb. Considering the following
+distributionally robust formulation:
+min
+𝜃
+max
+ℙ∈𝔹𝜌,𝜖 (ℙb)
+𝔼ℙ
+
+ℓ(𝜃; (𝑋,𝑌))
+where ℓ(𝜃; (𝑋,𝑌)) = log(1 + exp(−𝑌 · 𝜃
+T𝑋)).
+We also solve this task using the other three benchmark models. The cost function over this subsection
+is set to be
+𝑐( (𝑥,𝑦), (𝑥
+0
+,𝑦0
+)) =
+1
+2
+k𝑥 −𝑥
+0
+k
+2
+2
+1{𝑦 =𝑦
+0
+} +𝜅1{𝑦 ≠𝑦
+0
+},
+where the parameter 𝜅 = ∞ means that there is no labeling error. In this case, in the duality result for
+the Sinkhorn DRO, we only need to robustify the feature vectors 𝑋.
+We consider three performance measures for the obtained classifiers: (i) the training error of samples
+with known labels; (ii) the training error of samples with unknown labels; and (iii) the testing error
+for new observations. The experiment is conducted using 4 binary classification real data sets from UCI
+machine learning data base [40]. In each of the repeated experiments for each data set, we randomly
+partition the collected samples into training and testing data sets.
+Classification results for these different approaches are reported in Table 2, where the first number
+of each entry represents the average classification error, and the second number of entry represents
+the half-length of the 95% confidence interval. Detailed parameters for the settings of this task and
+the choices of hyper-parameters are reported in Appendix EC.1. We observe that though the Sinkhorn
+DRO does not have the best in-sample performance (as indicated by the training error of samples with
+known labels), it has the best out-of-sample performance for all data sets (as indicated by the smallest
+training error of samples with unknown labels and the smallest testing error).
+6. Concluding Remarks
+In this paper, we investigated a new distributionally robust optimization framework based on the
+Sinkhorn distance. By developing a strong dual reformulation and a customized batch gradient
+descent with bisection search algorithm, we have shown that the resulting DRO problem is tractable
+18
+Table 2 Classification results on real datasets for the semi-supervised learning task. Each experiment is repeated for 200
+independent trials, and 95% confidence intervals of classification errors are reported for different approaches.
+SAA Sinkhorn Wasserstein KL-divergence
+Breast Cancer
+Train (Labeled) .058 ± .061 .051 ± .065 .051 ± .063 .057 ± .060
+Train (Unlabeled) .20 ± .068 .12 ± .068 .17 ± .073 .19 ± .038
+Test Error .19 ± .073 .11 ± .067 .17 ± .075 .19 ± .073
+Magic
+Train (Labeled) .17 ± .12 .18 ± .11 .17 ± .11 .15 ± .12
+Train (Unlabeled) .28 ± .082 .25 ± .091 .27 ± .077 .26 ± .078
+Test Error .28 ± .064 .25 ± .074 .27 ± .058 .27 ± .066
+QSAR Bio
+Train (Labeled) .12 ± .067 .15 ± .076 .16 ± .073 .11 ± .066
+Train (Unlabeled) .25 ± .057 .22 ± .063 .23 ± .073 .25 ± .037
+Test Error .25 ± .062 .22 ± .065 .23 ± .079 .25 ± .042
+Spambase
+Train (Labeled) .10 ± .046 .10 ± .048 .096 ± .045 .10 ± .043
+Train (Unlabeled) .19 ± .038 .14 ± .046 .16 ± .036 .18 ± .034
+Test Error .19 ± .032 .14 ± .036 .16 ± .028 .18 ± .042
+under mild assumptions, greatly spans the tractability of Wasserstein DRO. Analysis on the worst-case
+distribution indicates that Sinkhorn DRO hedges a more reasonable set of adverse scenarios and
+thus less conservative compared with Wasserstein DRO, which is then demonstrated via extensive
+numerical experiments. Based on theoretical and numerical findings, we conclude that the Sinkhorn
+distance is a promising candidate for modeling distributional ambiguities in decision-making under
+uncertainty from the perspective of computational tractability, modeling rationality and out-of-sample
+performance.
+In the meantime, several topics worth in-depth investigating are left for future works. It is interesting
+to design efficient first-order algorithms for Sinkhorn DRO when the nominal distribution is arbitrary
+or when the loss function is non-convex in the decision variable. Moreover, a meaningful research
+question is the choice of the optimal hyper-parameters in Sinkhorn DRO, such as the radius of the
+ambiguity set 𝜌, the entropic regularization parameters 𝜖, and reference measures 𝜈. This paper
+focuses on regularizing Wasserstein distance with the entropic regularization – the Sinkhorn distance,
+but extensions to other types of regularization are possible. Exploring and discovering the benefits of
+Sinkhorn DRO in other types of applications may lead to future research directions.
+Appendix A: Sufficient condition for Assumption 1
+Proposition 3. Assumption 1 holds if there exists 𝑝 ≥ 1 so that the following conditions are satisfied:
+(I) For any 𝑥,𝑦, 𝑧 ∈ Z, 𝑐(𝑥,𝑦) ≥ 0, and
+(𝑐(𝑥,𝑦))1/𝑝 ≤ (𝑐(𝑥, 𝑧))1/𝑝 + (𝑐(𝑧,𝑦))1/𝑝
+.
+(II) The nominal distribution ℙb has a finite mean, denoted as 𝑥. Moreover, 𝜈{𝑧 : 0 ≤ 𝑐(𝑥, 𝑧) < ∞} = 1
+and
+Pr
+𝑥∼ℙb{𝑐(𝑥,𝑥) < ∞} = 1.
+19
+(III) There exists 𝜆 > 0 such that
+∫
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+𝑒
+−2
+1−𝑝
+𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) < ∞.
+We make some remarks for the sufficient conditions listed above. The first condition can be satisfied
+by taking the cost function as the 𝑝-th power of the metric defined on Z for any 𝑝 ≥ 1. The second
+condition requires the nominal distribution ℙb is finite almost surely, e.g., it can be a subguassian
+distribution with respect to the cost function 𝑐. Combining three conditions together and levering
+concentration arguments completes the proof of Proposition 3.
+References
+[1] Abdullah MA, Ren H, Ammar HB, Milenkovic V, Luo R, Zhang M, Wang J (2019) Wasserstein robust
+reinforcement learning. arXiv preprint arXiv:1907.13196 .
+[2] Agrawal S, Ding Y, Saberi A, Ye Y (2012) Price of correlations in stochastic optimization. Operations Research
+60(1):150–162.
+[3] Altschuler J, Weed J, Rigollet P (2017) Near-linear time approximation algorithms for optimal transport via
+sinkhorn iteration. Advances in Neural Information Processing Systems, 1961–1971.
+[4] ApS M (2021) Mosek modeling cookbook 3.2.3. https://docs.mosek.com/modeling-cookbook/index.
+html#.
+[5] Asmussen S, Glynn PW (2007) Stochastic simulation: algorithms and analysis, volume 57 (Springer Science
+& Business Media).
+[6] Aziz I, Haq F, et al. (2010) A comparative study of numerical integration based on haar wavelets and hybrid
+functions. Computers & Mathematics with Applications 59(6):2026–2036.
+[7] Bacharach M (1965) Estimating nonnegative matrices from marginal data. International Economic Review
+6(3):294–310.
+[8] Bai Y, Wu X, Ozgur A (2020) Information constrained optimal transport: From talagrand, to marton, to
+cover. 2020 IEEE International Symposium on Information Theory (ISIT), 2210–2215.
+[9] Bayraksan G, Love DK (2015) Data-driven stochastic programming using phi-divergences. The Operations
+Research Revolution, 1–19 (INFORMS).
+[10] Ben-Tal A, den Hertog D, De Waegenaere A, Melenberg B, Rennen G (2013) Robust solutions of optimization
+problems affected by uncertain probabilities. Management Science 59(2):341–357.
+[11] Bertsimas D, Natarajan K, Teo CP (2006) Persistence in discrete optimization under data uncertainty.
+Mathematical programming 108(2):251–274.
+[12] Bertsimas D, Sim M, Zhang M (2019) Adaptive distributionally robust optimization. Management Science
+65(2):604–618.
+[13] Blanchet J, Chen L, Zhou XY (2018) Distributionally robust mean-variance portfolio selection with
+wasserstein distances. arXiv preprint arXiv:1802.04885 .
+[14] Blanchet J, Glynn PW, Yan J, Zhou Z (2019) Multivariate distributionally robust convex regression under
+absolute error loss. Advances in Neural Information Processing Systems, volume 32, 11817–11826.
+[15] Blanchet J, Kang Y (2020) Semi-supervised learning based on distributionally robust optimization. Data
+Analysis and Applications 3 1–33.
+[16] Blanchet J, Kang Y, Murthy K (2019) Robust wasserstein profile inference and applications to machine
+learning. Journal of Applied Probability 56(3):830–857.
+[17] Blanchet J, Murthy K (2019) Quantifying distributional model risk via optimal transport. Mathematics of
+Operations Research 44(2):565–600.
+[18] Blanchet J, Murthy K, Nguyen VA (2021) Statistical analysis of wasserstein distributionally robust estimators.
+arXiv preprint arXiv:2108.02120 .
+20
+[19] Blanchet J, Murthy K, Si N (2021) Confidence regions in wasserstein distributionally robust estimation.
+arXiv preprint arXiv:1906.01614 .
+[20] Blanchet J, Murthy K, Zhang F (2021) Optimal transport based distributionally robust optimization:
+Structural properties and iterative schemes. arXiv preprint arXiv:1810.02403 .
+[21] Blanchet JH, Glynn PW (2015) Unbiased monte carlo for optimization and functions of expectations via
+multi-level randomization. 2015 Winter Simulation Conference (WSC), 3656–3667.
+[22] Boyd S, Vandenberghe L (2004) Convex optimization (Cambridge university press).
+[23] Chang JT, Pollard D (2001) Conditioning as disintegration. Statistica Neerlandica 51(3):287–317.
+[24] Chen R, Paschalidis IC (2018) A robust learning approach for regression models based on distributionally
+robust optimization. Journal of Machine Learning Research 19(13):1–48.
+[25] Chen R, Paschalidis IC (2019) Selecting optimal decisions via distributionally robust nearest-neighbor
+regression. Advances in Neural Information Processing Systems.
+[26] Chen Y, Li W (2021) Natural gradient in wasserstein statistical manifold. arXiv preprint arXiv:1805.08380 .
+[27] Chen Y, Ye X (2011) Projection onto a simplex. arXiv preprint arXiv:1101.6081 .
+[28] Chen Z, Kuhn D, Wiesemann W (2018) Data-driven chance constrained programs over wasserstein balls.
+arXiv preprint arXiv:1809.00210 .
+[29] Chen Z, Sim M, Xu H (2019) Distributionally robust optimization with infinitely constrained ambiguity
+sets. Operations Research 67(5):1328–1344.
+[30] Cherukuri A, Cortés J (2019) Cooperative data-driven distributionally robust optimization. IEEE Transactions
+on Automatic Control 65(10):4400–4407.
+[31] Courty N, Flamary R, Habrard A, Rakotomamonjy A (2017) Joint distribution optimal transportation for
+domain adaptation. Advances in Neural Information Processing Systems.
+[32] Courty N, Flamary R, Tuia D (2014) Domain adaptation with regularized optimal transport. Joint European
+Conference on Machine Learning and Knowledge Discovery in Databases, 274–289.
+[33] Courty N, Flamary R, Tuia D, Rakotomamonjy A (2016) Optimal transport for domain adaptation. IEEE
+Transactions on Pattern Analysis and Machine Intelligence 39(9):1853–1865.
+[34] Cover TM, Thomas JA (2006) Elements of Information Theory (Wiley-Interscience).
+[35] Cuturi M (2013) Sinkhorn distances: Lightspeed computation of optimal transport. Advances in neural
+information processing systems, volume 26, 2292–2300.
+[36] Delage E, Ye Y (2010) Distributionally robust optimization under moment uncertainty with application to
+data-driven problems. Operations Research 58(3):595–612.
+[37] Deming WE, Stephan FF (1940) On a least squares adjustment of a sampled frequency table when the
+expected marginal totals are known. The Annals of Mathematical Statistics 11(4):427–444.
+[38] Derman E, Mannor S (2020) Distributional robustness and regularization in reinforcement learning. arXiv
+preprint arXiv:2003.02894 .
+[39] Doan XV, Natarajan K (2012) On the complexity of nonoverlapping multivariate marginal bounds for
+probabilistic combinatorial optimization problems. Operations research 60(1):138–149.
+[40] Dua D, Graff C (2017) UCI machine learning repository. [Online]. Available: http://archive.ics.uci.
+edu/ml .
+[41] Duchi JC, Glynn PW, Namkoong H (2021) Statistics of robust optimization: A generalized empirical
+likelihood approach. Mathematics of Operations Research 0(0).
+[42] Eckstein S, Kupper M, Pohl M (2020) Robust risk aggregation with neural networks. Mathematical Finance
+30(4):1229–1272.
+[43] Fréchet M (1960) Sur les tableaux dont les marges et des bornes sont données. Revue de l’Institut
+international de statistique 10–32.
+[44] Gao R (2020) Finite-sample guarantees for wasserstein distributionally robust optimization: Breaking the
+curse of dimensionality. arXiv preprint arXiv:2009.04382 .
+21
+[45] Gao R, Chen X, Kleywegt AJ (2020) Wasserstein distributionally robust optimization and variation
+regularization. arXiv preprint arXiv:1712.06050 .
+[46] Gao R, Kleywegt AJ (2016) Distributionally robust stochastic optimization with Wasserstein distance. arXiv
+preprint arXiv:1604.02199 .
+[47] Gao R, Kleywegt AJ (2017) Data-driven robust optimization with known marginal distributions. Working
+paper. Available at https://faculty.mccombs.utexas.edu/rui.gao/copula.pdf .
+[48] Gao R, Kleywegt AJ (2017) Distributionally robust stochastic optimization with dependence structure. arXiv
+preprint arXiv:1701.04200 .
+[49] Genevay A, Cuturi M, Peyré G, Bach F (2016) Stochastic optimization for large-scale optimal transport.
+Advances in Neural Information Processing Systems, volume 29.
+[50] Genevay A, Peyre G, Cuturi M (2018) Learning generative models with sinkhorn divergences. Proceedings
+of the Twenty-First International Conference on Artificial Intelligence and Statistics, volume 84 of Proceedings
+of Machine Learning Research, 1608–1617 (PMLR).
+[51] Ghadimi S, Ruszczynski A, Wang M (2020) A single timescale stochastic approximation method for nested
+stochastic optimization. SIAM Journal on Optimization 30(1):960–979.
+[52] Goh J, Sim M (2010) Distributionally robust optimization and its tractable approximations. Operations
+Research 58(4-part-1):902–917.
+[53] Grant M, Boyd S (2014) CVX: Matlab software for disciplined convex programming, version 2.1. http:
+//cvxr.com/cvx.
+[54] Härdle W (1990) Applied nonparametric regression (Cambridge university press).
+[55] Hu Y, Chen X, He N (2020) Sample complexity of sample average approximation for conditional stochastic
+optimization. SIAM Journal on Optimization 30(3):2103–2133.
+[56] Hu Y, Zhang S, Chen X, He N (2020) Biased stochastic first-order methods for conditional stochastic
+optimization and applications in meta learning. Advances in Neural Information Processing Systems,
+volume 33, 2759–2770.
+[57] Hu Z, Hong LJ (2012) Kullback-leibler divergence constrained distributionally robust optimization. Optimization Online preprint Optimization Online:2012/11/3677 .
+[58] Huang M, Ma S, Lai L (2021) A riemannian block coordinate descent method for computing the projection
+robust wasserstein distance. Proceedings of the 38th International Conference on Machine Learning, 4446–
+4455.
+[59] Jain P, Kar P (2017) Non-convex optimization for machine learning. Foundations and Trends in Machine
+Learning 10(3-4):142–363.
+[60] Kruithof J (1937) Telefoonverkeersrekening. De Ingenieur 52:15–25.
+[61] Kuhn D, Esfahani PM, Nguyen VA, Shafieezadeh-Abadeh S (2019) Wasserstein distributionally robust
+optimization: Theory and applications in machine learning. Operations Research & Management Science in
+the Age of Analytics, 130–166 (INFORMS).
+[62] Li J, Huang S, So AMC (2019) A first-order algorithmic framework for wasserstein distributionally robust
+logistic regression. Proceedings of the 33rd International Conference on Neural Information Processing Systems,
+3937–3947.
+[63] Li W, Montufar G (2021) Natural gradient via optimal transport. arXiv preprint arXiv:1803.07033 .
+[64] Lin T, Fan C, Ho N, Cuturi M, Jordan M (2020) Projection robust wasserstein distance and riemannian
+optimization. Advances in Neural Information Processing Systems, volume 33, 9383–9397.
+[65] Luise G, Rudi A, Pontil M, Ciliberto C (2018) Differential properties of sinkhorn approximation for learning
+with wasserstein distance. Advances in Neural Information Processing Systems.
+[66] Luo F, Mehrotra S (2019) Decomposition algorithm for distributionally robust optimization using wasserstein
+metric with an application to a class of regression models. European Journal of Operational Research
+278(1):20–35.
+22
+[67] Mohajerin Esfahani P, Kuhn D (2017) Data-driven distributionally robust optimization using the wasserstein
+metric: performance guarantees and tractable reformulations. Mathematical Programming 171(1):115–166.
+[68] Namkoong H, Duchi JC (2016) Stochastic gradient methods for distributionally robust optimization with
+f-divergences. Advances in Neural Information Processing Systems, volume 29, 2208–2216.
+[69] Natarajan K, Song M, Teo CP (2009) Persistency model and its applications in choice modeling. Management
+Science 55(3):453–469.
+[70] Nemirovski A (2002) Lectures on modern convex optimization. Society for Industrial and Applied Mathematics
+(SIAM.
+[71] Nesterov Y, Nemirovskii A (1994) Interior-point polynomial algorithms in convex programming (SIAM).
+[72] Nguyen VA, Si N, Blanchet J (2020) Robust bayesian classification using an optimistic score ratio.
+International Conference on Machine Learning, 7327–7337.
+[73] Nguyen VA, Zhang F, Blanchet J, Delage E, Ye Y (2021) Robustifying conditional portfolio decisions via
+optimal transport. arXiv preprint arXiv:2103.16451 .
+[74] Niederreiter H (1992) Random number generation and quasi-Monte Carlo methods (SIAM).
+[75] Patrini G, van den Berg R, Forre P, Carioni M, Bhargav S, Welling M, Genewein T, Nielsen F (2020) Sinkhorn
+autoencoders. Uncertainty in Artificial Intelligence, 733–743.
+[76] Petzka H, Fischer A, Lukovnikov D (2018) On the regularization of wasserstein GANs. International
+Conference on Learning Representations.
+[77] Peyre G, Cuturi M (2019) Computational optimal transport: With applications to data science. Foundations
+and Trends in Machine Learning 11(5-6):355–607.
+[78] Pflug G, Wozabal D (2007) Ambiguity in portfolio selection. Quantitative Finance 7(4):435–442.
+[79] Pichler A, Shapiro A (2021) Mathematical foundations of distributionally robust multistage optimization.
+arXiv preprint arXiv:2101.02498 .
+[80] Popescu I (2005) A semidefinite programming approach to optimal-moment bounds for convex classes of
+distributions. Mathematics of Operations Research 30(3):632–657.
+[81] Rahimian H, Mehrotra S (2019) Distributionally robust optimization: A review. arXiv preprint
+arXiv:1908.05659 .
+[82] Rockafellar RT, Uryasev S, et al. (1999) Optimization of conditional value-at-risk. Journal of risk 2:21–42.
+[83] Scarf H (1957) A min-max solution of an inventory problem. Studies in the mathematical theory of inventory
+and production .
+[84] Shafieezadeh-Abadeh S, Kuhn D, Esfahani PM (2019) Regularization via mass transportation. Journal of
+Machine Learning Research 20(103):1–68.
+[85] Shafieezadeh Abadeh S, Mohajerin Esfahani PM, Kuhn D (2015) Distributionally robust logistic regression.
+Advances in Neural Information Processing Systems, volume 28.
+[86] Shapiro A, Dentcheva D, Ruszczyński A (2014) Lectures on stochastic programming: modeling and theory
+(SIAM).
+[87] Singh D, Zhang S (2020) Tight bounds for a class of data-driven distributionally robust risk measures. arXiv
+preprint arXiv:2010.05398 .
+[88] Singh D, Zhang S (2021) Distributionally robust profit opportunities. Operations Research Letters 49(1):121–
+128.
+[89] Sinha A, Namkoong H, Duchi J (2018) Certifiable distributional robustness with principled adversarial
+training. International Conference on Learning Representations.
+[90] Sinkhorn R (1964) A relationship between arbitrary positive matrices and doubly stochastic matrices. The
+annals of mathematical statistics 35(2):876–879.
+[91] Smirnova E, Dohmatob E, Mary J (2019) Distributionally robust reinforcement learning. arXiv preprint
+arXiv:1902.08708 .
+23
+[92] Staib M, Jegelka S (2019) Distributionally robust optimization and generalization in kernel methods.
+Advances in Neural Information Processing Systems 32:9134–9144.
+[93] Taskesen B, Nguyen VA, Kuhn D, Blanchet J (2020) A distributionally robust approach to fair classification.
+arXiv preprint arXiv:2007.09530 .
+[94] Van Parys BP, Goulart PJ, Kuhn D (2015) Generalized gauss inequalities via semidefinite programming.
+Mathematical Programming 156(1-2):271–302.
+[95] Vandenberghe L, Boyd S (1995) Semidefinite programming. SIAM review 38(1):49–95.
+[96] Wang C, Gao R, Qiu F, Wang J, Xin L (2018) Risk-based distributionally robust optimal power flow with
+dynamic line rating. IEEE Transactions on Power Systems 33(6):6074–6086.
+[97] Wang J, Gao R, Xie Y (2021) Two-sample test using projected wasserstein distance. 2021 IEEE International
+Symposium on Information Theory (ISIT).
+[98] Wang J, Gao R, Xie Y (2021) Two-sample test with kernel projected wasserstein distance. arXiv preprint
+arXiv:2102.06449 .
+[99] Wang J, Gao R, Zha H (2021) Reliable off-policy evaluation for reinforcement learning. arXiv preprint
+arXiv:2011.04102 .
+[100] Wang J, Jia Z, Yin H, Yang S (2021) Small-sample inferred adaptive recoding for batched network coding.
+2021 IEEE International Symposium on Information Theory (ISIT).
+[101] Wang M, Fang EX, Liu H (2016) Stochastic compositional gradient descent: algorithms for minimizing
+compositions of expected-value functions. Mathematical Programming 161(1-2):419–449.
+[102] Wang Z, Glynn PW, Ye Y (2015) Likelihood robust optimization for data-driven problems. Computational
+Management Science 13(2):241–261.
+[103] Wiesemann W, Kuhn D, Sim M (2014) Distributionally robust convex optimization. Operations Research
+62(6):1358–1376.
+[104] Wozabal D (2012) A framework for optimization under ambiguity. Annals of Operations Research 193(1):21–
+47.
+[105] Xie W (2019) On distributionally robust chance constrained programs with wasserstein distance. Mathematical Programming 186(1):115–155.
+[106] Yang I (2017) A convex optimization approach to distributionally robust markov decision processes with
+wasserstein distance. IEEE control systems letters 1(1):164–169.
+[107] Yang I (2020) Wasserstein distributionally robust stochastic control: A data-driven approach. IEEE
+Transactions on Automatic Control 66(8):3863–3870.
+[108] Yang S, Wang M, Fang EX (2019) Multilevel stochastic gradient methods for nested composition optimization.
+SIAM Journal on Optimization 29(1):616–659.
+[109] Yule GU (1912) On the methods of measuring association between two attributes. Journal of the Royal
+Statistical Society 75(6):579–652.
+[110] Zhao C, Guan Y (2018) Data-driven risk-averse stochastic optimization with wasserstein metric. Operations
+Research Letters 46(2):262–267.
+[111] Zhu J, Jitkrittum W, Diehl M, Schölkopf B (2021) Kernel distributionally robust optimization: Generalized
+duality theorem and stochastic approximation. Proceedings of The 24th International Conference on Artificial
+Intelligence and Statistics, 280–288.
+[112] Zymler S, Kuhn D, Rustem B (2013) Distributionally robust joint chance constraints with second-order
+moment information. Mathematical Programming 137(1):167–198.
+ec1
+Supplementary for “Sinkhorn Distributionally Robust Optimization”
+Appendix EC.1: Detailed Experiment Setup
+All the experiments are preformed on a MacBook Pro laptop with 32GB of memory running python 3.7.
+Candidates of hyper-parameters for DRO models are listed as follows. In each experiment we pick
+the regularization term 𝜖 spaced from 1e-3 to 9e-1 in exponentially increasing steps. The Sinkhorn
+radius 𝜌 is chosen spaced from 1e-5 to 1e-1 in exponentially increasing steps. The Wasserstein
+radius 𝜌 and KL-DRO radius 𝜂 are chosen spaced from 1e-3 to 9e-1 in exponentially increasing steps.
+Hyper-parameters for the second and third experiments are reported in Table EC.1 and Table EC.2,
+respectively. To obtain the Monte Carlo approximated objective function for the Sinkhorn DRO model,
+we take the nominal distribution ℙb as the empirical distribution based on collected samples, and the
+inner batch size 𝑚 = 20. We use the projected gradient descent method to solve the subproblem in
+(10). For portfolio optimization problems we try the step size 𝜂ℓ =
+1
+√
+ℓ+1
+for the ℓ-th inner iteration.
+Otherwise we try the step size 𝜂ℓ =
+1
+ℓ+1
+during the ℓ-th inner iteration. Denote by objℓ
+the objective
+function obtained at the ℓ-th iteration. The inner iteration is terminated when kobjℓ+1−objℓ
+k
+1+ kobjℓ
+k
+≤ 1e-3.
+The SAA, Wasserstein DRO, and KL-divergence DRO models are solved exactly based on the interior
+point method-based solver Mosek [4]. In particular, based on [67, Corollary 5.1], the Wasserstein DRO
+formulation for the newsvendor problem in Section 5.1 becomes
+min
+𝜃,𝜆,𝑠,𝛾
+𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝑠𝑖
+s.t. (𝑘 −𝑢)𝜃 +𝛾𝑖,1𝑧ˆ𝑖 ≤ 𝑠𝑖
+,𝑖 ∈ [𝑛],
+𝑘𝜃 −𝑢𝑧ˆ𝑖 +𝛾𝑖,1𝑧ˆ𝑖 ≤ 𝑠𝑖
+,𝑖 ∈ [𝑛],
+𝛾𝑖,1 ≤ 𝜆,𝑖 ∈ [𝑛],
+| −𝛾𝑖,2 +𝑢| ≤ 𝜆,𝑖 ∈ [𝑛],
+𝛾 ≥ 0,
+where {𝑧ˆ1, . . . , 𝑧ˆ𝑛} denotes collected samples from ℙb∗. From [67, Eq. (27)] we can see that the
+Wasserstein DRO formulation for the portfolio optimization problem becomes
+min
+𝜃,𝜏,𝜆,𝑠
+𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝑠𝑖
+s.t. 𝜃 ∈ Θ,
+𝑏𝑗𝜏 +𝑎𝑗h𝜃, 𝑧ˆ𝑖i ≤ 𝑠𝑖
+,𝑖 ∈ [𝑛], 𝑗 ∈ [𝐻],
+k𝑎𝑗𝜃 k2 ≤ 𝜆, 𝑗 ∈ [𝐻].
+Recall that the KL-divergence DRO problem with radius 𝜂 ≥ 0 has the following tractable formulation:
+min
+𝜃 ∈Θ,𝜆≥0
+n
+𝜆𝜂 + 𝜆 log 
+𝔼ℙb
+h
+𝑒
+𝑓𝜃 (𝑧)/𝜆
+i o .
+ec2
+Table EC.1 Values of selected hyper-parameters by cross-validation for the portfolio optimization problem.
+Dimension 𝐷 Regularization 𝜖 Sinkhorn Radius 𝜌 Wasserstein Radius 𝜌 KL-DRO Radius 𝜂
+10 5e-2 2e-4 6e-3 1e-3
+20 7e-1 3e-4 5e-2 2e-3
+50 4e-1 2e-4 1e-3 2e-3
+Table EC.2 Values of classification parameters and hyper-parameters for DRO models.
+Breast Cancer Magic QSAR Bio Spambase
+Number of Predictors 30 10 30 56
+Train Size (Labeled) 40 30 80 150
+Train Size (Unlabeled) 200 300 500 600
+Test Size 329 18690 475 3850
+Sinkhorn Para. (𝜌, 𝜖) (2e-1,2e-5) (5e-1,6e-2) (8e-1,2e-3) (9e-3,2e-5)
+Wasserstein Para. 𝜌 1e-3 3e-3 3e-1 1e-2
+KL-DRO Para. 𝜂 2e-3 5e-3 3e-2 4e-2
+ec3
+Appendix EC.2: Proofs of Technical Results in Section 3.2
+In order to show the strong duality result in Theorem 1 when ℙb is an empirical distribution, we present
+the following technical lemma.
+Lemma EC.1. For fixed 𝜏 and a reference probability distribution ℚ ∈ P(Z), consider the optimization
+problem
+𝑣(𝜏) = sup
+ℙ∈P (Z)
+
+𝔼ℙ
+
+𝑓 (𝑧) −𝜏 log 
+dℙ
+dℚ
+(𝑧)
+  . (EC.1)
+(I) When 𝜏 = 0,
+𝑣(0) = ess sup
+ℚ
+(𝑓 ) , inf{𝑡 ∈ ℝ : Pr 𝑧∼ℚ{𝑓 (𝑧) > 𝑡 } = 0}.
+(II) When 𝜏 > 0 and
+𝔼ℚ
+h
+𝑒
+𝑓 (𝑧)/𝜏
+i
+< ∞,
+it holds that
+𝑣(𝜏) = 𝜏 log 
+𝔼ℚ
+h
+𝑒
+𝑓 (𝑧)/𝜏
+i  ,
+and lim𝜏 ↓0 𝑣(𝜏) = 𝑣(0). The optimal solution in (EC.1) has the expression
+dℙ(𝑧) =
+𝑒
+𝑓 (𝑧)/𝜏
+∫
+𝑒
+𝑓 (𝑢)/𝜏 dℚ(𝑢)
+dℚ(𝑧).
+(III) When 𝜏 > 0 and
+𝔼ℚ
+h
+𝑒
+𝑓 (𝑧)/𝜏
+i
+= ∞,
+we have that 𝑣(𝜏) = ∞.
+Proof of Lemma EC.1 We reformulate 𝑣(𝜏) based on the importance sampling trick:
+𝑣(𝜏) = sup
+𝐿: 𝐿≥0
+∫
+
+𝑓 (𝑧)𝐿(𝑧) −𝜏𝐿(𝑧) log𝐿(𝑧)
+
+dℚ(𝑧) :
+∫
+𝐿(𝑧) dℚ(𝑧) = 1
+
+.
+Then the remaining part follows the discussion in [57, Section 2.1].
+Proof of Corollary 1 We now introduce the epi-graphical variables 𝑠𝑖
+,𝑖 = 1, . . . , 𝑛 to reformulate 𝑉D as
+𝑉D =
+
+
+
+inf
+𝜆≥0,𝑠𝑖
+𝜆𝜌 +
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝑠𝑖
+s.t. 𝜆𝜖 log 
+𝔼ℚ𝑖,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  ≤ 𝑠𝑖
+,∀𝑖
+For fixed 𝑖, the 𝑖-th constraint can be reformulated as
+n
+exp 
+𝑠𝑖
+𝜆𝜖
+
+≥ 𝔼ℚ𝑖,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i o
+=
+
+1 ≥ 𝔼ℚ𝑖,𝜖 
+𝑒
+
+𝑓 (𝑧)−𝑠𝑖
+
+/(𝜆𝜖)
+
+=
+
+𝜆𝜖 ≥ 𝔼ℚ𝑖,𝜖 
+𝜆𝜖𝑒
+
+𝑓 (𝑧)−𝑠𝑖
+
+/(𝜆𝜖)
+
+=
+(
+𝜆𝜖 ≥
+∑︁
+𝐿
+ℓ=1
+ℚ𝑖,𝜖 (𝑧ℓ)𝑎𝑖,ℓ)\
+𝑎𝑖,ℓ ≥ 𝜆𝜖 exp 
+𝑓 (𝑧ℓ) −𝑠𝑖
+𝜆𝜖 
+,∀ℓ
+
+,
+where the second constraint set can be formulated as
+(𝜆𝜖,𝑎𝑖,ℓ, 𝑓 (𝑧ℓ) −𝑠𝑖) ∈ Kexp.
+Substituting this expression into 𝑉D completes the proof. 
+ec4
+Appendix EC.3: Proof of the Technical Result in Section 3.1
+Proof of Remark 3 We can reformulate the dual objective function as
+𝑣(𝜆;𝜖) = 𝜆𝜌 + 𝜆𝜖 ∫
+log ∫
+exp 
+𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+𝜆𝜖 
+d𝜈 (𝑧)
+
+dℙb(𝑥).
+We take limit for the second term in 𝑣(𝜆;𝜖) to obtain:
+lim
+𝜖→0
+𝜆𝜖 ∫
+log ∫
+exp 
+𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+𝜆𝜖 
+d𝜈 (𝑧)
+
+dℙb(𝑥)
+=
+∫
+lim
+𝛽→∞
+𝜆
+𝛽
+log ∫
+exp
+𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+
+𝛽
+𝜆
+!
+d𝜈 (𝑧)
+!
+dℙb(𝑥)
+=
+∫
+lim
+𝛽→∞
+𝜆∇log ∫
+exp
+𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+
+𝛽
+𝜆
+!
+d𝜈 (𝑧)
+!
+dℙb(𝑥)
+=
+∫
+
+
+
+
+
+
+
+
+
+lim
+𝛽→∞
+∫
+exp 
+𝑓 (𝑧)−𝜆𝑐 (𝑥,𝑧)
+
+𝛽
+𝜆
+
+
+𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+
+d𝜈 (𝑦)
+∫
+exp 
+𝑓 (𝑧)−𝜆𝑐 (𝑥,𝑧)
+
+𝛽
+𝜆
+
+d𝜈 (𝑦)
+
+
+
+
+
+
+
+
+
+dℙb(𝑥)
+=
+∫
+sup
+𝑧
+
+𝑓 (𝑧) −𝜆𝑐(𝑥, 𝑧)
+
+dℙb(𝑥).
+Hence, we conclude that the dual objective function of the Sinkhorn DRO problem converges into that
+of the Wasserstein DRO problem. 
+ec5
+Appendix EC.4: Proofs of Technical Results in Section 3.3
+Proof of Lemma 1 Recall from Remark 4 that the primal problem 𝑉 can be reformulated as
+𝑉 = sup
+𝛾𝑥 ∈P (Z),∀𝑥 ∈Z
+∫
+𝔼𝛾𝑥
+[𝑓 (𝑧)] dℙb(𝑥) : 𝜖
+∫
+𝔼𝛾𝑥
+
+log 
+d𝛾𝑥 (𝑧)
+dℚ𝑖(𝑧)
+  dℙb(𝑥) ≤ 𝜌
+
+.
+Introducing the Lagrange multiplier 𝜆 associated to the constraint, we reformulate 𝑉 as
+𝑉 = sup
+𝛾𝑥 ∈P (Z),∀𝑥 ∈Z
+
+inf
+𝜆≥0
+
+𝜆𝜌 +
+∫
+𝔼𝛾𝑥
+
+𝑓 (𝑧) −𝜆𝜖 log 
+d𝛾𝑥 (𝑧)
+dℚ𝑥,𝜖 (𝑧)
+  dℙb(𝑥)
+ .
+Interchanging the order of the supremum and infimum operators, we have that
+𝑉 ≤ inf
+𝜆≥0
+(
+𝜆𝜌 + sup
+𝛾𝑥 ∈P (Z),∀𝑥 ∈Z
+∫
+𝔼𝛾𝑥
+
+𝑓 (𝑧) −𝜆𝜖 log 
+d𝛾𝑥 (𝑧)
+dℚ𝑥,𝜖 (𝑧)
+  dℙb(𝑥)
+
+)
+.
+Since the optimization over 𝛾𝑥,∀𝑥 is separable for each 𝑥, by defining
+𝑣𝑥 (𝜆) = sup
+𝛾𝑥 ∈P (Z)
+
+𝔼𝛾𝑥
+
+𝑓 (𝑧) −𝜆𝜖 log 
+d𝛾𝑥 (𝑧)
+dℚ𝑥,𝜖 (𝑧)
+  , ∀𝑥,
+and swap the supremum and the integration, we obtain
+𝑉 ≤ inf
+𝜆≥0
+
+𝜆𝜌 +
+∫
+𝑣𝑥 (𝜆) dℙb(𝑥)
+
+. (EC.2)
+When there exists 𝜆 > 0 such that Condition 1 holds, by leveraging a well-known reformulation on
+entropy regularized linear optimization in Lemma EC.1, we can see that almost surely,
+𝑣𝑥 (𝜆) = 𝜆𝜖 log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  < ∞.
+Substituting this expression into (EC.2) implies that 𝑉 ≤ 𝑉D < ∞. Suppose on the contrary that for any
+𝜆 > 0,
+Pr 𝑥∼ℙ
+n
+𝑥 : 𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i
+= ∞
+o
+> 0,
+then intermediately we obtain 𝑉 ≤ 𝑉D = ∞, and the weak duality still holds.
+
+Proof of Lemma 2 We first show that 𝜆
+∗ < ∞. Denote by 𝑣(𝜆) the objective function for the dual
+problem, then
+𝑣(𝜆) = 𝜆𝜌 + 𝜆𝜖 ∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  dℙb(𝑥).
+The integrability condition for the dominated convergence theorem is satisfied, which implies
+lim
+𝜆→∞
+𝜆𝜖 ∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  dℙb(𝑥)
+=
+∫
+lim
+𝛽→0
+𝜖
+𝛽
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝛽 𝑓 (𝑧)/𝜖
+i  dℙb(𝑥)
+=
+∫
+lim
+𝛽→0
+𝜖∇𝛽 log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝛽 𝑓 (𝑧)/𝜖
+i  dℙb(𝑥)
+=
+∫
+lim
+𝛽→0
+𝜖
+1
+𝔼ℚ𝑥,𝜖
+𝑒
+𝛽 𝑓 (𝑧)/𝜖
+
+
+𝔼ℚ𝑥,𝜖 
+𝑓 (𝑧)
+𝜖
+𝑒
+(𝛽 𝑓 (𝑧))/𝜖
+  dℙb(𝑥)
+=
+∫
+𝔼ℚ𝑥,𝜖
+[𝑓 (𝑧)] dℙb(𝑥),
+ec6
+where the first equality follows from the change-of-variable technique with 𝛽 = 1/𝜆, the second equality
+follows from the L’Hospital rule the third and the last equality follows from the dominated convergence
+theorem. As a consequence, as long as 𝜌 > 0, we have
+lim
+𝜆→∞
+𝑣(𝜆) = ∞.
+We can take 𝜆 satisfying Condition 1 and then 𝑣(𝜆) < ∞, which guarantees the existence of the dual
+minimizer. Hence 𝜆
+∗ < ∞, which implies that either 𝜆
+∗ = 0 or 𝜆
+∗
+satisfies Condition 1.
+Proof of Lemma 3 Suppose the dual minimizer 𝜆
+∗ = 0, then taking the limit of the dual objective
+function gives
+lim
+𝜆→0
+𝑣(𝜆) =
+∫
+𝐻
+𝑢
+(𝑥) dℙb(𝑥) < ∞,
+where
+𝐻
+𝑢
+(𝑥) := inf{𝑡 : ℚ𝑥,𝜖 {𝑓 (𝑧) > 𝑡 } = 0} , ess sup
+ℚ𝑥,𝜖
+𝑓 .
+For notational simplicity we take 𝐻
+𝑢 = ess sup
+𝜈
+𝑓 . One can check that 𝐻
+𝑢
+(𝑥) ≡ 𝐻
+𝑢
+for any 𝑥 ∈ supp(ℙb):
+for any 𝑡 so that ℚ𝑥,𝜖 {𝑓 (𝑧) > 𝑡 } = 0, we have that
+∫
+1{𝑓 (𝑧) > 𝑡 }𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) = 0,
+which, together with the fact that 𝜈{𝑐(𝑥, 𝑧) < ∞} = 1 for fixed 𝑥, implies
+∫
+1{𝑓 (𝑧) > 𝑡 } d𝜈 (𝑧) = 0.
+On the contrary, for any 𝑡 so that 𝜈{𝑓 (𝑧) > 𝑡 } = 0, we have that
+0 ≤
+∫
+1{𝑓 (𝑧) > 𝑡 }𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) ≤ ∫
+1{𝑓 (𝑧) > 𝑡 } d𝜈 (𝑧) = 0,
+where the second inequality is because that 𝜈{𝑐(𝑥, 𝑧) ≥ 0} = 1. As a consequence, ℚ𝑥,𝜖 {𝑓 (𝑧) > 𝑡 } = 0.
+Hence we can assert that 𝐻
+𝑢
+(𝑥) = 𝐻
+𝑢
+for all 𝑥 ∈ supp(ℙb), which implies
+lim
+𝜆→0
+𝑣(𝜆) = 𝐻
+𝑢 < ∞.
+Then we show that almost surely for all 𝑥,
+𝔼ℚ𝑥,𝜖
+[1𝐴] > 0, where 𝐴 = {𝑧 : 𝑓 (𝑧) = 𝐻
+𝑢
+}.
+Denote by 𝐷 the collection of samples 𝑥 so that 𝔼ℚ𝑥,𝜖
+[1𝐴] = 0. Assume the condition above does not
+hold, which means that ℙb{𝐷} > 0. For any 𝜏 > 0 and 𝑥 ∈ 𝐷, there exists 𝐻
+𝑙
+(𝑥) < 𝐻
+𝑢
+such that
+0 < 𝔥𝑥 := 𝔼ℚ𝑥,𝜖
+[1𝐵(𝑥)] ≤ 𝜏, where 𝐵(𝑥) = {𝑧 : 𝐻
+𝑙
+(𝑥) ≤ 𝑓 (𝑧) ≤ 𝐻
+𝑢
+}.
+Define 𝐻
+gap(𝑥) = 𝐻
+𝑢 −𝐻
+𝑙
+(𝑥), 𝔥
+𝑐
+𝑥 = 1 − 𝔥𝑥 . Then we find that for 𝑥 ∈ 𝐷,
+𝑣𝑥 (𝜆) = 𝜆𝜖 log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+1𝐵(𝑥)
+i
++ 𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+1𝐵(𝑥)
+𝑐
+i 
+≤ 𝐻
+𝑢 + 𝜆𝜖 log 
+𝔥𝑥 +𝑒
+−𝐻
+gap (𝑥)/(𝜆𝜖)
+𝔥
+𝑐
+𝑥
+
+.
+ec7
+Since ℙb{𝐷} > 0, the dual objective function for 𝜆 > 0 is upper bounded as
+𝑣(𝜆) = 𝜆𝜌 +
+∫
+𝑣𝑥 (𝜆) dℙb(𝑥)
+≤ 𝐻
+𝑢 + 𝜆𝜌 + 𝜆𝜖 ∫
+𝐷
+log 
+𝔥𝑥 +𝑒
+−𝐻
+gap (𝑥)/(𝜆𝜖)
+𝔥
+𝑐
+𝑥
+
+dℙb(𝑥).
+We can see that
+lim
+𝜆→0
+𝜆𝜌 + 𝜆𝜖 ∫
+𝐷
+log 
+𝔥𝑥 +𝑒
+−𝐻
+gap (𝑥)/(𝜆𝜖)
+𝔥
+𝑐
+𝑥
+
+dℙb(𝑥) = 0,
+and
+lim
+𝜆→0
+∇
+
+𝜆𝜌 + 𝜆𝜖 ∫
+𝐷
+log 
+𝔥𝑥 +𝑒
+−𝐻
+gap (𝑥)/(𝜆𝜖)
+𝔥
+𝑐
+𝑥
+
+dℙb(𝑥)
+
+=𝜌 +𝜖
+∫
+𝐷
+log (𝔥𝑥 ) dℙb(𝑥)
+≤𝜌 +𝜖 log(𝜏)ℙb{𝐷} ≤ −𝜌 < 0,
+where the second inequality is by taking the constant 𝜏 = exp 
+−
+2𝜌
+𝜖ℙb{𝐷 }
+
+. Hence, there exists 𝜆 > 0 such
+that
+𝑣(𝜆) ≤ 𝐻
+𝑢 + 𝜆𝜌 + 𝜆𝜖 ∫
+𝐷
+log 
+𝔥𝑥 +𝑒
+−𝐻
+gap (𝑥)/(𝜆𝜖)
+𝔥
+𝑐
+𝑥
+
+dℙb(𝑥) < 𝑣(0),
+which contradicts to the optimality of 𝜆
+∗ = 0. As a result, almost surely for all 𝑥, we have that
+𝔼ℚ𝑥,𝜖
+[1𝐴] > 0.
+To show the second condition, we re-write the dual objective function for 𝜆 > 0 as
+𝑣(𝜆) = 𝜆𝜌 + 𝜆𝜖 ∫ h
+log 
+𝔼ℚ𝑥,𝜖
+[1𝐴] + 𝔼ℚ𝑥,𝜖 h
+𝑒
+[𝑓 (𝑧)−𝐻
+𝑢 ]/(𝜆𝜖)
+1𝐴𝑐
+i  i dℙb(𝑥) +𝐻
+𝑢
+.
+The gradient of 𝑣(𝜆) becomes
+∇𝑣(𝜆) = 𝜌 +𝜖
+∫ h
+log 
+𝔼ℚ𝑥,𝜖
+[1𝐴] + 𝔼ℚ𝑥,𝜖 h
+𝑒
+[𝑓 (𝑧)−𝐻
+𝑢 ]/(𝜆𝜖)
+1𝐴𝑐
+i  i dℙb(𝑥)
++
+∫
+𝔼ℚ𝑥,𝜖
+𝑒
+[𝑓 (𝑧)−𝐻
+𝑢 ]/(𝜆𝜖)1𝐴𝑐 (𝐻
+𝑢 − 𝑓 (𝑧))/(𝜆)
+
+𝔼ℚ𝑥,𝜖
+[1𝐴] + 𝔼ℚ𝑥,𝜖
+𝑒
+[𝑓 (𝑧)−𝐻𝑢 ]/(𝜆𝜖)1𝐴𝑐
+ dℙb(𝑥).
+We can see that lim𝜆→∞ ∇𝑣(𝜆) = 𝜌. Take
+𝑣1,𝑥 (𝜆) = 𝔼ℚ𝑥,𝜖 h
+𝑒
+[𝑓 (𝑧)−𝐻
+𝑢 ]/(𝜆𝜖)
+1𝐴𝑐
+i
+.
+Then lim𝜆→0 𝑣1,𝑥 (𝜆) = 0 and 𝑣1,𝑥 (𝜆) ≥ 0. Take
+𝑣2,𝑥 (𝜆) =
+𝔼ℚ𝑥,𝜖
+𝑒
+[𝑓 (𝑧)−𝐻
+𝑢 ]/(𝜆𝜖)1𝐴𝑐 (𝐻
+𝑢 − 𝑓 (𝑧))/(𝜆)
+
+𝔼ℚ𝑥,𝜖
+[1𝐴] + 𝔼ℚ𝑥,𝜖
+𝑒
+[𝑓 (𝑧)−𝐻𝑢 ]/(𝜆𝜖)1𝐴𝑐
+ .
+Then lim𝜆→0 𝑣2,𝑥 (𝜆) = 0 and 𝑣2,𝑥 (𝜆) ≥ 0. It follows that
+lim
+𝜆→0
+∇𝑣(𝜆) = 𝜌 +𝜖
+∫
+log
+𝔼ℚ𝑥,𝜖
+[1𝐴]
+
+dℙb(𝑥) = 𝜌
+0
+
+ec8
+Hence, if the last condition is violated, based on the mean value theorem, we can find 𝜆 > 0 so that
+∇𝑣(𝜆) = 0, which contradicts to the optimality of 𝜆
+∗ = 0.
+Now we show the converse direction. For any 𝜆 > 0, we find that
+∇𝑣(𝜆) = 𝜌 +𝜖
+∫
+
+log
+𝔼ℚ𝑥,𝜖
+[1𝐴] + 𝑣1,𝑥 (𝜆)
+
+dℙb(𝑥) + ∫
+𝑣2,𝑥 (𝜆) dℙb(𝑥).
+For fixed 𝑥, when 𝔼ℚ𝑥,𝜖
+[1𝐴] = 1, we can see that 𝑣1,𝑥 (𝜆) = 𝑣2,𝑥 (𝜆) = 0, then
+𝜌 +𝜖
+
+log
+𝔼ℚ𝑥,𝜖
+[1𝐴] + 𝑣1,𝑥 (𝜆)
+
++ 𝑣2,𝑥 (𝜆) = 𝜌 > 0.
+When 𝔼ℚ𝑥,𝜖
+[1𝐴] ∈ (0, 1), we can see that 𝑣1,𝑥 (𝜆) > 0, 𝑣2,𝑥 (𝜆) > 0. Then
+𝜌 +𝜖
+
+log
+𝔼ℚ𝑥,𝜖
+[1𝐴] + 𝑣1,𝑥 (𝜆)
+
++ 𝑣2,𝑥 (𝜆) > 𝜌 +𝜖 log(𝔼ℚ𝑥,𝜖
+[1𝐴]) = 𝜌
+0 ≥ 0.
+Therefore, ∇𝑣(𝜆) > 0 for any 𝜆 > 0. By the convexity of 𝑣(𝜆), we conclude that the dual minimizer
+𝜆
+∗ = 0.
+
+Proof of Lemma 4. Since 𝜆
+∗ > 0, based on the optimality condition of the dual problem, we have
+that
+0 = ∇𝜆
+
+𝜆𝜌 + 𝜆𝜖 ∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  dℙb(𝑥)
+ 
+
+
+
+𝜆=𝜆∗
+.
+Or equivalently, we have that
+𝜌+𝜖
+∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆
+∗
+𝜖)
+i  dℙb(𝑥) − ∫
+𝔼ℚ𝑥,𝜖
+𝑒
+𝑓 (𝑧)/(𝜆
+∗
+𝜖)
+𝑓 (𝑧)
+
+𝜆
+∗𝔼ℚ𝑥,𝜖
+𝑒
+𝑓 (𝑧)/(𝜆
+∗𝜖)
+ dℙb(𝑥) = 0.
+Re-arranging the term completes the proof.
+
+Proof of Theorem 1. The feasibility result in Theorem 1(I) can be easily shown by considering the
+reformulation of 𝑉 in (3) and the non-negativity of KL-divergence. When 𝜌 = 0, one can see that
+𝑉D ≤ lim
+𝜆→∞
+𝜆𝜖 ∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i  dℙb(𝑥) = 𝔼𝑧∼ℙ0 [𝑓 (𝑧)] =𝑉.
+Therefore, the strong duality result holds in this case. The proof for 𝜌 > 0 can be found in the main
+context. It remains to show the second part of Theorem 1(III). We consider a sequence of real numbers
+{𝑅𝑗 }𝑗 such that 𝑅𝑗 → ∞ and take the objective function 𝑓𝑗 (𝑧) = 𝑓 (𝑧)1{𝑧 ≤ 𝑅𝑗 }. Hence, there exists 𝜆 > 0
+satisfying Pr
+𝑥∼ℙb
+
+𝑥 : 𝔼ℚ𝑥,𝜖
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+
+= ∞
+	
+= 0. According to the necessary condition in Lemma 3, the
+corresponding dual minimizer 𝜆
+∗
+𝑗 > 0 for sufficiently large index 𝑗. Then we can apply the duality result
+in the first part of Theorem 1(III) to show that for sufficiently large 𝑗, it holds that
+sup
+ℙ∈𝔹𝜌,𝜖 (ℙb)
+
+𝔼𝑧∼ℙ[𝑓𝑗 (𝑧)]	
+≥ 𝜆
+∗
+𝑗
+𝜌 + 𝜆
+∗
+𝑗
+𝜖
+∫
+log 
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓𝑗 (𝑧)/(𝜆𝜖)
+i  dℙb(𝑥).
+Taking 𝑗 → ∞ both sides implies that 𝑉 = ∞, which completes the proof
+ec9
+Appendix EC.5: Proofs of Technical Results in Section 4
+Proof of Proposition 1 For any fixed 𝜆0 > 0, denote by 𝜃0 the optimal solution to problem (10). We
+can argue that for any 𝑎 ∈
+𝜕
+𝜕𝜆 𝐹ˆ(𝑚)
+(𝜆0,𝜃0), 𝑎 is a subgradient of 𝐹ˆ
+(𝑚)
+𝜆
+at 𝜆 = 𝜆0. For any 𝜆 > 0, let 𝜃 (𝜆) be
+the optimal solution for 𝐹ˆ
+(𝑚)
+𝜆
+. Then we can see
+𝐹ˆ
+(𝑚)
+𝜆
+= 𝐹ˆ(𝑚)
+(𝜆,𝜃 (𝜆)) ≥ 𝐹ˆ(𝑚)
+(𝜆0,𝜃0) +𝑎(𝜆 −𝜆0) + h∇𝐹ˆ(𝑚)
+(𝜆0,𝜃0),𝜃 (𝜆) −𝜃0i
+≥ 𝐹ˆ(𝑚)
+(𝜆0,𝜃0) +𝑎(𝜆 −𝜆0),
+where ∇𝐹ˆ(𝑚)
+(𝜆0,𝜃0) denotes the subdifferential of 𝐹ˆ(𝑚) with respect to 𝜃 = 𝜃0, the first inequality is
+by the convexity of 𝐹ˆ(𝑚)
+(𝜆,𝜃) with respect to (𝜆,𝜃), and the second inequality is by the optimality
+condition for 𝜃0.
+When 𝑎 = 0, we immediately obtain that 0 ∈ 𝜕𝐹ˆ
+(𝑚)
+𝜆0
+, which means that 𝜆0 is the minimizer of 𝐹ˆ
+(𝑚)
+𝜆
+.
+Otherwise, the algorithm will update the interval so that 𝑎(𝜆 −𝜆0) ≤ 0 for any 𝜆 within it. We claim
+that this interval will contain 𝜆∗. Suppose on the contrary that 𝑎(𝜆∗ −𝜆0) > 0. By the convexity of 𝐹ˆ(𝑚)
+·
+,
+𝐹ˆ
+(𝑚)
+𝜆∗
+≥ 𝐹ˆ
+(𝑚)
+𝜆0
++𝑎(𝜆∗ −𝜆0) > 𝐹ˆ
+(𝑚)
+𝜆0
+,
+which contradicts to the optimality of 𝜆∗. As a result, the interval length 𝑙𝑡 = 𝜆𝑢 −𝜆𝑙 at the 𝑡-th iteration
+in Algorithm 1 vanishes at the rate 𝑙𝑡 = (1/2)
+𝑡
+𝑙0, which indicates that the algorithm will converge into
+the optimal solution of inf𝜆≥0 𝐹ˆ
+(𝑚)
+𝜆
+linearly.
+Proof of Proposition 2. For notational simplicity, we write 𝑠 = (𝜆,𝜃) and Ξ = ℝ+ × Θ. We first show
+the second part of this theorem. To begin with, we introduce the following functions:
+𝐹˜𝑚 (𝑠) = 𝐹ˆ(𝑚)
+(𝑠) +𝜏Ξ(𝑠), 𝐹¯(𝑠) = 𝐹 (𝑠) +𝜏Ξ(𝑠).
+We build the pointwise law of large numbers (LLN) for 𝐹˜𝑚. By the strong law of large numbers (LLN),
+for each 𝑖 and every (𝜆,𝜃) ∈ Ξ,
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i
+a.s.
+−−→ 𝔼ℚ𝑖,𝜖 h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i
+.
+Then by the continuous mapping theorem, for each 𝑖 and every (𝜆,𝜃) ∈ Ξ,
+𝜆𝜖 log 
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i
+
+a.s.
+−−→ 𝜆𝜖 log 
+𝔼ℚ𝑖,𝜖 h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i  .
+Therefore, using the addition and scalar multiplication rule of almost sure convergence, for every
+(𝜆,𝜃) ∈ Ξ, it holds that
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝜆𝜖 log 
+𝔼ℚˆ𝑚
+𝑥ˆ𝑖
+h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i
+
+a.s.
+−−→
+1
+𝑛
+∑︁𝑛
+𝑖=1
+𝜆𝜖 log 
+𝔼ℚ𝑖,𝜖 h
+𝑒
+𝑓𝜃 (𝑧)/(𝜆𝜖)
+i  ,
+which reveals that 𝐹ˆ(𝑚)
+(𝑠)
+a.s.
+−−→ 𝐹 (𝑠) for each 𝑠 ∈ Ξ. This further implies the corresponding LLN for
+𝐹˜𝑚 (𝑠).
+Now take a compact subset 𝐶 so that S
+∗
+is contained in the interior of 𝐶. Such a set exists because
+S
+∗
+is bounded. Denote by S˜𝑚 the set of minimizers of 𝐹˜𝑚 over 𝐶. By the lower semi-continuity, together
+with the pointwise LLN of 𝐹˜𝑚, we find 𝐹˜𝑚 is finite-valued on S
+∗
+for large 𝑚, which implies that the set
+S˜𝑚 is non-empty for large 𝑚. We show that Dist(S˜𝑚,S
+∗
+) → 0 almost surely. Let 𝜔 = {𝑧𝑖,𝑗 }𝑖,𝑗 be such that
+𝐹˜𝑚 (·,𝜔)
+𝑒
+−→ 𝐹¯(·). This event holds almost surely for all 𝜔. Suppose on the contrary that for any 𝑚, there
+exists a minimizer 𝑠˜𝑚 (𝜔) of 𝐹˜𝑚 over 𝐶 such that Dist(𝑠˜𝑚,S
+∗
+) ≥ 𝜀. Due to the compactness of 𝐶, there
+ec10
+exists a sub-sequence {𝑠˜𝑚𝑗
+}𝑗 that converges into a point 𝑠
+∗ ∈ 𝐶, but 𝑠
+∗ ∉ S
+∗
+. On the other hand, we can
+argue that 𝑠
+∗ ∈ arg min𝑠 ∈𝐶
+𝐹¯(𝑠) = S
+∗ by applying [86, Proposition 7.26]. Then we obtain a contradiction.
+Then we show that S˜𝑚 = S
+(𝑚)
+for large 𝑚. Because of the convexity assumption, any minimizer
+of 𝐹˜𝑚 over 𝐶 which lies inside of the interior of 𝐶, is also an optimal solution to the problem 9.
+Hence, for large 𝑚 we have that S˜𝑚 = S
+(𝑚)
+. This, together with the fact that Dist(S˜𝑚,S
+∗
+) → 0 implies
+Dist(S
+(𝑚)
+,S
+∗
+) → 0. Moreover, it suffices to restrict the feasible set into the compact set 𝐶 ∩ Ξ. By the
+convexity of 𝐹 (𝑠) in 𝑠, 𝐹ˆ(𝑚)
+𝑎.𝑠.
+−−→ 𝐹 holds uniformly on 𝐶 ∩ Ξ. As a consequence, the first part of this
+proposition can be proved by applying [86, Proposition 5.2]. 
+ec11
+Appendix EC.6: Proof of the Technical Result in Appendix A
+We first present an useful technical lemma before showing Proposition 3.
+Lemma EC.2. Under the first condition of Proposition 3, for any 𝑥 ∈ Z, it holds that
+∫
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) ≥ 𝑒
+−2
+𝑝−1
+𝑐 (𝑥,𝑥)/𝜖
+∫
+𝑒
+−2
+𝑝−1
+𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧).
+Proof of Lemma EC.2 Based on the inequality (𝑎 +𝑏)
+𝑝 ≤ 2
+𝑝−1
+(𝑎
+𝑝 +𝑏
+𝑝
+), we can see that
+𝑐(𝑥, 𝑧) ≤ (𝑐(𝑦, 𝑧)
+1/𝑝 +𝑐(𝑧,𝑦)
+1/𝑝
+)
+𝑝 ≤ 2
+𝑝−1
+(𝑐(𝑦, 𝑧) +𝑐(𝑧,𝑦)), ∀𝑥,𝑦, 𝑧 ∈ Z.
+Since 𝑐(𝑥, 𝑧) ≤ 2
+𝑝−1
+(𝑐(𝑥, 𝑧) +𝑐(𝑥,𝑥)), we can see that
+∫
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) ≥ exp 
+−2
+𝑝−1
+𝑐(𝑥,𝑥)/𝜖
+ ∫
+𝑒
+−2
+𝑝−1
+𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧).
+The proof is completed.
+
+Proof of Proposition 3 One can see that for any 𝑥 ∈ supp(ℙb), it holds that
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i
+=
+∫
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖
+∫
+𝑒
+−𝑐 (𝑥,𝑢)/𝜖 d𝜈 (𝑢)
+d𝜈 (𝑧)
+≤
+∫
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖
+∫
+𝑒
+−2
+𝑝−1𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧).
+d𝜈 (𝑧)
+≤
+∫
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+𝑒
+−2
+1−𝑝
+𝑐 (𝑥,𝑧)/𝜖
+𝑒
+𝑐 (𝑥,𝑥)/𝜖
+∫
+𝑒
+−2
+𝑝−1𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧)
+d𝜈 (𝑧)
+=
+𝑒
+𝑐 (𝑥,𝑥) (1+2
+𝑝−1
+)/𝜖
+∫
+𝑒
+−2
+𝑝−1𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧)
+∫
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+𝑒
+−2
+1−𝑝
+𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧),
+where the first inequality is based on the lower bound in Lemma EC.2, the second inequality is based
+on the triangular inequality 𝑐(𝑥, 𝑧) ≥ 2
+1−𝑝
+𝑐(𝑥, 𝑧) −𝑐(𝑥,𝑥). Note that almost surely for all 𝑥 ∈ supp(ℙb),
+𝑐(𝑥,𝑥) < ∞. Moreover,
+0 <
+∫
+𝑒
+−2
+𝑝−1
+𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) ≤ ∫
+𝑒
+−𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) < ∞,
+where the lower bound is because 𝑐(𝑥, 𝑧) < ∞ almost surely for all 𝑧, the upper bound is because
+𝑐(𝑥, 𝑧) ≥ 0 almost surely for all 𝑧. Based on these observations, we have that
+𝔼ℚ𝑥,𝜖 h
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+i
+≤
+𝑒
+𝑐 (𝑥,𝑥) (1+2
+𝑝−1
+)/𝜖
+∫
+𝑒
+−2
+𝑝−1𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧)
+∫
+𝑒
+𝑓 (𝑧)/(𝜆𝜖)
+𝑒
+−2
+1−𝑝
+𝑐 (𝑥,𝑧)/𝜖 d𝜈 (𝑧) < ∞
+almost surely for all 𝑥 ∼ ℙb.
+

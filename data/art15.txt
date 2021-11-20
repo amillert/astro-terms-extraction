@@ -1,0 +1,2372 @@
+115
+Statically Bounded-Memory Delayed Sampling for
+Probabilistic Streams
+ERIC ATKINSON, MIT, USA
+GUILLAUME BAUDART, INRIA, École normale supérieure – PSL University, France
+LOUIS MANDEL, MIT-IBM Watson AI Lab, IBM Research, USA
+CHARLES YUAN, MIT, USA
+MICHAEL CARBIN, MIT, USA
+Probabilistic programming languages aid developers performing Bayesian inference. These languages provide
+programming constructs and tools for probabilistic modeling and automated inference. Prior work introduced
+a probabilistic programming language, ProbZelus, to extend probabilistic programming functionality to
+unbounded streams of data. This work demonstrated that the delayed sampling inference algorithm could be
+extended to work in a streaming context. ProbZelus showed that while delayed sampling could be effectively
+deployed on some programs, depending on the probabilistic model under consideration, delayed sampling is
+not guaranteed to use a bounded amount of memory over the course of the execution of the program.
+In this paper, we the present conditions on a probabilistic program’s execution under which delayed sampling
+will execute in bounded memory. The two conditions are dataflow properties of the core operations of delayed
+sampling: the 𝑚-consumed property and the unseparated paths property. A program executes in bounded
+memory under delayed sampling if, and only if, it satisfies the 𝑚-consumed and unseparated paths properties.
+We propose a static analysis that abstracts over these properties to soundly ensure that any program that
+passes the analysis satisfies these properties, and thus executes in bounded memory under delayed sampling.
+CCS Concepts: • Theory of computation → Program analysis; Streaming models; • Software and its
+engineering → Data flow languages.
+Additional Key Words and Phrases: Probabilistic programming, reactive programming, streaming inference,
+semantics, program analysis
+ACM Reference Format:
+Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin. 2021. Statically BoundedMemory Delayed Sampling for Probabilistic Streams. Proc. ACM Program. Lang. 5, OOPSLA, Article 115
+(October 2021), 42 pages. https://doi.org/10.1145/3485492
+1 INTRODUCTION
+Probabilistic programming languages aid developers performing Bayesian inference [Atkinson et al.
+2018; Bingham et al. 2019; Cusumano-Towner et al. 2019; Ge et al. 2018; Gelman et al. 2015; Goodman
+et al. 2008; Goodman and Stuhlmüller 2014; Gordon et al. 2014; Huang et al. 2017; Mansingkha et al.
+2018; Milch et al. 2007; Narayanan et al. 2016; Nori et al. 2015; Pfeffer 2009; Tran et al. 2017]. These
+languages provide programming constructs and tools for probabilistic modeling and automated
+inference. Researchers have developed probabilistic programming languages for several domains,
+Authors’ addresses: Eric Atkinson, MIT, USA; Guillaume Baudart, INRIA, École normale supérieure – PSL University,
+France; Louis Mandel, MIT-IBM Watson AI Lab, IBM Research, USA; Charles Yuan, MIT, USA; Michael Carbin, MIT, USA.
+Permission to make digital or hard copies of part or all of this work for personal or classroom use is granted without fee
+provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and
+the full citation on the first page. Copyrights for third-party components of this work must be honored. For all other uses,
+contact the owner/author(s).
+© 2021 Copyright held by the owner/author(s).
+2475-1421/2021/10-ART115
+https://doi.org/10.1145/3485492
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+arXiv:2109.12473v1 [cs.PL] 26 Sep 2021
+115:2 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+including data science [Gelman et al. 2015], machine learning [Bingham et al. 2019; Tran et al.
+2017], scientific simulation [Baydin et al. 2019], and real-time control [Baudart et al. 2020].
+Probabilistic Programming with Streams. In this paper, we consider programs that accept inputs
+and compute outputs at discrete time steps, with the outputs of each step flowing into the environment to affect future inputs to the program. Mathematically, one can model these programs as
+computations that operate on and produce infinite streams. Computing with streams is a common
+computational model for applications in real-time control, such as robotics and avionics [Colaço
+et al. 2017]. For example, control for an airplane fly-by-wire system can be implemented as a
+program transforming a stream of altitude measurements into a stream of commands to the engine.
+Baudart et al. [2020] introduced a probabilistic programming language, ProbZelus, to enable probabilistic programming in this domain of computations on streams. A key innovation of ProbZelus
+was to demonstrate that delayed sampling [Murray et al. 2018] could be extended to work with
+streams to provide high-quality inference procedures. Delayed sampling is an inference algorithm
+that combines both exact and approximate inference; it takes advantage of exact inference when
+efficient known closed-formed solutions exist and falls back on sampling-based, approximate inference when required. Specifically, delayed sampling combines Bayesian networks – graphs that
+encode exact distributions of probabilistic models – with particle filtering [Del Moral et al. 2006] –
+an approximate inference algorithm.
+The challenge in adapting delayed sampling to computations on streams is that such computations
+run for indefinite periods of time and are often subject to stringent limits on resources, such as
+memory. Baudart et al. [2020] showed that, in many cases, only a finite number of nodes in
+delayed sampling’s graph data structures were reachable at any given time, and the rest could not
+influence the computation in the future and could be removed from memory. However, this behavior
+depends on the probabilistic model under consideration; delayed sampling is not guaranteed to
+maintain a bounded amount of memory for all programs. The result is then that though probabilistic
+programming languages are designed to hide the complexities of developing probabilistic inference
+algorithms, certain combinations of a model and the inference algorithm will result in undesirable
+behaviors that the developer did not anticipate. Moreover, the developer has no means to reason
+about these behaviors except by inspecting the implementation of the inference algorithm.
+Bounded-Memory Delayed Sampling. In this paper, we formalize semantic conditions under which
+applying delayed sampling to probabilistic programs with streams will execute in bounded memory.
+The two conditions are dataflow properties of the core operations of delayed sampling: assume,
+observe, and value, which respectively add a new random variable to the delayed sampling graph,
+observe a random variable, and evaluate a random variable to produce a sampled value. The 𝑚-
+consumed property states that all variables introduced with assume are eventually consumed by an
+observe or a value, or are passed to other assumes resulting in new variables that are themselves
+(𝑚−1)-consumed. An unseparated path is a sequence of random variables, each passed as parameter
+to the assume operation of the next, where no variable is passed to an observe or value operation.
+The unseparated paths property states that no variable maintained in the program state starts an
+unseparated longer than some fixed bound 𝑛. A program executes in bounded memory under
+delayed sampling if, and only if, it satisfies the 𝑚-consumed and unseparated paths properties.
+Static Analysis. We propose a static analysis that checks the 𝑚-consumed and unseparated paths
+properties to soundly ensure that any program that passes the analysis satisfies these properties,
+and thus executes in bounded memory under delayed sampling.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:3
+Contributions. In this paper, we present the following contributions:
+• We introduce and formalize the 𝑚-consumed and unseparated paths properties, and show these
+are necessary and sufficient for a program to have bounded-memory execution.
+• We present a static analysis to check these properties, and prove that the analysis is sound.
+• We implement the analysis and evaluate it against several probabilistic inference benchmarks.
+Our results show that for eight of nine benchmarks, the analysis determines whether the semantic
+properties necessary for bounded-memory execution are satisfied, and we identify the precision
+limitation of conservative static analysis on the remaining benchmark.
+This work brings probabilistic programming to control settings with the new benefit of static
+guarantees on the system’s resource consumption. To the best of our knowledge, our work is
+the first to develop a resource analysis for a probabilistic program in relation to its probabilistic
+programming system’s underlying inference algorithm.
+The remainder of the paper is structured as follows. In Section 2, we give an example program
+to illustrate the concepts in the paper. In Section 3, we present the syntax and semantics of a
+language for probabilistic programming with streams, adapted from the 𝜇𝐹 language from Baudart
+et al. [2020]. In Section 4, we review background on delayed sampling, based on the contributions
+from Murray et al. [2018] and Baudart et al. [2020]. In Section 5, we present the 𝑚-consumed and
+unseparated paths semantic properties. In Sections 6 and 7, we present and evaluate the static
+analysis. Sections 8 and 9 summarize related work and present conclusions.
+2 EXAMPLE
+Figure 1 presents the example of a robot designed to navigate to a desired position target using
+measurements obs from a noisy position sensor. The robot issues a command u that indicates the
+acceleration to apply to change its position. The robot (1) estimates its current position with a
+probabilistic model kalman and (2) uses this estimate to compute the command u with a deterministic
+controller (e.g., a Linear-Quadratic Regulator [Sontag 2013], the implementation of which we
+have elided for simplicity). We present the example in 𝜇𝐹 , a purely functional core calculus for
+probabilistic programming with streams.
+1 val kalman = stream {
+2 init = 0.0;
+3 step (pre_x, obs) =
+4 let x = sample (gaussian (pre_x, 1.0)) in
+5 let () = observe (gaussian (x, 1.0), obs) in
+6 (x, x)
+7 }
+8 val robot = stream {
+9 init = (0.0, init controller, infer kalman);
+10 step ((c, k), (obs, target)) =
+11 let x_dist, k' = unfold (k, obs) in
+12 let u, c' = unfold (c, (target, mean (x_dist))) in
+13 (u, (c', k'))
+14 }
+Fig. 1. 𝜇𝐹 program with main stream function robot.
+The program is a set of stream function definitions that each consist of (1)
+an initializer, and (2) a step function
+that given the previous state and an input value produces an output value and
+a new state [Mealy 1955]. The operators init and infer instantiate a stream
+function by creating an internal state. A
+stream function can be applied to an input stream to generate an output stream
+with the operator unfold, which applies
+the step function using the internal state
+and the input values. Unlike init, the
+step function of an instance created using infer performs probabilistic inference and thus returns at each iteration
+a distribution of outputs and a distribution of states.
+The main stream function, robot, has a state composed of two stream function instances: c the
+deterministic controller, and k the kalman probabilistic model. The robot initializer creates these
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:4 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+two instances (L.9). The transition function of instance k performs probabilistic inference to infer
+a distribution of the robot’s state x_dist and an updated instance k' (L.11). Then the transition
+function of instance c computes a command u to go toward the destination target using statistics
+of the position distribution and an updated instance c' (L.12). The transition function of robot
+returns the command u and the updated state (L.13).
+2.1 Probabilistic Model
+The stream function kalman specifies a hidden Markov model [Baum and Petrie 1966], a common
+probabilistic model for tracking applications in which the goal is to estimate the trajectory of an
+object given noisy measurements of the object’s position.
+The stream function’s state consists of a latent random variable, pre_x, that denotes the position
+of the robot at the previous iteration. The robot’s state is latent in that the robot is unable to directly
+observe its position; instead it must leverage a noisy measurement or observation of its position to
+infer a probability distribution over its potential states.
+Inside the definition of kalman, the program models the latent nature of x by sampling the
+current position from a Gaussian distribution centered around its previous position pre_x (L.4).
+The program models the observation by taking the observed sensor value as input, obs, and
+supplying it as an input to the observe operator. In this example, the observe specifies that obs is
+an observation from a Gaussian distribution centered around the position x. The observe operator
+conditions the program’s execution on the observed value (L.5) in that it adjusts the distribution
+that will be inferred for x.
+The sequence of diagrams in Figure 2 illustrates the evolution of a representation of the hidden
+Markov model over the first four iterations of the program. Each light grey node denotes a latent
+random variable for pre_x or x at a given iteration. Each dark grey node denotes an observation
+at the given iteration. Each solid black arrow signifies a dependence between random variables
+as in a traditional Bayesian network representation of a probabilistic graphical model [Koller and
+Friedman 2009]. Of note, each observation at each iteration depends on the current position and
+the robot’s state at a given iteration depends only on its position at the previous iteration.
+2.2 Inference with Delayed Sampling
+The kalman probabilistic model is not sufficient for the robot to reason about its position. Instead, the
+robot must perform inference on the model to compute a posterior distribution of x conditioned on
+its observations. As mentioned, the infer operator in the robot stream function applies inference
+to the probabilistic model it receives as input. In this paper, we study delayed sampling [Baudart
+et al. 2020; Murray et al. 2018] as the algorithmic implementation of the infer operator.
+Delayed sampling is an extension of a particle filtering algorithm that leverages symbolic execution to reason about the relationship between random values and perform exact inference if
+possible. A particle filter estimates the posterior distribution from a set of particles, i.e., independent
+executions of the model. For each particle, delayed sampling operates by dynamically maintaining
+a graph — i.e., a Bayesian network – that records the dependence relationships between the random
+variables in the program (Figure 2). The key idea is that rather than sample a concrete value for each
+random variable in the program (e.g., x), delayed sampling instead returns a reference to a node
+in the graph. This node contains a closed-form representation of the distribution that the sample
+operator sampled from, along with the distribution’s dependence on other random variables in
+the program. If a symbolic computation fails, delayed sampling can fall back to a particle filter by
+drawing concrete values for the random variables.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:5
+x
+obs
+(a) iteration 1
+pre_x
+✗
+✗
+x
+obs
+(b) iteration 2
+✗
+✗
+pre_x
+✗
+✗
+x
+obs
+(c) iteration 3
+✗
+✗
+✗
+✗
+pre_x
+✗
+✗
+x
+obs
+(d) iteration 4
+Fig. 2. The evolution of the delayed sampling graph for the hidden Markov model in Figure 1 (kalman) as
+implemented by Baudart et al. [2020]. Each node denotes either a value (dark gray) or a distribution (light
+gray). A plain arrow denotes a dependency in the underlying Bayesian network. A dotted arrow denotes a
+pointer in the implementation of the delayed sampling graph. Each label indicates the program variable that
+corresponds to a node. An ✗ on a node denotes that the node is not reachable from the program state.
+2.3 Bounded-Memory Delayed Sampling
+A key concern when applying delayed sampling to streams, which may execute for an indefinite
+number of iterations, is if the size of the delayed sampling graph is bounded from above by a fixed
+constant for all iterations of the program. If not, then the delayed sampling graph may not consume
+bounded memory and the program may exhaust its resources if permitted to execute indefinitely.
+In general, bounding memory use is challenging because the underlying Bayesian network can
+in fact be unbounded. Nevertheless, a delayed sampling implementation can maintain bounded
+memory for some programs, depending on the operation of said programs. In this subsection, we
+review the delayed sampling implementation presented by Baudart et al. [2020] which can execute
+in bounded memory for some programs.
+Bounded-Memory Example. Figure 2 shows how delayed sampling maintains bounded memory
+for the program in Figure 1. For each particle, the delayed sampling implementation must keep in
+memory all the nodes that are reachable from any node referenced in the program state. The dashed
+lines in Figure 2 visualize the reachability relation, where the node each line points to is reachable
+from the node the line points from. As the program evolves its state and changes the variables the
+state contains, nodes in the delayed sampling graph may become unreachable, marked ✗.
+Figure 2a shows the delayed sampling graph after the first iteration. The graph consists of two
+nodes: one introduced by sampling the variable x, and one introduced by the observation of obs.
+At the end of the step, both are in the program state and reachable.
+Figure 2b shows the delayed sampling graph after the second iteration. The program has added
+two nodes to the graph for sampling x and observing obs. The nodes left over from the first iteration
+are still in the graph, but are no longer reachable.
+Figures 2c and 2d show the delayed sampling graph at iterations 3 and 4 respectively. In each
+case, the most recently introduced nodes for x and obs are reachable, and the nodes from the
+previous iterations are unreachable. In general, the program ensures that at any iteration, the most
+recently introduced nodes are reachable, and the rest are unreachable. Because there are at most
+two reachable nodes for all iterations, inference executes in bounded memory.
+Unbounded-Memory Example. Figure 3 presents an example of a program that does not execute
+in bounded memory. This is a modified version of kalman from Figure 1 that samples an initial
+latent position i from a Gaussian distribution and keeps a reference to this random variable in the
+state. Figure 4 shows how the program in Figure 3 fails to maintain bounded memory.
+Figure 4a shows the delayed sampling graph after the first iteration. The graph consists of three
+reachable nodes introduced by sampling the variables i and x and by the observation of obs.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:6 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+val kalman_first = stream {
+init = (true, 0.0, 0.0);
+step ((first, i, pre_x), obs) =
+let (i, pre_x) =
+if first then (let i = sample (gaussian (0.0, 1.0)) in (i, i))
+else (i, pre_x) in
+let x = sample (gaussian (pre_x, 1.0)) in
+let () = observe (gaussian (x, 1.0), obs) in
+(x, (false, i, x))
+}
+Fig. 3. Model with unbounded memory consumption.
+i x
+obs
+(a) iteration 1
+i
+✗
+x
+obs
+(b) iteration 2
+i
+✗ ✗
+x
+obs
+(c) iteration 3
+i
+✗ ✗ ✗
+x
+obs
+(d) iteration 4
+Fig. 4. The evolution of the delayed sampling graph for the variant of a Kalman probabilistic model in Figure 3.
+Nodes and edges have the same meaning as in Figure 2.
+𝜏2 = x1 f nil :: y1 f x1 :: obs y1 :: x2 f x1 :: y2 f x2 :: obs y2
+iteration 1 iteration 2
+Fig. 5. A depiction of a trace of the program in Figure 1. The figure depicts the trace 𝜏2 at the end of iteration 2.
+The trace is a ::-separated list of primitive operations, where each primitive operation is a sampling operation
+f or an observation operation obs. In this diagram, we use x𝑛 and y𝑛 to refer to the random variables
+introduced at iteration 𝑛 by, respectively, sampling x and observing obs in Figure 1.
+Figure 4b shows the delayed sampling graph after the second iteration. The program has added
+two nodes to the graph for sampling x and observing obs. Since the variable i is in the program
+state, the node between i and x is reachable.
+Figures 4c and 4d show that in the next iterations two new nodes are introduced at each step and
+one remains reachable. The primary observation to note is that the number of introduced nodes
+increases at every iteration. Therefore, there is no bound on the size of the delayed sampling graph
+and, hence, the program does not execute in bounded memory.
+2.4 Analyzing Delayed Sampling
+In this paper, we present an analysis that can show that the program in Figure 1 maintains bounded
+memory while the program in Figure 3 does not. For that, we define two dataflow properties that
+encode whether a program executes in bounded memory: the unseparated paths property and the
+𝑚-consumed property. We then show how these properties can be verified using a static analysis.
+Traces. We formalize the dataflow properties as properties of traces. A trace is a recording of the
+important features of a program execution. In our case, a trace records all sampling and observation
+operations that the program has executed, as well as the variables that were involved in these
+operations. Figure 5 illustrates a trace of the execution of the program in Figure 1.
+Unseparated Paths. An unseparated path in a trace is a sequence of variables {𝑥𝑖 }, where the
+trace specifies that each variable 𝑥𝑖 was sampled from its predecessor 𝑥𝑖−1 and no 𝑥𝑖
+is observed.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:7
+𝜏2 = i f nil :: x1 f i :: y1 f x1 :: obs y1 :: x2 f x1 :: y2 f x2 :: obs y2
+iteration 1 iteration 2
+𝑣2 = (false, i, x2)
+Fig. 6. A depiction of a trace of the program in Figure 3. The figure depicts the trace 𝜏2 and the value of
+the program state 𝑣2 at the end of iteration 2. In this diagram, we use i, x𝑛, y𝑛, respectively, to refer to the
+random variable introduced by sampling i, the variable introduced at iteration 𝑛 by sampling x, and the
+variable introduced at iteration 𝑛 by observing obs in Figure 3. We have highlighted the elements of the
+unseparated path between 𝑖 and x2 in green.
+The unseparated paths property states that there is a uniform bound 𝑐 so that for all iterations no
+variable in the program state starts an unseparated path with more than 𝑐 variables in it.
+Figure 6 illustrates the trace for the program in Figure 3. This program carries the variable i in
+the program state, and because the trace specifies that x1 was sampled from i, and x2 was sampled
+from x1, the sequence i, x1, x2 is an unseparated path with 3 variables. In general, at iteration 𝑛,
+the program in Figure 3 maintains that i is in the program state and starts an unseparated path
+with length 𝑛 + 1. Because no bound can exist on the length of this path for an arbitrary number of
+iterations, this program fails the unseparated path property.
+𝑚-consumed. A variable is 𝑚-consumed if it is no more than 𝑚 sampling operations away from a
+variable that is consumed by an observe statement. The 𝑚-consumed property states that there is a
+uniform bound 𝑚 such every variable introduced by a sampling operation is 𝑚-consumed for some
+𝑚 ≤ 𝑚. We note that the traces in Figures 5 and 6 satisfy the 𝑚-consumed property, because every
+variable is at most 2-consumed. For all 𝑡, y𝑡
+is 0-consumed because it is directly observed, and x𝑡
+is
+1-consumed because y𝑡
+is sampled from x𝑡 and y𝑡
+is 0-consumed. The variable i is 2-consumed
+because x1 is sampled from i, and x1 is 1-consumed.
+The Outlier benchmark presented in Section 7 is an example of a program that fails the 𝑚-
+consumed property, and thus does not execute in bounded memory. This program sometimes
+observes values close to the true latent state but otherwise observes values from an outlier distribution. When the program observes a value from the outlier distribution, it fails to observe any
+dependencies of the latent state, and thus cannot guarantee that the latent state is 𝑚-consumed.
+Over time, if the program performs latent state updates that remain unobserved (due to the program
+always observing from the outlier distribution), the lack of this guarantee results in there being no
+uniform bound 𝑚 under which the latent state could be 𝑚-consumed.
+Analysis. Our goal is ultimately to analyze whether a given program executes in bounded memory.
+As we show in Section 5, a program execution maintains bounded memory if and only if it satisfies
+both the unseparated path and 𝑚-consumed properties. This reduces the problem of analyzing
+the bounded-memory behavior of a program to analyzing these dataflow properties. Our analysis
+utilizes an abstract delayed sampling graph, formally defined in Section 6, with the key aspects of
+these properties. For 𝑚-consumed, the abstract graph maintains a set of variables that have been
+introduced but not yet consumed, and for unseparated paths, it maintains an upper bound on their
+length. For example, the abstract graphs for the trace in Figure 6 are given in Figure 7.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:8 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+𝜏2 = i f nil :: x1 f i :: y1 f x1 :: obs y1 :: x2 f x1 :: y2 f x2 :: obs y2
+iteration 1 iteration 2
+𝑚-consumed i x1 y1 x2 y2
+unseparated paths (i, i), 0 (i, x1), 1 (i, y1), 2 (i, x1), 1 (i, x2), 2 (i, y2), 3 (i, x2), 2
+Fig. 7. A depiction of the abstract graphs of the program in Figure 3, with the same trace as Figure 6. At
+each operation, we depict the 𝑚-consumed abstract graph, a set of nodes that have been introduced but
+not consumed. Because this set is empty at the end of any iteration, the program satisfies the 𝑚-consumed
+semantic property. The unseparated paths abstract graph is a mapping, for each unseparated path in the
+graph, from its endpoints to its length. We depict the longest path in the mapping. After each iteration, this
+longest path continues to lengthen, so the program does not satisfy the unseparated paths semantic property.
+3 LANGUAGE MODEL
+In this section, we present a semantics for probabilistic programs with streams using the language
+𝜇𝐹 . We have adapted 𝜇𝐹 from Baudart et al. [2020]’s core calculus for probabilistic programs and
+extended it with syntax for explicit streams.
+3.1 Syntax
+The syntax of the 𝜇𝐹 language is defined according to the following grammar:
+program ::= 𝑑
+∗ 𝑚
+𝑑 ::= val 𝑝 = 𝑒 | val 𝑓 = fun 𝑝 -> 𝑒 | val 𝑚 = stream { init = 𝑒 ; step(𝑝,𝑝) = 𝑒 }
+𝑒 ::= 𝑣 | op(𝑣) | 𝑓 (𝑣) | if 𝑣 then 𝑒 else 𝑒 | let 𝑝 = 𝑒 in 𝑒
+| init(𝑚) | unfold(𝑥,𝑣) | sample(𝑣) | observe(𝑣,𝑣) | infer(𝑚)
+𝑣 ::= 𝑐 | 𝑥 | (𝑣,𝑣)
+𝑝 ::= 𝑥 | (𝑝,𝑝)
+A program is a set of value, function, and stream function definitions followed by the name of the
+main stream function. A stream function 𝑚 is composed of an initial state (init) and a transition
+function (step). Given a state and an input, the transition function returns an output and a new
+state. An expression is either a value (constant, variable, or pair), the application of a primitive
+operator (arithmetic operator, distribution, etc.), a function call, a conditional, or a local definition.
+The expression init(𝑚) creates an instance of a stream function, and unfold(𝑥,𝑣) applies the
+instance 𝑥 of a stream function on an input and returns the next element and the updated instance.
+Finally, the set of expressions comprises the probabilistic operators sample, observe, and infer.
+Nested inference and higher-order functions on streams are not allowed in the language. We require
+that arguments for all syntactic operators are values to simplify the presentation of the semantics.
+Since new variables can always be introduced to capture the value of any expression, this choice
+does not reduce the expressiveness of the language.
+3.2 Semantics
+The execution of a program 𝑝 = 𝑑
+∗𝑚 comprises three steps. First, declarations 𝑑
+∗
+are evaluated to
+produce an environment 𝛾 which contains the definition of the main stream function 𝑚. Second,
+an instance of the stream function 𝑚 is created.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:9
+⟦val 𝑥 = 𝑒⟧𝛾 = 𝛾 [𝑥 ← ⟦𝑒⟧𝛾 ]
+⟦val 𝑓 = fun 𝑝 -> 𝑒⟧𝛾 = 𝛾 [𝑓 ← (𝜆𝑣. ⟦𝑒⟧𝛾+ [𝑣/𝑝 ])]
+⟦val 𝑚 = stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }⟧𝛾
+= 𝛾 [𝑚 ← stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+]
+⟦init(𝑚)⟧𝛾 = let stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 in
+let 𝑠init = ⟦𝑒init⟧𝛾
+′ in (𝑠init, 𝜆(𝑠, 𝑣). ⟦𝑒⟧𝛾
+′+ [𝑠/𝑝state,𝑣/𝑝input ])
+if 𝑒 is deterministic
+⟦init(𝑚)⟧𝛾 = let stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 in
+let 𝑠init = ⟦𝑒init⟧𝛾
+′ in (𝑠init, 𝜆(𝑠, 𝑣). {[𝑒]}𝛾
+′+ [𝑠/𝑝state,𝑣/𝑝input ])
+if 𝑒 is probabilistic
+⟦unfold(𝑥,𝑣)⟧𝛾 = let 𝑣state, 𝑓 = ⟦𝑥⟧𝛾 in
+let 𝑣output, 𝑣′
+state = 𝑓 (𝑣state, ⟦𝑣⟧𝛾 ) in
+(𝑣output, (𝑣
+′
+state, 𝑓 ))
+⟦infer(𝑚)⟧𝛾 = let stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 in
+let 𝑠init = ⟦𝑒init⟧𝛾
+′ in (𝛿𝑠init , infer(𝜆(𝑠, 𝑣). {[𝑒]}𝛾
+′+ [𝑠/𝑝state,𝑣/𝑝input ]))
+where infer(𝑓 ) = 𝜆(𝜎, 𝑣). let 𝜇 = 𝜆𝑈 . ∫
+𝑆
+𝜎(𝑑𝑠)𝑓 (𝑠, 𝑣) (𝑈 ) in
+let 𝜈 = 𝜆𝑈 . 𝜇(𝑈 )/𝜇(⊤) in
+(𝜋1∗ (𝜈), 𝜋2∗ (𝜈))
+Fig. 8. Deterministic semantics of 𝜇𝐹 (complete definition in Figure 16).
+Third, the instance is iteratively applied on an input stream (𝑖𝑛)𝑛∈N to produce an output
+stream (𝑜𝑛)𝑛∈N, defined in the following way:
+⟦𝑝⟧(𝑖)𝑛 = 𝑜𝑛 where 𝑝 = 𝑑
+∗𝑚 𝛾 = ⟦𝑑
+∗⟧∅
+𝑠0 = ⟦init(𝑚)⟧𝛾 𝑜𝑛, 𝑠𝑛+1 = ⟦unfold(𝑠𝑛,𝑖𝑛)⟧𝛾 ∀𝑛 ≥ 0
+Figure 8 defines the semantics of declarations and deterministic expressions ⟦·⟧. The declarations
+build the evaluation environment 𝛾 which maps names to values, functions, and stream functions.
+The semantics of deterministic expressions corresponds to a first order functional language with
+new constructs to handle streams and the infer(·) operator (the complete definition is given in
+Figure 16 of Appendix A). The expression init(𝑚) creates an instance of the stream function 𝑚: a
+pair corresponding to the current state, and the transition function. The current state is initialized
+with the value of the init field. The expression unfold(𝑥,𝑣) executes the transition function of
+the instance 𝑥 on its current state and the input 𝑣. This expression produces a pair composed of the
+transformed value and the updated instance.
+The ideal semantics of 𝜇𝐹 probabilistic expressions {[·]} is a measure-based semantics similar
+to the one presented by Staton [2017] (the complete definition is given in Appendix A). Given an
+environment 𝛾, an expression is interpreted as a measure {[𝑒]}𝛾 : Σ𝐷 → [0, ∞), that is, a function
+which associates a positive number to each measurable set𝑈 ∈ Σ𝐷 , where Σ𝐷 denotes the Σ-algebra
+of the domain of the expression 𝐷 (i.e., the set of measurable sets of possible values). sample(𝑣)
+returns the distribution ⟦𝑣⟧𝛾 . observe(𝑣1,𝑣2) weights execution paths using the likelihood of
+the observation ⟦𝑣2⟧𝛾 w.r.t. the distribution ⟦𝑣1⟧𝛾 (for a distribution 𝜇 we denote its probability
+density function as 𝜇pdf). Local definitions are interpreted as integration, and we use the Dirac
+delta measure to interpret deterministic expressions.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:10 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+{[𝑣]}𝛾 = 𝜆𝑔,𝑤 . (⟦𝑣⟧𝛾 , 𝑔,𝑤)
+{[op(𝑣)]}𝛾 = 𝜆𝑔,𝑤 . (app(op, ⟦𝑣⟧𝛾 ), 𝑔,𝑤)
+{[𝑓 (𝑣)]}𝛾 = 𝜆𝑔,𝑤 . 𝛾 (𝑓 ) (⟦𝑣⟧𝛾 ) (𝑔,𝑤)
+{[let 𝑝 = 𝑒1 in 𝑒2]}𝛾 = 𝜆𝑔,𝑤 . let 𝑣1, 𝑔1,𝑤1 = {[𝑒1]}𝛾 (𝑔,𝑤) in {[𝑒2]}𝛾+ [𝑣1/𝑝 ] (𝑔1,𝑤1)
+{[if 𝑣 then 𝑒1 else 𝑒2]}𝛾 = 𝜆𝑔,𝑤 . let 𝑏, 𝑔𝑏 = value(⟦𝑣⟧𝛾 , 𝑔) in
+if 𝑏 then {[𝑒1]}𝛾 (𝑔𝑏,𝑤) else {[𝑒2]}𝛾 (𝑔𝑏,𝑤)
+{[unfold(𝑥,𝑣)]}𝛾 = 𝜆𝑔,𝑤 . let 𝑣state, 𝑓 = ⟦𝑥⟧𝛾 in
+let (𝑣output, 𝑣′
+state), 𝑔′𝑤
+′ = 𝑓 (𝑣state, ⟦𝑣⟧𝛾 ) (𝑔,𝑤) in
+( (𝑣output, (𝑣
+′
+state, 𝑓 )), 𝑔′𝑤
+′
+)
+{[sample(𝑣)]}𝛾 = 𝜆𝑔,𝑤 . let 𝑋, 𝑔′ = assume(⟦𝑣⟧𝛾 , 𝑔) in (𝑋, 𝑔′
+,𝑤)
+{[observe(𝑣1,𝑣2)]}𝛾 = 𝜆𝑔,𝑤 . let 𝑋, 𝑔𝑥 = assume(⟦𝑣1⟧, 𝑔) in
+let 𝑣, 𝑔𝑣 = value(⟦𝑣2⟧, 𝑔𝑥 ) in
+let 𝑔
+′ = observe(𝑋, 𝑣, 𝑔𝑣 ) in ((), 𝑔′
+,𝑤 ∗ 𝜇pdf(𝑣))
+Fig. 9. Delayed sampling semantics. Probabilistic expressions are functions from a graph and a weight to a
+triplet (value, graph, weight).
+The infer(𝑚) operator creates an instance of a probabilistic stream: the initial state is a Dirac
+delta distribution on the initial state of 𝑚, and the transition function is infer(𝑓 ) where 𝑓 is the
+transition function of 𝑚. The body of 𝑓 (the expression 𝑒) is interpreted with the probabilistic
+semantics which defines a measure over pairs of output values and states. The function infer(𝑓 )
+takes as arguments a distribution of states 𝜎 and an input 𝑣 and returns a distribution of outputs
+and a distribution of new states. These two distributions are obtained by integrating the transition
+function 𝑓 along the distribution 𝜎 of possible states (domain 𝑆) to build a measure 𝜇 which is then
+normalized to build a distribution 𝜈 of pairs (outputs, states). The distribution 𝜈 is then split into a
+pair of marginal distributions using the pushforward of 𝜈 across the projections 𝜋1 and 𝜋2.
+4 DELAYED SAMPLING
+In this section, we present the details of delayed sampling that underpin this work. This is a new
+formalization of results that were presented by Murray et al. [2018] and Baudart et al. [2020].
+Delayed sampling is a semi-symbolic algorithm combining exact inference and – when exact
+computation fails – approximate inference with particle filtering [Del Moral et al. 2006]. A particle
+filter launches multiple executions of the model. Each execution — or particle — is associated to a
+weight. In the operational semantics, sample(𝑑) statements draw samples from the corresponding
+distributions, and observe(𝑥,𝑑) statements update the weight to reflect the quality of the samples.
+At the end of the executions the results of all the particles are normalized according to their weights
+to form a categorical distribution that approximates the posterior distribution of the model.
+In delayed sampling, each particle contains a graph of random variables and their dependencies
+that can be used to compute closed-form distributions. Observations can be incorporated by
+analytically conditioning the network. If symbolic conditioning fails, inference falls back to a
+particle filter, drawing concrete samples for required random variables.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:11
+4.1 Operational Semantics
+The definition of infer in Figure 8 makes use of an intractable integral. The delayed sampling
+semantics replaces this integral by a discrete sum over the set of particles of the particle filter.
+Compared to traditional particle filtering, delayed sampling performs exact computations when
+possible. Thus, we extend values𝑣 with symbolic terms. Symbolic terms include random variables (𝑋)
+— the nodes of the delayed sampling graph — and applications of operators.
+𝑣 ::= ... | 𝑋 | app(op, 𝑣)
+The semantics in Figure 9 rely on the following high-level operations to update the graph 𝑔.
+𝑣
+′
+, 𝑔′ = value(𝑣, 𝑔) samples all the random variables in 𝑣 to produce a concrete value.
+𝑔
+′ = observe(𝑋, 𝑣, 𝑔) conditions the graph on the fact that the random variable 𝑋 takes the value 𝑣.
+𝑋, 𝑔′ = assume(𝑑, 𝑔) adds and returns a new random variable 𝑋 with distribution 𝑑.
+Probabilistic semantics. The semantics of a probabilistic expressions are defined in Figure 9. The
+semantics of an expression {[𝑒]}𝛾,𝑔,𝑤 takes two additional arguments: 𝑔, the delayed sampling graph,
+and 𝑤, the weight for the particle filter, and returns a symbolic value, an updated graph, and
+an updated weight. Operator application op(𝑣) introduces a symbolic expression app(op, 𝑣). if
+uses the value operation to sample a concrete value for the condition. sample(𝑣) introduces a
+new random variable in the graph with distribution 𝑣. observe(𝑣1,𝑣2) introduces a fresh random
+variable 𝑋 with distribution 𝑣1, and conditions the graph on the fact that 𝑋 takes the value 𝑣2.
+Inference. Given a transition function 𝑓 , a distribution over states 𝜎 from the previous iteration,
+and inputs 𝑣𝑖
+, the infer operator computes a distribution of outputs and new distribution over
+states for the next iteration. First, the inference draws 𝑁 states from 𝜎. Each of theses states 𝑠𝑛 is
+associated with a delayed sampling graph 𝑔𝑛. Second, the transition function 𝑓 returns a symbolic
+output value 𝑣𝑛, a new state 𝑠
+′
+𝑛
+, the updated graph 𝑔
+′
+𝑛
+, and the importance weight 𝑤𝑛. Third, the
+distribution(𝑜𝑛, 𝑔′
+𝑛
+) function returns a distribution of values without altering the graph, and the
+new distribution over states is a Dirac delta distribution on the pair (𝑠
+′
+𝑛
+, 𝑔′
+𝑛
+). Finally, results are
+accumulated in a mixture distribution using the weights 𝑤𝑛 and this distribution is split into a
+distribution of values and a distribution of next states.1
+⟦infer(𝑚)⟧𝛾 = let stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 in
+let 𝑠init = ⟦𝑒init⟧𝛾
+′ in (𝛿(𝑠init,∅), infer(𝜆(𝑝state, 𝑝input). {[𝑒]}𝛾
+′))
+where infer(𝑓 ) = 𝜆(𝜎, 𝑣𝑖). let 𝜇 = 𝜆𝑈 . Í
+𝑁
+𝑛=1
+let 𝑠𝑛, 𝑔𝑛 = draw(𝜎) in
+let (𝑜𝑛, 𝑠′
+𝑛
+), 𝑔′
+𝑛
+,𝑤𝑛 = 𝑓 (𝑠𝑛,𝑣𝑖)(𝑔𝑛, 1) in
+let 𝑑𝑛 = distribution(𝑜𝑛, 𝑔′
+𝑛
+) in
+𝑤𝑛 ∗ 𝑑𝑛 (𝜋1 (𝑈 )) ∗ 𝛿𝑠
+′
+𝑛,𝑔′
+𝑛
+(𝜋2 (𝑈 ))
+in (𝜋1∗ (𝜇), 𝜋2∗ (𝜇))
+4.2 Graph Manipulation
+We now describe the graph manipulation functions that are required to define the high-level
+operations value, assume, and observe used in the semantics of Figure 9. Lundén [2017] and Murray
+et al. [2018] provide detailed explanations of these operations.
+Notation. In this section and those that follow, frv(𝑣) denotes the free random variables of a
+program value 𝑣, i.e., the set of variables used in the symbolic expression 𝑣.
+1we write 𝑤𝑖 = 𝑤𝑖 /
+Í𝑁
+𝑖=1 𝑤𝑖 for the normalized weights.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:12 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+Graph Data Structure. A delayed sampling graph 𝑔 is defined by a tuple (𝑉 , 𝐸, 𝑞) where 𝑉 is a set
+of vertices – the random variables, 𝐸 is a set of directed edges – the dependencies between random
+variables, and 𝑞 is a relation mapping each node to a state: Initialized, Marginalized, or Realized.
+A node Initialized(𝑝𝑋 |𝑌 ) represents a random variable 𝑋 with a conditional distribution 𝑝𝑋 |𝑌
+where 𝑌 is the unique parent of 𝑋. A node Marginalized(𝑝𝑋 ) represents a random variable 𝑋 with a
+marginal distribution 𝑝𝑋 . A Marginalized node has at most one parent. If there is a parent node, the
+distribution 𝑝𝑋 incorporates its distribution. A node Realized(𝑣) represents a random variable 𝑋
+associated to a concrete value 𝑣. By construction, a delayed sampling graph is a forest – a set of
+trees (each node has at most one parent).
+value. The operation value(𝑣, 𝑔) converts the symbolic expression 𝑣 into a concrete value by
+sampling all the random variables in 𝑣. All these random variables become Realized nodes in the
+graph, and the distributions depending on these variables are updated.
+value(𝑣, 𝑔) = (𝑣, 𝑔) if 𝑣 is a concrete value
+value(app(op, 𝑣), 𝑔) = let 𝑣
+′
+, 𝑔′ = value(𝑣, 𝑔) in (op(𝑣
+′
+), 𝑔′
+)
+value(𝑋, 𝑔) = let 𝑉 , 𝐸, 𝑞 = 𝑔 in
+if 𝑞(𝑋) = Realized(𝑣) then (𝑣, 𝑔)
+else let 𝑉
+′
+, 𝐸′
+, 𝑞′
+[𝑋 ← Marginalized(𝜇)] = graft(𝑋, 𝑔) in
+let 𝑣 = draw(𝜇) in
+(𝑣, (𝑉
+′
+, 𝐸′
+, 𝑞′
+[𝑋 ← Realized(𝑣)]))
+If 𝑣 is already a concrete value, there is nothing to do. If 𝑣 is the application of an operator, value
+recursively samples a concrete value for the argument and applies the operator to this value. If𝑣 is a
+random variable 𝑋 that is already realized, value returns the corresponding value. Otherwise, value
+(1) calls the graft function defined in Appendix C to marginalize 𝑋 and all its ancestors, (2) draws a
+sample from the marginalized distribution, and (3) returns this value and turns 𝑋 into a Realized
+node. Note that graft might have to realize some nodes since it marginalizes all its ancestors and a
+marginal node has a single marginalized child. During marginalization, graft also removes edges
+between Marginalized nodes and their Realized child if any.
+assume. The operation assume(𝑣, 𝑔) adds a new random variable 𝑋 with distribution 𝑣 in graph 𝑔.
+assume(𝑣, 𝑔) = let (𝑉 , 𝐸, 𝑞) = 𝑔 in
+let 𝑋 = fresh(𝑉 ) in
+if frv(𝑣) = ∅ then (𝑋, (𝑉 ∪ {𝑋}, 𝐸, 𝑞[𝑋 ← Marginalized(𝑣)]))
+else if frv(𝑣) = {𝑌 } ∧ conj(𝑣, 𝑌, 𝑔) then
+(𝑋, (𝑉 ∪ {𝑋}, 𝐸 ∪ {(𝑋, 𝑌)}, 𝑞[𝑋 ← Initialized(𝑣)]))
+else
+let 𝑣
+′
+, (𝑉 ,′ 𝐸
+′
+, 𝑞′
+) = value(𝑣, (𝑉 ∪ {𝑋}, 𝐸, 𝑞)) in
+(𝑋, (𝑉
+′
+, 𝐸′
+, 𝑞′
+[𝑋 ← Marginalized(𝑣
+′
+)]))
+The distribution 𝑣 is a symbolic expression which can be a marginal distribution that does not
+depends on other random variables — e.g., app(bernoulli, 0.5)— or a conditional distribution — e.g.,
+app(bernoulli, 𝑌) where 𝑌 is a random variable. If 𝑣 is a marginal distribution, assume just adds a
+new marginalized node in the graph. If 𝑣 is a conditional distribution, assume tries to keep track of
+the dependency between 𝑋 and a random variable used in 𝑣 (the delayed sampling graph is a forest
+where each node has at most one parent).
+The value 𝑣 thus represents a distribution 𝑝𝑋 |𝑌 where 𝑋 depends on a unique random variable 𝑌.
+If the distribution 𝑝𝑋 |𝑌 and 𝑝𝑌 are conjugate (conj(𝑣, 𝑌, 𝑔)) — e.g., app(bernoulli, 𝑌) with 𝑌 ∼
+beta(𝛼, 𝛽) — marginalization and conditioning are tractable operations, and assume adds an edge
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:13
+between 𝑌 and a new initialized node 𝑋 to the graph. Otherwise, symbolic computation is not
+possible; assume calls value to sample a concrete value, thus breaking the dependency, and adds a
+new independent Marginalized node to the graph.
+observe. The operation observe(𝑋, 𝑣, 𝑔) assigns the concrete value 𝑣 to 𝑋 and updates the distributions depending on 𝑋 accordingly.
+observe(𝑋, 𝑣, 𝑔) = let (𝑉 , 𝐸, 𝑞) = graft(𝑋, 𝑔) in (𝑉 , 𝐸, 𝑞[𝑋 ← Realized(𝑣)])
+Similarly to value, the observe operation uses the function graft to marginalize the variable 𝑋 and
+then turns 𝑋 to a Realized node associated with the value 𝑣.
+4.3 Memory Usage
+Baudart et al. [2020] proposed an implementation of delayed sampling where an Initialized node
+only has a pointer to its parent, a Marginalized node only has a pointer to its unique Marginalized
+or Realized child, if any, and a Realized node has no pointers to its parent or any of its children.
+Garbage Collection. A node in the delayed sampling graph can be safely removed if none of the
+program variables depend on its value. We assume the existence of a garbage collection routine
+that deallocates the nodes of the graph that are not reachable as soon as possible.
+Definition 4.1 (Reachability). Given a set of root variables 𝑟 and a delayed sampling graph
+𝑔 = (𝑉 , 𝐸, 𝑞), the set of reachable variables – written reachable(𝑔, 𝑟) – is defined as follows:
+𝑅 = {(𝑋, 𝑌) |
+(𝑋, 𝑌) ∈ 𝐸 ∧ 𝑞(𝑋) = Initialized
+∨
+
+(𝑌, 𝑋) ∈ 𝐸
+∧ 𝑞(𝑋) = Marginalized ∧ (𝑞(𝑌) = Marginalized ∨ 𝑞(𝑌) = Realized)
+
+reachable(𝑔, 𝑟) = {𝑌 | (𝑅
+∗
+(𝑋, 𝑌)) ∧ 𝑋 ∈ 𝑟 ∧ 𝑌 ∈ 𝑉 }
+where 𝑅
+∗ denotes the reflexive transitive closure of the relation 𝑅.
+If we consider the graph in Figure 2b, reachable(𝑔, {x}) = {x}. In the example of Figure 4b, we
+have reachable(𝑔, {i, x}) = {i, pre_x, x}, where pre_x is the gray node in between the nodes for i
+and x. Reachability is the core property used in Definition 5.1 to define what it means for a program
+to run in bounded memory.
+Graph Expansion. The only operation that increases the size of the graph is assume which
+introduces new nodes. The operations value and observe can only marginalize and realize nodes.
+If 𝑔
+′
+is the graph resulting from the application of value or observe on a graph 𝑔, 𝑔 and 𝑔
+′ have
+the same structure but Initialized nodes can be Marginalized or Realized, and Marginalized nodes
+can be Realized. The reachability relation of the graph implies that value and observe reduce the
+number of dependencies in the delayed sampling graph, that is, reachable(𝑔
+′
+, 𝑟) ⊆ reachable(𝑔, 𝑟).
+Initialized and Marginalized Chains. Two patterns can yield unbounded memory consumption.
+First, it is possible to keep adding nodes without realizing them (via observation or sampling),
+thus forming initialized chains. An initialized chain is a sequence of initialized nodes, each of
+which holds a pointer to its parent and thereby expands the number of random variables that are
+reachable. Second, it is possible that nodes are only indirectly used to realize one of their children.
+These marginalized nodes can form marginalized chains. A marginalized chain is a sequence of
+marginalized nodes, each of which holds a pointer to its child and thus expands the number of
+random variables that are reachable. The last node of a marginalized chain may be realized.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 202
+115:14 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+5 SEMANTIC PROPERTIES
+In this section, we define conditions under which delayed sampling executes in bounded memory.
+We define these conditions as properties of executions. An execution is a sequence of pairs of a state
+and a delayed sampling graph (𝑠𝑛, 𝑔𝑛)𝑛∈N, where each state is a semi-symbolic value as defined in
+Section 4.1. An execution defines the sequence of states and graphs a model — i.e., an argument of
+an infer — goes through.
+The inference step function infer(𝑓 ) in ⟦infer(𝑚)⟧ may operate over multiple executions
+of 𝑓 (see Section 4.1). However, infer(𝑓 ) executes in bounded memory if every execution of 𝑓 is
+bounded-memory. This is because infer(𝑓 ) always updates its state by mapping 𝑓 over states and
+graphs from the distribution at the previous iteration. Thus, any state and graph in the distribution
+at the next iteration must have come from some execution of 𝑓 , and if all executions of 𝑓 are
+bounded-memory, all states and graphs in the distribution must have bounded memory. We have
+formalized this in more details in Appendix E.1.
+Based on this notion of execution, we introduce two notions of bounded-memory executions
+of delayed sampling, and semantic properties which are necessary and sufficient for boundedmemory execution. In Section 5.1 we present a low-level definition of bounded memory that directly
+corresponds to how the delayed sampling runtime executes. In Section 5.2 we present an alternative
+high-level definition in terms of dataflow properties of the high-level delayed sampling operators:
+the 𝑚-consumed and unseparated paths properties. In Section 5.3 we show that the high-level and
+low-level formulations are equivalent. In particular, Section 5.3 shows a correspondence between the
+𝑚-consumed property and a bound on the length of initialized chains, as well as a correspondence
+between the unseparated paths property and a bound on the length of marginalized chains.
+5.1 Low-Level Bounded Memory
+A program executes in bounded memory if the delayed sampling graph maintains a bounded
+number of reachable variables over time. We formalize this as follows:
+Definition 5.1 (Low-level Bounded-Memory). An execution (𝑠𝑛, 𝑔𝑛)𝑛∈N of a model is low-level
+bounded-memory if
+∃𝑘. ∀𝑛 ≥ 0 |reachable(𝑔𝑛, 𝑠𝑛)| ≤ 𝑘 ∗ |frv(𝑠𝑛)|
+This definition states that at each iteration, the size of the set of reachable nodes in the delayed
+sampling graph may be at most a constant multiple of the number of free random variables in
+the state. We do not consider the runtime to violate bounded memory in the trivial case that the
+program state is intrinsically unbounded, i.e., when |frv(𝑠𝑛)|𝑛∈N is unbounded. Such a program
+would not execute in bounded memory under any inference algorithm; even a particle filter would
+require unbounded memory to store the program state.
+5.2 High-Level Definitions
+In this section, we present an alternative high-level definition of bounded memory that is easier
+to reason about. The high-level definition is in terms of dataflow properties of delayed sampling
+operations. We have formalized these dataflow properties by augmenting the delayed sampling
+operations with tracing. A trace is defined as follows:
+𝜏 ::= 𝜏 :: 𝜏1 | nil
+𝜏1 ::= 𝑋 f 𝑋 | 𝑋 f nil | eval(X) | obs(𝑋)
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:15
+assume(𝑣, (𝑔, 𝜏)) = let 𝑋
+′
+, 𝑔′ = assume(𝑣, 𝑔) in
+
+
+
+𝑋
+′
+, (𝑔
+′
+, 𝜏 :: 𝑋
+′ f nil) frv(𝑣) = ∅
+𝑋
+′
+, (𝑔
+′
+, 𝜏 :: 𝑋
+′ f 𝑋) {𝑋} = frv(𝑣) ∧ conj(𝑣, 𝑋, 𝑔)
+𝑋
+′
+, (𝑔
+′
+, 𝜏 :: eval(frv(𝑣)) :: 𝑋
+′ f nil) otherwise
+value(𝑣, (𝑔, 𝜏)) = let (𝑣
+′
+, 𝑔′
+) = value(𝑣, 𝑔) in 𝑣
+′
+, (𝑔
+′
+, 𝜏 :: eval(frv(𝑣)))
+observe(𝑋, 𝑣, (𝑔, 𝜏)) = observe(𝑋, 𝑣, 𝑔), (𝜏 :: obs(𝑋))
+Fig. 10. Tracing semantics of delayed sampling operators.
+A trace is a list of primitive operations, where each primitive is one of:
+• Assumption, written 𝑋 f 𝑋
+′ when 𝑋 is assumed from another random variable 𝑋
+′ or
+𝑋 f nil when it is assumed without a parent.
+• Evaluation using the eval keyword, which refers to evaluating a set of random variables X.
+• Observation using the obs keyword, which refers to observing a random variable 𝑋.
+We define an augmented semantics that operates on a pair of a delayed sampling graph and a trace.
+Figure 10 defines augmented versions of the assume, value, and observe operations, and the full
+semantics (written ⟦·⟧ and {[·]}) is defined by replacing these operators in Figure 9 with their traced
+counterparts from Figure 10.
+The 𝑚-consumed Property. The 𝑚-consumed property is used to enforce that every variable
+introduced with assume is eventually consumed either by directly being passed to a value or observe
+or transitively by being passed to a assume that introduces a variable that is also 𝑚-consumed.
+Definition 5.2 (𝑚-consumed). A variable 𝑋 is 𝑚-consumed in a trace 𝜏 under the following
+circumstances:
+• 𝑋 is 0-consumed if it is observed or evaluated (i.e., 𝜏 has eval(𝑋) where 𝑋 ∈ X or obs(𝑋)).
+• 𝑋 is 0-consumed if it is never used (i.e., there is no 𝑋
+′ f 𝑋, eval(𝑋), or obs(𝑋) in 𝜏).
+• 𝑋 is 𝑚-consumed if it is passed to the assume statement that introduces another variable 𝑋
+′
+(i.e., 𝑋
+′ f 𝑋 is in 𝜏), and 𝑋
+′
+is (𝑚 − 1)-consumed.
+The Unseparated Paths Property. The unseparated paths property states the existence of a sequence
+of variables, each assumed from the previous, with no variable in the sequence observed or evaluated.
+Definition 5.3 (Unseparated Paths). An unseparated path in𝜏 is a sequence of variables𝑋0, 𝑋1, . . . , 𝑋𝑛
+such that each 𝑋𝑖+1 was assumed from 𝑋𝑖
+(i.e., 𝑋𝑖+1 f 𝑋𝑖
+is in 𝜏) and no 𝑋𝑖
+is directly observed or
+evaluated (i.e., 𝜏 does not contain any eval or obs operations that reference 𝑋𝑖
+).
+High-level Bounded Memory. We now present the high-level bounded memory property. This
+property states that all variables must eventually be 𝑚-consumed, and there must be a uniform
+bound across iterations on the length of an unseparated path starting from a program state variable.
+Definition 5.4 (High-level Bounded-Memory). A program execution (𝑠𝑛, (𝑔𝑛, 𝜏𝑛))𝑛∈N is high-level
+bounded-memory if and only if
+• There exists an 𝑚 such that for every iteration 𝑛 and every variable introduced before 𝑛 (i.e.,
+𝑋 such that 𝑋 f 𝑋
+′ or 𝑋 f nil is in 𝜏𝑛), there exists a 𝑛
+′ ≥ 𝑛 such that for all 𝑛
+′′ ≥ 𝑛
+′
+, 𝑋
+is 𝑚-consumed in 𝜏𝑛
+′′.
+• There exists a 𝑐 such that for all 𝑛, no random variable referenced in 𝑠𝑛 starts an unseparated
+path in 𝜏𝑛 of length more than 𝑐.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:16 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+5.3 Equivalence of Low-Level and High-Level Definitions
+In this section, we show the equivalence of the low-level and high-level definitions. We do so
+by showing that both properties are equivalent to the delayed sampling graph having a uniform
+bound (i.e., a bound that holds across all iterations) on the length of initialized and marginalized
+chains as defined in Section 4.3.
+5.3.1 Low-Level Bounded Memory vs. Infinite Chains.
+Lemma 5.5. If the delayed sampling graph is constructed using assume, observe, and value operations, then each random variable starts either an initialized chain, a marginalized chain, or an
+initialized chain followed by a marginalized chain.
+Proof. The assume, observe, and value operations can only make the following modifications to
+a delayed sampling graph 𝑔. (1) Add a independent Marginalized node which creates a marginalized
+chain of length zero. (2) Attach a new Initialized node 𝑋 to a node 𝑌 with a conjugate distribution. It
+means that 𝑌 is either Initialized or Marginalized and thus it creates either a longer initialized chain
+or an initialized chain followed by a marginalized chain. (3) Perform a graft which ensures that
+every ancestor of a node is marginalized and has a single marginalized child. Every non-ancestor
+variable is either as it was before or becomes realized, so this operation preserves the structure of
+the previous graph and cannot increase the length of the chains. (4) convert a Marginalized node
+into a Realized node which can only break a chain. □
+Theorem 5.6. A program is low-level bounded-memory iff there is a uniform bound𝑚 on the length
+of an initialized chain and a uniform bound 𝑐 on the length of a marginalized chain.
+Proof. Assuming a uniform bound, when the number of variables is bounded by 𝑁, according
+to Lemma 5.5, the number of reachable nodes in the graph is bounded by 𝑁 × (𝑐 + 𝑚).
+Conversely, if no uniform bound exists (i.e., for every potential bounds 𝑐 and 𝑚, there exists
+a iteration 𝑛 such that chains may exceed the bound at 𝑛), the execution cannot be low-level
+bounded-memory, because even if the number of root variables is bounded by 𝑁, the reachable
+variables may exceed 𝑁 × (𝑐 + 𝑚). □
+5.3.2 High-Level Bounded Memory vs. Infinite Chains.
+Theorem 5.7 (High-level Soundness). In a program execution that is high-level bounded-memory,
+no infinite chains can exist in any of the delayed sampling graphs.
+Proof. All initialized chains must be shorter than 𝑚, where 𝑚 is from the 𝑚-consumed property
+of high-level bounded-memory. This is because when a variable’s descendant is subject to observe
+or value, the variable becomes marginalized. Such a descendant can be at most 𝑚 variables away
+because of the definition of 𝑚-consumed.
+All marginalized chains must be shorter than 𝑐 +𝑚, where 𝑐 is from the unseparated path property
+of high-level bounded-memory and 𝑚 is from the 𝑚-consumed property. By Lemma 5.5, every
+marginalized chain must start at either a root or an initialized chain. If it starts at a root, the
+unseparated path property ensures that the path between the root and the end of the chain can
+contain at most 𝑐 variables. This is because any observed or valued variables become realized and
+become the end of the chain. If it starts at an initialized chain, by the above reasoning that chain
+has length at most 𝑚, and there was a previous iteration at which the marginalized chain started at
+a root and had length at most 𝑐, giving an overall length of at most 𝑐 + 𝑚. □
+Lemma 5.8. If there exists a variable that is not 𝑚-consumed, then the program produces a graph at
+some iteration with an initialized chain of length 𝑚.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:17
+Proof. If a variable is not 𝑚-consumed, then by the definition of 𝑚-consumed must start an
+assume chain of length 𝑚. All of the nodes in this chain must be initialized, and therefore form an
+initialized chain of length 𝑚. □
+Lemma 5.9. If every variable is 𝑚-consumed, and there exists a variable that starts an unseparated
+path of length 𝑐 where 𝑐 > 𝑚, then there exists an iteration with a marginalized chain that has length
+at least 𝑐 − 𝑚.
+Proof. Note that the first𝑐 −𝑚 variables in the unseparated path must be either marginalized or
+realized. Otherwise, there would be more than 𝑚 initialized variables in the tail of the unseparated
+path that are initialized, which would violate soundness of 𝑚-consumed. Let 𝑋 be the variable that
+starts the unseparated path and 𝑋
+′ be the last marginalized or realized variable in the unseparated
+path, and consider the iteration 𝑛
+′ when 𝑋
+′ was first marginalized. It must be true that (1) 𝑋 is in
+the program state at iteration 𝑛
+′ because it is in the state at the current iteration 𝑛 > 𝑛
+′
+, and (2) a
+marginalized chain runs from 𝑋 to 𝑋
+′
+. Thus, at 𝑛
+′
+, the marginalized chain had length 𝑐 − 𝑚. □
+Theorem 5.10 (High-level Completeness). If a program execution is not high-level boundedmemory, the delayed sampling graph has either unbounded initialized chains or marginalized chains.
+Proof. If the execution is not high-level bounded-memory, it either fails the 𝑚-consumed
+property or the unseparated path property. If it fails the 𝑚-consumed property, apply Lemma 5.8.
+Otherwise, apply Lemma 5.9. □
+Theorem 5.11. A program execution is high-level bounded-memory if and only if it is low-level
+bounded-memory.
+Proof. Apply Theorems 5.6, 5.7, and 5.10. □
+6 ANALYSIS
+In this section, we develop an analysis to check that a 𝜇𝐹 program executes in bounded memory. We
+approach this problem by developing two independent analyses within a shared analysis framework.
+One analysis checks the 𝑚-consumed property of a program and the other checks the unseparated
+paths property, which together ensure that the program executes in bounded memory (Section 5).
+Our shared analysis framework abstracts the execution of a program as the execution of abstract
+operations on an abstract graph. An abstract graph abstracts the dynamic state of a program’s
+delayed sampling graph. We implement the analysis framework by means of a type system, such
+that well-typed programs satisfy the 𝑚-consumed and unseparated paths properties, given each
+analysis’s respective instantiation of the abstract graph. The typing judgment
+Γ, G ⊢𝛼 𝑒 : 𝑡, G
+′
+asserts that in a context Γ, and for an abstract graph G, that an expression 𝑒 accesses the random
+variables denoted by the type 𝑡 and yields a new abstract graph G
+′
+. The parameter 𝛼 is either mc
+to denote the 𝑚-consumed analysis or up to denote the unseparated paths. We write Γ ⊢𝛼 𝑒 : 𝑡 as
+shorthand for Γ, G ⊢𝛼 𝑒 : 𝑡, G when 𝑒 has no effect on the graph.
+6.1 Types and Contexts
+A type 𝑡 captures the random variables the expression could refer to as well as its shape, as primitive
+data, a product, a function, or a stream instance.
+𝑡 F 𝑟 | () | 𝑡1 × 𝑡2 | 𝑡1 → 𝑡2 | stream(𝑡, 𝑠) | bounded
+𝑠 F stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:18 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+The type of a primitive expression is a reference set, denoted 𝑟, which specifies the random variables
+to which the expression refers. We distinguish two types of stream instances, before and after
+bounded-memory checking. The first is stream(𝑡, 𝑠), where 𝑡 is the type of the current state and 𝑠 is
+a step function representation to be described later. The second is bounded, representing instances
+that have passed bounded memory analysis and hide their inner structure.
+Reference Sets. A reference set of a 𝜇𝐹 expression, denoted 𝑟, specifies the random variables that
+are affected when the expression is observed or evaluated. In the presence of branches, we define 𝑟
+to be a pair of sets (lb, ub), where the lower bound lb contains all random variables which must
+be affected and the upper bound ub all random variables which may be affected. For example,
+a constant value in 𝜇𝐹 such as 1.5 has the reference set (∅, ∅) because it references no random
+variables. If the program variables x and y correspond to random variables 𝑋 and 𝑌 respectively,
+then the expression gaussian(x,y), specifying a distribution with two parameters, has reference
+set ({𝑋, 𝑌 }, {𝑋, 𝑌 }), meaning that observing it will observe the random variables 𝑋 and 𝑌.
+Contexts. The context Γ, 𝑥 : 𝑡 maps variable 𝑥 to type 𝑡. As 𝜇𝐹 syntactic patterns 𝑝 may be
+variables or pairs, we use the shorthand Γ, 𝑝 : 𝑡 to define types for variables in 𝑝 by structural
+correspondence with 𝑡, as defined by the first rule below. We also define a judgment ⊢𝑝 𝑝 : 𝑡 that
+synthesizes a deterministic type 𝑡 from a pattern 𝑝.
+Γ, 𝑝1 : 𝑡1, 𝑝2 : 𝑡2 ⊢𝛼 𝑒 : 𝑡
+Γ, (𝑝1, 𝑝2) : 𝑡1 × 𝑡2 ⊢𝛼 𝑒 : 𝑡 ⊢𝑝 𝑥 : (∅, ∅)
+⊢𝑝 𝑝1 : 𝑡1 ⊢𝑝 𝑝2 : 𝑡2
+⊢𝑝 (𝑝1,𝑝2) : 𝑡1 × 𝑡2
+6.2 Abstract Graphs
+An abstract graph G is an abstraction of the delayed sampling graph that tracks which random
+variables have been consumed and active paths between random variables, properties relevant to
+the semantic properties. For each analysis 𝛼 there exists an abstract graph type, G, and a set of
+operations that form its interface (Figure 11).
+Specifically, in the 𝑚-consumed analysis we define G to be a pair of sets in and con which
+respectively represent an over-approximation of variables introduced into the graph and an underapproximation of the variables consumed by observation or sampling (Figure 12). In the unseparated
+paths analysis, we define G to be a set sep of separators containing consumed random variables
+and a partial path function 𝑝 mapping a pair of random variables to an upper bound on the length
+of an unseparated path between them (Figure 13).
+Operations on the abstract graph manipulate random variables, graphs, and reference sets. The
+function assume returns a new graph with a random variable 𝑋 from a distribution with reference
+set 𝑟 added to G, observe returns a graph where 𝑋 is observed with a value with reference set 𝑟,
+and value returns a graph where an expression with reference set 𝑟 is evaluated. The join operator
+⊔𝛼 represents a conservative choice between two graphs.
+𝑚-consumed Graph Operations. In Figure 12, assumemc(𝑋, 𝑟, G) marks the random variable 𝑋 as
+introduced. In all cases, the lower bound of random variables in the input is marked consumed. To
+join two states, we union the introduced variables and intersect the consumed variables.
+Unseparated Paths Graph Operations. In Figure 13, observeup and valueup mark input variables as
+separators. In assumeup, we set the length of the path from the new variable 𝑋 to itself to zero. For
+a parent 𝑋𝑝 that is not a separator, we set the length of the path from any variable 𝑋𝑖 to 𝑋 to one
+more than the length from 𝑋𝑖 to 𝑋𝑝 . To join two states, we intersect the separators and take the
+maximum length between the results of the two path functions (where defined, or 0 otherwise).
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:19
+assume𝛼 : RV → 𝑟 → G → G
+observe𝛼 : RV → 𝑟 → G → G
+value𝛼 : 𝑟 → G → G
+⊔𝛼 : G → G → G
+Fig. 11. Abstract graph interface.
+G F {𝑖𝑛 ⊆ RV;con ⊆ RV}
+assumemc(𝑋, 𝑟, G) = {G.𝑖𝑛 ∪ {𝑋}; G.con ∪ 𝑟 .lb}
+observemc(𝑋, 𝑟, G) = {G.𝑖𝑛; G.con ∪ 𝑟 .lb ∪ {𝑋}}
+valuemc(𝑟, G) = {G.𝑖𝑛; G.con ∪ 𝑟 .lb}
+G1 ⊔mc G2 = {G1.𝑖𝑛 ∪ G2.𝑖𝑛; G1.con ∩ G2.con}
+Fig. 12. 𝑚-consumed abstract graph operations.
+G F {𝑝 : RV × RV ↩→ N;sep ⊆ RV}
+assumeup (𝑋, 𝑟, G) = {𝑝
+′
+; G.sep} where 𝑝
+′
+(𝑋, 𝑋) ↦→ 0,
+𝑝
+′
+(𝑋𝑖
+, 𝑋) ↦→ G.𝑝(𝑋𝑖
+, 𝑋𝑝 ) + 1 for all 𝑋𝑝 ∈ 𝑟 .ub \ G.sep, 𝑋𝑖 ∈ RV,
+𝑝
+′
+(𝑋, 𝑌) ↦→ G.𝑝(𝑋, 𝑌) otherwise
+observeup (𝑋, 𝑟, G) = {G.𝑝; G.sep ∪ 𝑟 .lb ∪ {𝑋}}
+valueup (𝑟, G) = {G.𝑝; G.sep ∪ 𝑟 .lb}
+G1 ⊔up G2 = {𝑝
+′
+; G1.sep ∩ G2.sep} where 𝑝
+′
+(𝑣1, 𝑣2) ↦→ max(G1.𝑝(𝑣1, 𝑣2), G2.𝑝(𝑣1, 𝑣2))
+Fig. 13. Unseparated paths abstract graph operations.
+6.3 Typing Rules
+In Figure 14 we present the typing rules that are relevant to analyzing probabilistic streams, with
+the full definition in Appendix D. Constants reference no random variables. sample introduces a
+fresh random variable sampled from its argument and adds it to the graph. observe introduces
+an intermediate random variable for its first argument by the same mechanism as sample, and
+observes it to be the evaluation of its second argument.
+Operators and Scalar Folding. We use 𝜇𝐹 operators 𝑜𝑝 to describe probability distributions and
+other operations over scalars and assume them to have scalar return values. The auxiliary judgment
+↘ folds products and stream instances into scalars by taking unions of variable sets.
+() ↘ ( ∅, ∅) 𝑟 ↘ 𝑟
+𝑡1 ↘ (lb, ub) 𝑡2 ↘ (lb′
+, ub′
+)
+𝑡1 × 𝑡2 ↘ (lb ∪ lb′
+, ub ∪ ub′
+)
+𝑡 ↘ (lb, ub)
+stream(𝑡, 𝑠) ↘ (lb, ub) bounded ↘ ( ∅, ∅)
+Sequencing. Sequencing using the let-expression follows the standard typing rule for let, and
+also threads the output graph of evaluating 𝑒 into the evaluation of 𝑒
+′
+.
+() ⊔ () = ()
+(𝑡1 × 𝑡2) ⊔ (𝑡
+′
+1 × 𝑡
+′
+2
+) = (𝑡1 ⊔ 𝑡
+′
+1
+) × (𝑡2 ⊔ 𝑡
+′
+2
+)
+(lb, ub) ⊔ (lb′
+, ub′
+) = (lb ∩ lb′
+, ub ∪ ub′
+)
+Fig. 15. Join operator for types.
+Conditionals and Join. if-expressions evaluate
+the condition, check both branches in parallel, and
+join the resulting reference set and graphs. The join
+operator ⊔ (Figure 15), representing the conservative union of two types, unions the upper bounds
+and intersects the lower bounds. We disallow ifbranching over functions and stream instances.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:20 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+Γ ⊢𝛼 𝑐 : (∅, ∅)
+Γ ⊢𝛼 𝑣 : 𝑟 𝑋 = fresh(G)
+Γ, G ⊢𝛼 sample(𝑣) : ({𝑋}, {𝑋}), assume𝛼 (𝑋, 𝑟, G)
+Γ, G ⊢𝛼 sample(𝑣1) : ({𝑋}, {𝑋}), G
+′
+Γ ⊢𝛼 𝑣2 : 𝑟2
+Γ, G ⊢𝛼 observe(𝑣1,𝑣2) : (), observe𝛼 (𝑋, 𝑟2, value𝛼 (𝑟2, G
+′
+))
+Γ ⊢𝛼 𝑣 : 𝑡 𝑡 ↘ 𝑟
+Γ ⊢𝛼 op(𝑣) : 𝑟
+Γ, G ⊢𝛼 𝑒 : 𝑡, G
+′
+Γ, 𝑝 : 𝑡, G
+′
+⊢𝛼 𝑒
+′
+: 𝑡
+′
+, G
+′′
+Γ, G ⊢𝛼 let 𝑝 = 𝑒 in 𝑒
+′
+: 𝑡
+′
+, G
+′′
+Γ ⊢𝛼 𝑣 : 𝑟 G
+′ = value𝛼 (𝑟, G) Γ, G
+′
+⊢𝛼 𝑒1 : 𝑡1, G1 Γ, G
+′
+⊢𝛼 𝑒2 : 𝑡2, G2
+Γ, G ⊢𝛼 if 𝑣 then 𝑒1 else 𝑒2 : 𝑡1 ⊔ 𝑡2, G1 ⊔𝛼 G2
+Γ ⊢𝛼 𝑚 : (𝑡, 𝑠)
+Γ ⊢𝛼 init(𝑚) : stream(𝑡, 𝑠)
+Γ ⊢𝛼 𝑥 : stream(𝑡, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)) Γ ⊢𝛼 𝑣 : 𝑡in Γ𝑒, 𝑝state : 𝑡, 𝑝in : 𝑡in, G ⊢𝛼 𝑒 : 𝑡
+′ × 𝑡out, G
+′
+Γ, G ⊢𝛼 unfold(𝑥,𝑣) : 𝑡out × stream(𝑡
+′
+, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)), G
+′
+Γ ⊢mc 𝑚 bounded Γ ⊢up 𝑚 bounded
+Γ ⊢𝛼 infer(𝑚) : bounded
+Γ ⊢𝛼 𝑥 : bounded Γ ⊢𝛼 𝑣 : 𝑡 𝑡 ↘ (∅, ∅)
+Γ ⊢𝛼 unfold(𝑥,𝑣) : (∅, ∅) × bounded
+Fig. 14. Delayed sampling type system.
+Streams and Inference. To facilitate typing of stream functions, we define the following auxiliary
+judgment, which computes, for a stream function, the type of its initial state and the syntactic
+fragment for its step function.
+Γ ⊢𝛼 𝑒
+′
+: 𝑡init 𝑡init ↘ (∅, ∅)
+Γ ⊢𝛼 stream { init = 𝑒
+′
+; step(𝑝state,𝑝in) = 𝑒 } : (𝑡init, stepfn(𝑝state, 𝑝in, Γ, 𝑒))
+Correspondingly, we define the context Γ,𝑚 : (𝑡init, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)) to map the stream
+function name 𝑚 to its initial state type and step function.
+Instances that are created by init expose the type of their internal state and their step function.
+The unfold rule applies the step function to the current state, yielding an output and an instance
+with the new state. It ensures that the argument 𝑣 is compatible with the type of the step function.
+An infer expression marks the entry point of a new sub-analysis for its new delayed sampling
+graph. The premises of the typing rule for infer are the success conditions for both analyses that
+must hold regardless of 𝛼. This judgment, Γ ⊢𝛼 𝑚 bounded, states that the stream function 𝑚 can be
+unfolded for an arbitrary number of iterations while satisfying property 𝛼 starting with an empty
+delayed sampling graph.
+Instances created by infer possess a newly instantiated delayed sampling graph. Their internal
+state contains the delayed sampling graph and bookkeeping information for the inference algorithm.
+Thus, the state is hidden to the exterior and the instance is assigned the opaque type bounded.
+unfold on a bounded type only requires that the input and output are purely deterministic.
+m-consumed Success Condition. We conclude a stream function passes the 𝑚-consumed analysis
+when all variables that are introduced are consumed by the program. Because an introduced variable
+may take several stream iterations to be consumed, we repeatedly execute the analysis until we
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:21
+consume all variables and succeed or reach a fixed point and fail. Define the iteration judgment
+Γ ⊢𝛼 (𝑛) 𝑚 : 𝑡
+′
+, G, where 𝛼 is either 𝑚𝑐 or 𝑢𝑝, as follows:
+Γ ⊢𝛼 𝑚 : (𝑡, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)) ⊢𝑝 𝑝in : 𝑡in Γ𝑒, 𝑝in : 𝑡in, 𝑝state : 𝑡, ⊥𝛼 ⊢𝛼 𝑒 : 𝑡out × 𝑡
+′
+, G
+Γ ⊢𝛼 (0) 𝑚 : 𝑡
+′
+, G
+Γ ⊢𝛼 𝑚 : (𝑡, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)) Γ ⊢𝛼 (𝑛−1) 𝑚 : 𝑡
+′
+, G
+⊢𝑝 𝑝in : 𝑡in Γ𝑒, 𝑝in : 𝑡in, 𝑝state : 𝑡
+′
+, G ⊢𝛼 𝑒 : 𝑡out × 𝑡
+′′
+, G
+′
+Γ ⊢𝛼 (𝑛) 𝑚 : 𝑡
+′′
+, G
+′
+On each iteration, this judgment applies the appropriate type rule for the step function and returns
+the result, using the abstract graph from the previous iteration as the context for the step function
+rule. The initial iteration uses an empty abstract graph as the context, represented by ⊥𝛼 . For the
+𝑚-consumed analysis, we specialize the judgment to Γ ⊢𝑚𝑐 (𝑛) 𝑚 : 𝑡
+′
+, G, and define ⊥mc to be (∅, ∅).
+The rule continues iterating until it reaches the success condition. The success condition states
+that every variable introduced that is kept in the program state must be used with in a bounded
+number of time steps. We formalize this as the following type rule:
+Γ ⊢𝑚𝑐 (0) 𝑚 : 𝑡, G 𝑡 ↘ (𝑙𝑏, 𝑢𝑏) Γ ⊢𝑚𝑐 (𝑛) 𝑚 : 𝑡
+′′
+, G
+′
+(G.𝑖𝑛 \ G′
+.con) ∩ ub = ∅
+Γ ⊢mc 𝑚 bounded
+Alternatively, if evaluating one more iteration does not consume any more variables, we reach a
+fixed point and return failure. Since every iteration we either consume a variable or reach a fixed
+point, the analysis is guaranteed to terminate.
+Unseparated Paths Success Condition. Like the 𝑚-consumed analysis, the unseparated paths
+analysis is iterative, and we may need to repeat it for some number of iterations. We specialize the
+iteration judgment defined in the previous section to Γ ⊢𝑢𝑝 (𝑛) 𝑚 : 𝑡, G and define ⊥up to be a pair
+of an empty map and an empty set. Define path(𝑡, G) where 𝑡 ↘ (lb, ub) to be the length of the
+longest path from any random variable in ub to any other variable in G.𝑝. Then we conclude the
+program passes the unseparated path analysis when the length of the longest path converges after
+some finite number of iterations:
+Γ ⊢𝑢𝑝 (𝑛) 𝑚 : 𝑡, G Γ ⊢𝑢𝑝 (𝑛+(path(𝑡,G)∗size(𝑡))+1) 𝑚 : 𝑡
+′′
+, G
+′
+path(𝑡, G) = path(𝑡
+′′
+, G
+′
+)
+Γ ⊢up 𝑚 bounded
+The implementation of this rule repeatedly computes a new abstract graph starting from the
+previous iteration’s output. It exits when the longest path length at the current iteration is equal to
+the longest path after (path(𝑡, G) ∗ size(𝑡)) + 1 additional iterations. The function size determines,
+for a given type 𝑡, how many values of base type are contained in 𝑡.
+size(𝑟) = 1 size(𝑡1 × 𝑡2) = size(𝑡1) + size(𝑡2)
+The extra iterations ensure that the path length has stabilized and the analysis can safely conclude
+that there is a bound on the length of the longest unseparated path.
+If the path length check fails, the implementation keeps iterating until a pre-specified bound is
+reached. Upon reaching this bound, the implementation outputs an analysis failure. Note that the
+analysis may be imprecise and reject correct programs if the bound is not sufficiently high.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:22 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+6.4 Example Type Derivation
+This section presents an example type derivation used by the analysis to confirm that the program
+in Figure 1 satisfies the 𝑚-consumed property. In particular, we confirm that the stream function
+kalman passes the 𝑚-consumed analysis.
+Using 𝑒 as shorthand for the body of its step function, we derive the following 𝑚-consumed
+success condition for kalman:
+Γ ⊢mc(0) kalman : ( ({𝑋}, {𝑋}) × ({𝑋}, {𝑋})) ( ({𝑋}, {𝑋}) × ({𝑋}, {𝑋})) ↘ ({𝑋}, {𝑋})
+Γ ⊢mc(0) kalman : ( ({𝑋}, {𝑋}) × ({𝑋}, {𝑋})) ({𝑋} \ {𝑋}) ∩ {𝑋} = ∅
+Γ ⊢mc kalman bounded
+The second and fourth premises follow immediately from definitions and set operations. The
+derivation of the first and third premises is as follows:
+Γ ⊢mc kalman : ( (∅, ∅), stepfn(pre_x, obs, Γ𝑒, 𝑒)) ⊢𝑝 obs : (∅, ∅)
+Γ𝑒, obs : (∅, ∅), pre_x : (∅, ∅), (∅, ∅) ⊢mc 𝑒 : ( ({𝑋}, {𝑋}) × ({𝑋}, {𝑋})), ({𝑋}, {𝑋})
+Γ ⊢mc(0) kalman : ( ({𝑋}, {𝑋}) × ({𝑋}, {𝑋}))
+The second premise follows from definitions. The derivation of the first premise is as follows:
+Γ𝑒 ⊢mc 0.0 : (∅, ∅) (∅, ∅) ↘ (∅, ∅)
+Γ ⊢mc stream { init = 0.0 ; step(pre_x,obs) = 𝑒 } : ( (∅, ∅), stepfn(pre_x, obs, Γ𝑒, 𝑒))
+where the premises follow immediately. Finally, let Γ
+′ be the context Γ𝑒, obs : (∅, ∅), pre_x : (∅, ∅)
+and 𝑡 be the type (∅, ∅). The derivation of the third premise is as follows.
+Γ
+′
+, (∅, ∅) ⊢𝑚𝑐 sample(gaussian(pre_x, 1.0)) : 𝑡, ({𝑋}, ∅)
+Γ
+′
+, x : 𝑡, ({𝑋}, ∅) ⊢𝑚𝑐 let () = observe(gaussian(x, 1.0),obs) in (x, x) : (𝑡 × 𝑡), ({𝑋}, {𝑋})
+Γ
+′
+, (∅, ∅) ⊢𝑚𝑐 𝑒 : (𝑡 × 𝑡), ({𝑋}, {𝑋})
+The first premise follows from the typing rule for sample. The second premise follows from the
+typing rule for let as follows:
+Γ
+′
+, x : 𝑡, ({𝑋}, ∅) ⊢𝑚𝑐 observe(gaussian(x, 1.0),obs) : (), ({𝑋}, {𝑋})
+Γ
+′
+, x : 𝑡, ({𝑋}, {𝑋}) ⊢𝑚𝑐 (x, x) : (𝑡 × 𝑡), ({𝑋}, {𝑋})
+Γ
+′
+, x : 𝑡, ({𝑋}, ∅) ⊢𝑚𝑐 let () = observe(gaussian(x, 1.0),obs) in (x, x) : (𝑡 × 𝑡), ({𝑋}, {𝑋})
+where the first premise follows from the rule for observe and the second from the rule for pairs.
+6.5 Soundness
+Here, we outline how we show the type system is sound. We give a high-level overview of the
+approach; the details are in Appendix E.
+Entailment Relations. In Appendix E.2, we establish several entailment relations that relate semantic objects to their type-level counterparts. These relations are parameterized by 𝛼 which is
+either 𝑚𝑐 for the 𝑚-consumed relation or 𝑢𝑝 for the unseparated path relation. We write 𝑣 ⊨𝛼 𝑡
+to mean a value entails a type. We write 𝛾 ⊨𝛼 Γ to mean an environment entails a type context.
+We write 𝑣, (𝑔, 𝜏) ⊨𝛼 𝑡, G to mean a value and traced graph (see Section 5.2 for the definition of a
+traced graph) entail a type and abstract graph. We write 𝛾, (𝑔, 𝜏) ⊨𝛼 Γ, G to mean an environment
+and traced graph entail a type context and abstract graph.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:23
+Soundness. The following theorems establish the soundness of the type system. The first theorem
+states that the type system soundly ascribes types to values and soundly updates the abstract
+delayed sampling graph:
+Theorem 6.1 (𝑚-consumed and Unseparated Path Soundness). If 𝛾, (𝑔, 𝜏) ⊨𝛼 Γ, G and Γ, G ⊢𝛼
+𝑒 : 𝑡, G
+′ and {[𝑒]}𝛾
+(𝑔, 𝜏),𝑤 = 𝑣, (𝑔
+′
+, 𝜏 ′
+),𝑤′
+, then 𝑣, (𝑔
+′
+, 𝜏 ′
+) ⊨𝛼 𝑡, G
+′
+.
+Next, the type system soundly ensures a stream function maintains bounded memory.
+Theorem 6.2 (Analysis Soundness). If 𝛾 ⊨𝛼 Γ and Γ ⊢𝛼 𝑚 : bounded, then ⟦𝑚⟧𝛾
+⊨𝛼 bounded.
+We prove these theorems in Appendix E.2.
+6.6 Implementation
+We implemented our analysis framework and the 𝑚-consumed and unseparated paths analyses in
+OCaml. Our implementation takes as input a 𝜇𝐹 program and outputs either true or false for each
+analysis. It also accepts a parameter for the iteration bound for the unseparated paths analysis.
+The implementation goes beyond the type system laid out in the paper by supporting functions
+that have probabilistic effects as well as interfaces for list and array operations. 𝜇𝐹 programs can
+further be compiled to OCaml and executed using the ProbZelus delayed sampling runtime. The
+code is available at https://github.com/psg-mit/probzelus-analysis-impl.
+7 EVALUATION
+To evaluate the ability of the analysis to accept only 𝜇𝐹 programs that can execute in bounded
+memory, we executed it on several benchmarks reflective of real-world inference tasks.
+Research Questions. We used our implementation to answer two research questions. For realistic
+probabilistic programs, (1) does the type system precisely verify the properties required for boundedmemory execution, and (2) is a small iteration bound sufficient for the unseparated paths analysis?
+7.1 Methodology
+We executed the analysis on example programs from Baudart et al. [2020] originally written in
+ProbZelus, a probabilistic programming language featuring probabilistic data streams and delayed
+sampling. We manually translated them to 𝜇𝐹 , and they reflect a range of realistic control problems
+with different memory usage characteristics. For the unseparated paths analysis, we set an iteration
+count bound of 10, which was sufficient for these programs. We compared the outputs of the
+analysis to our manual logical reasoning about the ability of each of the following programs to
+execute in bounded memory. We provide source code for all benchmarks in Appendix F.
+Kalman is the simplified core model of Figure 1 and models an agent that estimates position
+from noisy observations. Applying delayed sampling on this model is equivalent to a Kalman filter
+[Kalman 1960] where each particle returns the exact solution.
+Kalman Hold-First is the example from Figure 3 with a reference to the output of the first iteration.
+Gaussian Random Walk is a simplification of Kalman that does not observe of the true position,
+effectively expressing a Gaussian random walk.
+Robot is the full example from Figure 1 that includes the Kalman core model as well as a main
+stream function that invokes a controller based on the inferred position.
+Coin models an agent that estimates the bias of a coin. The model chooses the probability of
+the coin from a uniform distribution, and thereafter chooses the observations by flipping a coin
+with that probability. Applying delayed sampling to this model is equivalent to exact inference in a
+Beta-Bernoulli conjugate model [Fink 1997] where each particle returns the exact solution.
+Gaussian-Gaussian estimates the mean and variance of a Gaussian distribution.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:24 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+Table 1. Bounded memory analysis on benchmark programs.
+𝑚-consumed unsep. paths bounded mem.
+output actual output actual output actual
+Kalman ✓ ✓ ✓ ✓ ✓ ✓
+Kalman Hold-First ✓ ✓ ✗ ✗ ✗ ✗
+Gaussian Random Walk ✗ ✗ ✓ ✓ ✗ ✗
+Robot ✓ ✓ ✓ ✓ ✓ ✓
+Coin ✓ ✓ ✓ ✓ ✓ ✓
+Gaussian-Gaussian ✓ ✓ ✓ ✓ ✓ ✓
+Outlier ✗ ✗ ✓ ✓ ✗ ✗
+MTT ✗ ✗ ✓ ✓ ✗ ✗
+SLAM ✗ ✓ ✓ ✓ ✗ ✓
+Outlier, adapted from Section 2 of [Minka 2001], models the same situation as the Kalman
+benchmark, but with a sensor that can occasionally produce invalid readings. The model chooses
+the probability of an invalid reading from a beta(100,1000) distribution, so that invalid readings
+occur approximately 10% of the time. At each time step, with the previously chosen probability,
+the model chooses the observation from either the invalid distribution gaussian(0,100) or the
+Kalman model. Applying delayed sampling to this model is equivalent to a Rao-Blackwellized
+particle filter [Doucet et al. 2000b] combining exact inference with approximate particle filtering.
+MTT (Multi-Target Tracker) is adapted from [Murray and Schön 2018] and involves a variable
+number of targets with linear-Gaussian 2D position/velocity motion models that produce measurements of position at each time step. The model randomly introduces targets as a Poisson process
+and deletes them with fixed probability at each step.
+SLAM (Simultaneous Localization and Mapping) is adapted from [Doucet et al. 2000a] and models
+an agent that estimates its position on a one-dimensional grid and also a map of its environment
+associating each cell with black or white. The robot uses inference to decide its next move, but its
+motion commands are noisy with some probability that its wheels may slip, and its observations
+may also be incorrectly reported.
+7.2 Analysis Results
+Table 1 displays the analysis outputs for each of the benchmark programs. For each analysis, the
+“output” column is the result of the implementation, and the “actual” column is the ground truth, i.e.,
+whether the program satisfies the semantic property according to manual analysis. The “bounded
+memory” columns are the logical conjunction of the two semantic properties.
+For the first six benchmarks, the analysis implementation yielded the same answer as manual
+analysis for whether the program satisfies both semantic properties and thus permits execution in
+bounded memory. In every case, the output of the implementation is sound with respect to the
+ground truth. Furthermore, all unseparated-path analyses converged within 10 iterations.
+Kalman. For this program, every variable is 𝑚-consumed for 𝑚 ≤ 1 and starts an unseparated
+path of length at most 1, and thus it can execute in bounded memory.
+Kalman Hold-First. For this program, every variable is 𝑚-consumed for 𝑚 ≤ 1. However, the
+analysis detects that unseparated paths starting from the initial value for x grow without bound
+and fail to converge after 10 iterations, so this program cannot execute in bounded memory.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:25
+Gaussian Random Walk. Here, every unseparated path has length at most 1. However, the analysis
+detects that there is no𝑚 such that any variable is𝑚-consumed because no variable is ever observed
+or evaluated, so this program cannot execute in bounded memory.
+Robot. Every variable is 1-consumed and every separated path has length at most 1. The analysis
+succeeds and indicates this program can execute in bounded memory.
+Coin. Every variable is 1-consumed and every unseparated path has length at most 1. The analysis
+succeeds and indicates this program can execute in bounded memory.
+Gaussian-Gaussian. Every variable is 1-consumed and every separated path has length at most 1.
+The analysis succeeds and indicates this program can execute in bounded memory.
+Outlier. Every unseparated path has length at most 1. However, in the event that samples
+are indefinitely considered outliers, no observation will occur that causes the variable xt to be
+consumed, so this program cannot execute in bounded memory.
+MTT. Every unseparated path has length at most 1. However, not all random variables are
+guaranteed to be consumed, as the final observe operation is only executed based on a dynamic
+condition on the lengths of two list data structures. Because this condition is not guaranteed to be
+met, this program cannot execute in bounded memory.
+SLAM. Every unseparated path has length at most 1. The analysis concludes that the environment
+map array is not consumed because the model makes random choices that are not guaranteed to
+cover all the entries of the map. However, manual examination shows that an entry of the map
+that is never covered by a random choice is 0-consumed by virtue of being never used. Thus, the
+analysis soundly but imprecisely determines that the 𝑚-consumed condition fails.
+7.3 Discussion
+For the Outlier and MTT benchmarks, even though both fail the 𝑚-consumed semantic property
+and therefore are not guaranteed to execute in bounded memory, they will almost certainly execute
+in bounded memory. For example, in Outlier, the only way that the memory consumption of the
+model will increase indefinitely is if a particular random choice always takes one branch, which is
+a probability-zero event. In general, our semantic properties and analysis implementation reason
+about the absence of any program execution that yields unbounded memory. However, in practice,
+almost certain bounded-memory execution may also be a useful property of programs.
+In general, the analysis can provide a sound guarantee that a program executes with bounded
+memory. However, as we saw with SLAM, it is not always precise enough such that if it rejects a
+program, then the program must have unbounded memory consumption. For example, it is possible
+to deliberately construct pathological programs requiring a large number of iterations for the
+unseparated paths analysis. Remaining limitations on precision include common static analysis
+challenges such as path sensitivity due to if statements and aliasing due to complex data structures.
+When facing conditional branches, the analysis takes a conservative approach that may not
+utilize all statically available knowledge. Specifically, it cannot determine that certain branches
+are taken at most once over the entire input stream or that only certain program paths are valid
+over multiple sequential branches. The analysis also cannot accurately track variables that are
+stored into complex data structures, meaning it cannot mark them as consumed. We discuss these
+challenges in greater detail and provide specific examples in Appendix G.
+8 RELATED WORK
+Resource Analysis for Probabilistic Programs. Static resource analysis is capable of automatically
+determining upper bounds for resources such as time or memory required to execute a probabilistic
+program. Ngo et al. [2018] proposed a weakest-precondition approach to determine the expected
+memory usage of a probabilistic program, which bounds the number of loop iterations executed
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:26 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+and number of explicit memory allocation ticks encountered. Our analysis, on the other hand,
+extends static reasoning to the inherent memory usage of the inference algorithm itself.
+Reactive Probabilistic Programming. Gupta et al. [1997] first introduced the idea of reactive
+probabilistic programming. They extend a concurrent constraint language with random variables.
+In contrast, our language is based on a synchronous dataflow model and focus on resource analysis.
+Baudart et al. [2020] developed ProbZelus, a reactive probabilistic programming language which
+operates over streams of data and supports inference at each stream iteration. It uses an implementation of delayed sampling designed to provide bounded-memory inference for a class of reactive
+probabilistic programs. However, ProbZelus provides no static guarantee of bounded-memory
+inference. In this work, we define a language that can be used as a target for the compilation
+of ProbZelus and identify the semantic conditions and a static analysis that makes it possible to
+provide a static guarantee.
+Delayed Sampling and Bounded-Memory Inference. The mechanism of delayed sampling in probabilistic programs was introduced by Murray et al. [2018] and implemented in the Anglican and
+Birch programming languages, neither of which supports inference over streams. Delayed sampling,
+a form of Sequential Monte Carlo [Liu and Chen 1998], can execute in bounded memory because it
+automates the construction of Rao-Blackwellized particle filters [Doucet et al. 2000b], a particularly
+efficient variant of SMC. By comparison, Markov chain Monte Carlo techniques generally cannot
+execute in bounded memory because they maintain a sample of the full history of program execution, the size of which can grow without bound for a probabilistic stream. Variational inference has
+extensions that make it amenable to streaming [Broderick et al. 2013], but we are not aware of any
+probabilistic programming system that makes use of them.
+Other programming languages such as Hakaru [Narayanan et al. 2016] use static program
+transformations to accomplish the same goal of deferring approximate inference as much as possible.
+It is unclear if these transformations apply to a streaming context, where dynamic information is
+necessary to reflect the evolution of the underlying model over many iterations.
+9 CONCLUSION
+Probabilistic programming has been augmented by constructs that perform inference over unbounded iterations on streams of data. Underlying this programming model is delayed sampling,
+which combines the benefits of exact inference and the flexibility of sampling.
+In our paper, we introduce the 𝑚-consumed and unseparated path semantic properties, which
+show that delayed sampling can execute in bounded memory for reactive probabilistic programs. We
+present a sound static analysis that verifies these two properties with a type system and an abstract
+delayed sampling graph. To the best of our knowledge, our work is the first to develop a resource
+analysis for a probabilistic program in relation to its probabilistic programming system’s underlying inference algorithm. We hope this work will enable automatic inference mechanisms whose
+performance is better understood by model developers in probabilistic programming languages.
+ACKNOWLEDGMENTS
+We would like to thank Cambridge Yang, Alex Renda, Jesse Michel, and Ben Sherman, who all
+provided feedback on drafts of this paper. This work was supported in part by the MIT-IBM Watson
+AI Lab and the Office of Naval Research (ONR N00014-17-1-2699). Any opinions, findings, and
+conclusions or recommendations expressed in this material are those of the authors and do not
+necessarily reflect the views of the Office of Naval Research.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:27
+REFERENCES
+Eric Atkinson, Cambridge Yang, and Michael Carbin. 2018. Verifying Handcoded Probabilistic Inference Procedures. In
+arXiv e-prints.
+Guillaume Baudart, Louis Mandel, Eric Atkinson, Benjamin Sherman, Marc Pouzet, and Michael Carbin. 2020. Reactive
+Probabilistic Programming. In Conference on Programming Language Design and Implementation.
+Leonard E. Baum and Ted Petrie. 1966. Statistical Inference for Probabilistic Functions of Finite State Markov Chains. The
+Annals of Mathematical Statistics 37, 6 (1966).
+Atilim Güneş Baydin, Lei Shao, Wahid Bhimji, Lukas Heinrich, Lawrence Meadows, Jialin Liu, Andreas Munk, Saeid
+Naderiparizi, Bradley Gram-Hansen, Gilles Louppe, Mingfei Ma, Xiaohui Zhao, Philip Torr, Victor Lee, Kyle Cranmer,
+Prabhat, and Frank Wood. 2019. Etalumis: Bringing Probabilistic Programming to Scientific Simulators at Scale. In
+Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC ’19).
+Eli Bingham, Jonathan P. Chen, Martin Jankowiak, Fritz Obermeyer, Neeraj Pradhan, Theofanis Karaletsos, Rohit Singh,
+Paul Szerlip, Paul Horsfall, and Noah D. Goodman. 2019. Pyro: Deep Universal Probabilistic Programming. Journal of
+Machine Learning Research 20, 28 (2019).
+Tamara Broderick, Nicholas Boyd, Andre Wibisono, Ashia C. Wilson, and Michael I. Jordan. 2013. Streaming Variational
+Bayes. In International Conference on Neural Information Processing Systems.
+Jean-Louis Colaço, Bruno Pagano, and Marc Pouzet. 2017. SCADE 6: A formal language for embedded critical software
+development (invited paper). In TASE. IEEE Computer Society, 1–11.
+Marco F Cusumano-Towner, Feras A Saad, Alexander K Lew, and Vikash K Mansinghka. 2019. Gen: a General-purpose
+Probabilistic Programming System with Programmable Inference. In Conference on Programming Language Design and
+Implementation.
+Pierre Del Moral, Arnaud Doucet, and Ajay Jasra. 2006. Sequential Monte Carlo samplers. J. Royal Statistical Society: Series
+B (Statistical Methodology) 68, 3 (2006), 411–436.
+Arnaud Doucet, Nando de Freitas, Kevin P. Murphy, and Stuart J. Russell. 2000a. Rao-Blackwellised Particle Filtering for
+Dynamic Bayesian Networks. In UAI.
+Arnaud Doucet, Nando de Freitas, Kevin P. Murphy, and Stuart J. Russell. 2000b. Rao-Blackwellised Particle Filtering for
+Dynamic Bayesian Networks. In Conference on Uncertainty in Artificial Intelligence.
+Daniel Fink. 1997. A Compendium of Conjugate Priors. (1997).
+Hong Ge, Kai Xu, and Zoubin Ghahramani. 2018. Turing: Composable inference for probabilistic programming. In
+International Conference on Artificial Intelligence and Statistics.
+Andrew Gelman, Daniel Lee, and Jiqiang Guo. 2015. Stan: A probabilistic programming language for Bayesian inference
+and optimization. Journal of Educational and Behavioral Statistics 40, 5 (2015), 530–543.
+Noah D. Goodman, Vikash K. Mansinghka, Daniel M. Roy, Keith Bonawitz, and Joshua B. Tenenbaum. 2008. Church: A
+language for generative models. In Conference on Uncertainty in Artificial Intelligence.
+Noah D Goodman and Andreas Stuhlmüller. 2014. The Design and Implementation of Probabilistic Programming Languages.
+http://dippl.org. Accessed: 2020-10-30.
+Andrew D. Gordon, Thore Graepel, Nicolas Rolland, Claudio Russo, Johannes Borgstrom, and John Guiver. 2014. Tabular: a
+schema-driven probabilistic programming language. In Symposium on Principles of Programming Languages.
+Vineet Gupta, Radha Jagadeesan, and Vijay A. Saraswat. 1997. Probabilistic Concurrent Constraint Programming. In
+CONCUR (Lecture Notes in Computer Science, Vol. 1243). Springer, 243–257.
+Daniel Huang, Jean-Baptiste Tristan, and Greg Morisett. 2017. Compiling Markov Chain Monte Carlo Algorithms for
+Probabilistic Modeling. In Conference on Programming Language Design and Implementation.
+R. E. Kalman. 1960. A New Approach to Linear Filtering and Prediction Problems. Journal of Basic Engineering 82, 1 (1960).
+Daphne Koller and Nir Friedman. 2009. Probabilistic Graphical Models - Principles and Techniques. MIT Press.
+Jun S. Liu and Rong Chen. 1998. Sequential Monte Carlo Methods for Dynamic Systems. J. Amer. Statist. Assoc. 93, 443
+(1998), 1032–1044.
+Daniel Lundén. 2017. Delayed sampling in the probabilistic programming language Anglican. Master’s thesis. KTH Royal
+Institute of Technology.
+Vikash Mansingkha, Ulrich Schaechtle, Shivam Handa, Alexey Radul, Yutian Chen, and Martin Rinard. 2018. Probabilistic
+Programming with Programmable Inference. In Conference on Programming Language Design and Implementation.
+George H. Mealy. 1955. A method for synthesizing sequential circuits. The Bell System Technical Journal 34, 5 (1955),
+1045–1079.
+Brian Milch, Bhaskara Marthi, Stuart Russell, David Sontag, Daniel L. Ong, and Andrey Kolobov. 2007. BLOG: Probabilistic
+models with unknown objects. Statistical relational learning (2007).
+Thomas P. Minka. 2001. Expectation Propagation for Approximate Bayesian Inference. In Conference in Uncertainty in
+Artificial Intelligence.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:28 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+Lawrence M. Murray, Daniel Lundén, Jan Kudlicka, David Broman, and Thomas B. Schön. 2018. Delayed Sampling and
+Automatic Rao-Blackwellization of Probabilistic Programs. In International Conference on Artificial Intelligence and
+Statistics.
+Lawrence M. Murray and Thomas B. Schön. 2018. Automated learning with a probabilistic programming language: Birch.
+Annual Reviews in Control 46 (2018).
+Praveen Narayanan, Jacques Carette, Wren Romano, Chung-chieh Shan, and Robert Zinkov. 2016. Probabilistic inference by
+program transformation in Hakaru (system description). In International Symposium on Functional and Logic Programming.
+Van Chan Ngo, Quentin Carbonneaux, and Jan Hoffmann. 2018. Bounded Expectations: Resource Analysis for Probabilistic
+Programs. In Conference on Programming Language Design and Implementation.
+Aditya V. Nori, Sherjil Ozair, Sriram K. Rajamani, and Deepak Vijaykeerthy. 2015. Efficient Synthesis of Probabilistic
+Programs. In Conference on Programming Language Design and Implementation.
+Avi Pfeffer. 2009. Figaro: An object-oriented probabilistic programming language. Vol. 137. 96.
+Eduardo D Sontag. 2013. Mathematical control theory: deterministic finite dimensional systems. Vol. 6. Springer Science &
+Business Media.
+Sam Staton. 2017. Commutative Semantics for Probabilistic Programming. In European Symposium on Programming.
+Dustin Tran, Matthew D Hoffman, Rif A Saurous, Eugene Brevdo, Kevin Murphy, and David M Blei. 2017. Deep probabilistic
+programming. In International Conference on Learning Representations.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:29
+A IDEAL SEMANTICS
+In this section we present the complete semantics of the deterministic part of 𝜇𝐹 in Figure 16 and
+the ideal semantics of the probabilistic part in Figure 17.
+The probabilistic semantics of Figure 17 is a measure-based semantics similar to one presented
+in [Staton 2017]. Given an environment 𝛾, an expression is interpreted as a measure {[𝑒]}𝛾 : Σ𝐷 →
+[0, 1), that is, a function which associates a positive number to each measurable set 𝑈 ∈ Σ𝐷 , where
+Σ𝐷 denotes the Σ-algebra of the domain of the expression 𝐷, i.e., the set of measurable sets of
+possible values. sample(𝑣) returns the distribution ⟦𝑣⟧𝛾 . observe(𝑣1,𝑣2) weights execution paths
+using the likelihood of the observation ⟦𝑣2⟧𝛾 w.r.t. the distribution ⟦𝑣1⟧𝛾 (for a distribution 𝜇 we
+note 𝜇pdf its probability density function). Local definitions are interpreted as integration, and we
+use the Dirac delta measure to interpret deterministic expressions.
+B CORE TYPES IN 𝜇𝐹
+This section describes a type system for 𝜇𝐹 programs. All programs we consider in this work
+must type check according to this system. The type system ensures that if an expression 𝑒 is
+given a probabilistic typing judgment Γ ⊢prob 𝑒 : 𝑇 (which means that 𝑒 will be evaluated using
+its probabilistic semantics {[𝑒]} rather than its deterministic semantics ⟦𝑒⟧), then its type 𝑇 is a
+measurable space that does not include nonmeasurable objects such as functions. The type system
+also prohibits nested inference.
+The types of 𝜇𝐹 are unit, Booleans, reals, functions, and pairs, as well as probability distributions,
+and deterministic and probabilistic stream functions and stream instances.
+𝑇 ::= unit | bool | real | 𝑇 → 𝑇 | 𝑇 ×𝑇 | distr 𝑇
+| dstreamfn(𝑇 ,𝑇 ) | dstream(𝑇 ,𝑇 ) | pstreamfn(𝑇 ,𝑇 ) | pstream(𝑇 ,𝑇 )
+Only a subset of these types may act as the support of probability distributions, denoted by the
+judgment measurable(𝑇 ). These exclude function and stream types:
+measurable(unit) measurable(bool) measurable(real)
+measurable(𝑇1) measurable(𝑇2)
+measurable(𝑇1 ×𝑇2)
+measurable(𝑇 )
+measurable(distr 𝑇 )
+We present the full type system of 𝜇𝐹 in Figures 18 and 19.
+C DEFINITION OF graft
+In this section, we review the definition of graft from Murray et al. [2018].
+C.1 Preliminaries
+This definition makes use of an alternative type of marginalized node that maintains its own
+marginal distribution as well as a conditional distribution that relates the marginalized node to
+its unique marginalized child. We use the notation Marginalized(𝜇marg, 𝜇cond ) to refer to such a
+marginalized node with marginal distribution 𝜇marg and conditional distribution 𝜇cond . We use the
+notation 𝑠 = Marginalized(_) to mean that the node state 𝑠 is a marginalized node of any type.
+The two types of marginalized nodes only differ in the distributions they store, and have the same
+reachability and memory consumption properties.
+Murray et al. [2018] defines invariants of delayed sampling runtimes. Namely, it specifies that
+delayed sampling maintains that (1) all nodes in the delayed sampling graph have at most one
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:30 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+⟦val 𝑥 = 𝑒⟧𝛾 = 𝛾 [𝑥 ← ⟦𝑒⟧𝛾 ]
+⟦val 𝑓 = fun 𝑝 -> 𝑒⟧𝛾 = 𝛾 [𝑓 ← (𝜆𝑣. ⟦𝑒⟧𝛾+ [𝑣/𝑝 ])]
+⟦𝑑1 𝑑2⟧𝛾 = let 𝛾1 = ⟦𝑑1⟧𝛾 in ⟦𝑑2⟧𝛾1
+⟦val 𝑚 = stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }⟧𝛾
+= 𝛾 [𝑚 ← stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+]
+⟦𝑐⟧𝛾 = 𝑐
+⟦𝑥⟧𝛾 = 𝛾 (𝑥)
+⟦(𝑣1,𝑣2)⟧𝛾 = (⟦𝑣1⟧𝛾,⟦𝑣2⟧𝛾)
+⟦op(𝑣)⟧𝛾 = op(⟦𝑣⟧𝛾 )
+⟦𝑓 (𝑣)⟧𝛾 = 𝛾 (𝑓 ) (⟦𝑣⟧𝛾 )
+⟦let 𝑝 = 𝑒1 in 𝑒2⟧𝛾 = let 𝑣 = ⟦𝑒1⟧𝛾 in ⟦𝑒2⟧𝛾+ [𝑣/𝑝 ]
+⟦if 𝑣 then 𝑒1 else 𝑒2⟧𝛾 = if ⟦𝑣⟧𝛾 then ⟦𝑒1⟧𝛾 else ⟦𝑒2⟧𝛾
+⟦init(𝑚)⟧𝛾 = let stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 in
+let 𝑠init = ⟦𝑒init⟧𝛾
+′ in
+(𝑠init, 𝜆(𝑠, 𝑣). ⟦𝑒⟧𝛾
+′+ [𝑠/𝑝state,𝑣/𝑝input ]) if 𝑒 is deterministic
+⟦init(𝑚)⟧𝛾 = let stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 in
+let 𝑠init = ⟦𝑒init⟧𝛾
+′ in
+(𝑠init, 𝜆(𝑠, 𝑣). {[𝑒]}𝛾
+′+ [𝑠/𝑝state,𝑣/𝑝input ]) if 𝑒 is probabilistic
+⟦unfold(𝑥,𝑣)⟧𝛾 = let 𝑣state, 𝑓 = ⟦𝑥⟧𝛾 in
+let 𝑣output, 𝑣′
+state = 𝑓 (𝑣state, ⟦𝑣⟧𝛾 ) in
+(𝑣output, (𝑣
+′
+state, 𝑓 ))
+⟦infer(𝑚)⟧𝛾 = let stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 in
+let 𝑠init = ⟦𝑒init⟧𝛾
+′ in (𝛿𝑠init , infer(𝜆(𝑠, 𝑣). {[𝑒]}𝛾
+′+ [𝑠/𝑝state,𝑣/𝑝input ]))
+where infer(𝑓 ) = 𝜆(𝜎, 𝑣). let 𝜇 = 𝜆𝑈 . ∫
+𝑆
+𝜎(𝑑𝑠)𝑓 (𝑠, 𝑣) (𝑈 ) in
+let 𝜈 = 𝜆𝑈 . 𝜇(𝑈 )/𝜇(⊤) in
+(𝜋1∗ (𝜈), 𝜋2∗ (𝜈))
+Fig. 16. Deterministic semantics of 𝜇𝐹 .
+parent, and (2) all marginalized nodes in the graph have at most one marginalized or realized child.
+In the following definitions, we use the notation parent(𝑋, 𝐸) to mean a function that returns the
+unique parent of 𝑋 in the edge set 𝐸. We also use the notation child(𝑋, 𝐸) to mean a function that
+returns the unique realized or marginalized child of the marginalized node 𝑋 in the edge set 𝐸.
+C.2 Definitions
+We define the graft function as follows. When called on an initialized node, graft recursively
+marginalizes every initialized ancestor of the given node. This means that it performs integration
+to incorporate parent information into the distributions of each node in the initialized chain. When
+called on a marginalized node, graft calls the prune function.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:31
+{[𝑣]}𝛾 = 𝜆𝑈 . 𝛿⟦𝑣⟧𝛾
+(𝑈 )
+{[op(𝑣)]}𝛾 = 𝜆𝑈 . 𝛿op(⟦𝑣⟧𝛾 )
+(𝑈 )
+{[𝑓 (𝑣)]}𝛾 = 𝜆𝑈 . 𝛿𝛾 (𝑓 ) (⟦𝑣⟧𝛾 )
+(𝑈 )
+{[let 𝑝 = 𝑒1 in 𝑒2]}𝛾 = 𝜆𝑈 . ∫
+𝑇
+{[𝑒1]}𝛾 (𝑑𝑢){[𝑒2]}𝛾+ [𝑢/𝑝 ] (𝑈 )
+{[if 𝑣 then 𝑒1 else 𝑒2]}𝛾 = 𝜆𝑈 . if ⟦𝑣⟧𝛾 then {[𝑒1]}𝛾 (𝑈 ) else {[𝑒2]}𝛾 (𝑈 )
+{[unfold(𝑥,𝑣)]}𝛾 = 𝜆𝑈 . let 𝑣state, 𝑓 = ⟦𝑥⟧𝛾 in
+let 𝜇 = 𝑓 (𝑣state, ⟦𝑣⟧𝛾 ) in
+∫
+𝜇(𝑑𝑣output, 𝑑𝑣′
+state)𝛿(𝑣output,(𝑣
+′
+state,𝑓 )) (𝑈 )
+{[sample(𝑣)]}𝛾 = 𝜆𝑈 . ⟦𝑣⟧𝛾 (𝑈 )
+{[observe(𝑣1,𝑣2)]}𝛾 = 𝜆𝑈 . let 𝜇 = ⟦𝑣1⟧𝛾 in 𝜇pdf(⟦𝑣2⟧𝛾 ) ∗ 𝛿() (𝑈 )
+Fig. 17. Probabilistic semantics of 𝜇𝐹 .
+Γ ⊢det 𝑒 : 𝑇
+Γ ⊢decl val 𝑝 = 𝑒 : Γ, 𝑝 : 𝑇
+Γ, 𝑝 : 𝑇 ⊢det 𝑒 : 𝑇
+′
+Γ ⊢decl val 𝑓 = fun 𝑝 -> 𝑒 : Γ, 𝑝 : 𝑇 → 𝑇
+′
+Γ ⊢decl 𝑑1 : Γ
+′
+Γ
+′
+⊢decl 𝑑2 : Γ
+′′
+Γ ⊢decl 𝑑1 𝑑2 : Γ
+′′
+Γ ⊢det 𝑒init : 𝑇state Γ, (𝑝state, 𝑝input) : 𝑇state ×𝑇input ⊢det 𝑒step : 𝑇state ×𝑇out
+Γ ⊢decl val 𝑚 = stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒step } : Γ,𝑚 : dstreamfn(𝑇input,𝑇out)
+Γ ⊢prob 𝑒init : 𝑇state Γ, (𝑝state, 𝑝input) : 𝑇state ×𝑇input ⊢prob 𝑒step : 𝑇state ×𝑇out
+Γ ⊢decl val 𝑚 = stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒step } : Γ,𝑚 : pstreamfn(𝑇input,𝑇out)
+Fig. 18. Typing rules for programs in 𝜇𝐹 . The judgment Γ ⊢decl 𝑑 : Γ
+′ means that the 𝜇𝐹 declaration 𝑑, when
+typed under the typing context Γ, produces the typing context Γ
+′
+.
+graft(𝑋, 𝑔) = let (𝑉 , 𝐸, 𝑞) = 𝑔 in
+if 𝑞(𝑋) = Initialized(𝜇) then
+let 𝑋par = parent(𝑋, 𝐸) in
+let 𝜇prior, 𝑔′ =
+if 𝑞(𝑋par) = Marginalized(𝜇par) or
+𝑞(𝑋par) = Initialized(𝜇par)
+then let (𝑉
+′′, 𝐸′′, 𝑞′′) = graft(𝑋par, 𝑔) in
+let Marginalized(𝜇par) = 𝑞
+′′(𝑋par) in
+𝜇par, (𝑉
+′′, 𝐸′′, 𝑞′′[𝑋par ← Marginalized(𝜇par, 𝜇)])
+else if 𝑞(𝑋par) = Realized(𝑣) then 𝛿 (𝑣), (𝑉 , 𝐸 − (𝑋, 𝑋par), 𝑞)
+in
+let 𝜇
+′
+, (𝑉
+′′, 𝐸′′, 𝑞′′) =
+∫
+𝜇 d𝜇prior, 𝑔′
+in
+(𝑉
+′′, 𝐸′′, 𝑞′′[𝑋 ← Marginalized(𝜇
+′
+)])
+else if 𝑞(𝑋) = Marginalized(𝜇, 𝜇child ) then prune(𝑋, 𝑔)
+else 𝑔 Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:32 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+Γ ⊢det () : unit
+𝑐 ∈ {true, false}
+Γ ⊢det 𝑐 : bool
+𝑐 ∈ R
+Γ ⊢det 𝑐 : real
+Γ ⊢det 𝑒1 : 𝑇1 Γ ⊢det 𝑒2 : 𝑇2
+Γ ⊢det (𝑒1,𝑒2) : 𝑇1 ×𝑇2
+Γ, 𝑝1 : 𝑇1, 𝑝2 : 𝑇2 ⊢k 𝑒 : 𝑇
+′
+Γ, (𝑝1, 𝑝2) : 𝑇1 ×𝑇2 ⊢k 𝑒 : 𝑇
+′
+Γ, 𝑥 : 𝑇 ⊢k 𝑥 : 𝑇
+Γ ⊢det 𝑒 : 𝑇 Γ ⊢k 𝑓 : 𝑇 → 𝑇
+′
+Γ ⊢k 𝑓 (𝑒) : 𝑇
+′
+Γ ⊢det 𝑒1 : bool Γ ⊢k 𝑒2 : 𝑇 Γ ⊢k 𝑒3 : 𝑇
+Γ ⊢k if 𝑒1 then 𝑒2 else 𝑒3 : 𝑇
+Γ ⊢k 𝑒1 : 𝑇1 Γ, 𝑝 : 𝑇1 ⊢k 𝑒2 : 𝑇2
+Γ ⊢k let 𝑝 = 𝑒1 in 𝑒2 : 𝑇2
+Γ ⊢det 𝑚 : dstreamfn(𝑇input,𝑇out)
+Γ ⊢det init(𝑚) : dstream(𝑇input,𝑇out)
+Γ ⊢det 𝑚 : pstreamfn(𝑇input,𝑇out)
+Γ ⊢det infer(𝑚) : pstream(𝑇input,𝑇out)
+Γ ⊢det 𝑒1 : dstream(𝑇input,𝑇out) Γ ⊢det 𝑒2 : 𝑇input
+Γ ⊢k unfold(𝑒1,𝑒2) : 𝑇out × dstream(𝑇input,𝑇out)
+Γ ⊢det 𝑒1 : pstream(𝑇input,𝑇out) Γ ⊢det 𝑒2 : 𝑇input
+Γ ⊢k unfold(𝑒1,𝑒2) : distr 𝑇out × pstream(𝑇input,𝑇out)
+Γ ⊢det 𝑒 : 𝑇 measurable(𝑇 )
+Γ ⊢prob 𝑒 : 𝑇
+Γ ⊢det 𝑒 : distr 𝑇
+Γ ⊢prob sample(𝑒) : 𝑇
+Γ ⊢det 𝑒1 : distr 𝑇 Γ ⊢det 𝑒2 : 𝑇
+Γ ⊢prob observe(𝑒1,𝑒2) : unit
+Fig. 19. Deterministic and probabilistic type systems for 𝜇𝐹 . The typing judgment Γ ⊢det 𝑒 : 𝑇 means that the
+𝜇𝐹 expression 𝑒 under the context Γ has the deterministic type 𝑇 . The judgment Γ ⊢prob 𝑒 : 𝑇 means that the
+𝜇𝐹 expression 𝑒 under context Γ has the probabilistic type 𝑇 . The judgment Γ ⊢k
+𝑒 : 𝑇 stands for either the
+deterministic or the probabilistic judgment, where 𝑘 is instantiated to be 𝑑𝑒𝑡 or 𝑝𝑟𝑜𝑏. These rules state that
+sample and observe can only be used inside the body of a probabilistic stream.
+We define the prune function as follows. When called on a marginalized node with a marginalized
+or realized child, the function first recursively prunes that child if the child itself is marginalized. If
+the node is marginalized, it samples a value for that node and then conditions the current node on
+the child taking on that value. If the child node is realized, the function proceeds to immediately
+condition the current node on the child node’s value.
+In either case, the conditioning proceeds as follows. The prune function first extracts probability density functions from the relevant measures using the pdf function. It then follows Bayes’
+rule, multiplying the prior and conditional density functions and normalizing the result with the
+normalize function. It finally updates the marginal distribution of the given node and removes the
+edge connecting the node to its child.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:33
+prune(𝑋, 𝑔) = let (𝑉 , 𝐸, 𝑞) = 𝑔 in
+if 𝑞(𝑋) = Marginalized(𝜇𝑋, 𝜇) then
+let 𝑋child = child(𝑋, 𝐸) in
+let 𝑔
+′ = prune(𝑋child, 𝑔) in
+if 𝑞(𝑋child ) = Marginalized(𝜇child ) then
+let 𝑣, (𝑉
+′′, 𝐸′′, 𝑞′′) = value(𝑋child, 𝑔′
+) in
+let 𝑝𝑋, 𝑝child |𝑋 = pdf (𝜇𝑋 ), pdf (𝜇) in
+let 𝜇
+′
+𝑋
+= normalize(𝜆𝑥.𝑝𝑋 (𝑥) ∗ 𝑝child |𝑋 (𝑣|𝑥)) in
+let 𝑞
+′′′ = 𝑞
+′′[𝑋child ← Realized(𝑣), 𝑋 ← Marginalized(𝜇
+′
+𝑋
+)] in
+(𝑉
+′′, 𝐸′′ − (𝑋, 𝑋child ), 𝑞′′′)
+else if 𝑞(𝑋child ) = Realized(𝑣) then
+let 𝑣, (𝑉
+′′, 𝐸′′, 𝑞′′) = 𝑔
+′
+in
+let 𝑝𝑋, 𝑝child |𝑋 = pdf (𝜇𝑋 ), pdf (𝜇) in
+let 𝜇
+′
+𝑋
+= normalize(𝜆𝑥.𝑝𝑋 (𝑥) ∗ 𝑝child |𝑋 (𝑣|𝑥)) in
+let 𝑞
+′′′ = 𝑞
+′′[𝑋 ← Marginalized(𝜇
+′
+𝑋
+)] in
+(𝑉
+′′, 𝐸′′ − (𝑋child, 𝑋), 𝑞′′′)
+else 𝑔
+else 𝑔
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:34 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+D COMPLETE ANALYSIS TYPE SYSTEM
+The following is the complete definition of the typing judgment Γ, G ⊢𝛼 𝑒 : 𝑡, G
+′ describing the
+types and abstract graph transitions of expressions.
+Γ ⊢𝛼 𝑐 : (∅, ∅) Γ, 𝑥 : 𝑡 ⊢𝛼 𝑥 : 𝑡
+Γ,𝑚 : (𝑡init, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)) ⊢𝛼 𝑚 : (𝑡init, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒))
+Γ ⊢𝛼 𝑣 : 𝑟 𝑋 = fresh(G)
+Γ, G ⊢𝛼 sample(𝑣) : ({𝑋}, {𝑋}), assume𝛼 (𝑋, 𝑟, G)
+Γ, G ⊢𝛼 sample(𝑣1) : ({𝑋}, {𝑋}), G
+′
+Γ ⊢𝛼 𝑣2 : 𝑟2
+Γ, G ⊢𝛼 observe(𝑣1,𝑣2) : (), observe𝛼 (𝑋, 𝑟2, value𝛼 (𝑟2, G
+′
+))
+Γ ⊢𝛼 𝑣 : 𝑡 𝑡 ↘ 𝑟
+Γ ⊢𝛼 op(𝑣) : 𝑟
+Γ, G ⊢𝛼 𝑒 : 𝑡, G
+′
+Γ, 𝑝 : 𝑡, G
+′
+⊢𝛼 𝑒
+′
+: 𝑡
+′
+, G
+′′
+Γ, G ⊢𝛼 let 𝑝 = 𝑒 in 𝑒
+′
+: 𝑡
+′
+, G
+′′
+Γ ⊢𝛼 𝑣1 : 𝑡1 Γ ⊢𝛼 𝑣2 : 𝑡2
+Γ ⊢𝛼 (𝑣1,𝑣2) : 𝑡1 × 𝑡2
+Γ ⊢𝛼 𝑣 : 𝑟 G
+′ = value𝛼 (𝑟, G) Γ, G
+′
+⊢𝛼 𝑒1 : 𝑡1, G1 Γ, G
+′
+⊢𝛼 𝑒2 : 𝑡2, G2
+Γ, G ⊢𝛼 if 𝑣 then 𝑒1 else 𝑒2 : 𝑡1 ⊔ 𝑡2, G1 ⊔𝛼 G2
+⊢𝑝 𝑝 : 𝑡 Γ, 𝑝 : 𝑡 ⊢𝛼 𝑒 : 𝑡
+′
+Γ ⊢𝛼 fun 𝑝 -> 𝑒 : 𝑡 → 𝑡
+′
+Γ ⊢𝛼 𝑓 : 𝑡 → 𝑡
+′
+Γ ⊢𝛼 𝑣 : 𝑡
+Γ ⊢𝛼 𝑓 (𝑣) : 𝑡
+′
+Γ ⊢𝛼 𝑚 : (𝑡, 𝑠)
+Γ ⊢𝛼 init(𝑚) : stream(𝑡, 𝑠)
+Γ ⊢𝑚𝑐 𝑚 bounded Γ ⊢𝑢𝑝 𝑚 bounded
+Γ ⊢𝛼 infer(𝑚) : bounded
+Γ ⊢𝛼 𝑥 : stream(𝑡, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒))
+Γ ⊢𝛼 𝑣 : 𝑡in Γ𝑒, 𝑝state : 𝑡, 𝑝in : 𝑡in, G ⊢𝛼 𝑒 : 𝑡
+′ × 𝑡out, G
+′
+Γ, G ⊢𝛼 unfold(𝑥,𝑣) : 𝑡out × stream(𝑡
+′
+, stepfn(𝑝state, 𝑝in, Γ𝑒, 𝑒)), G
+′
+Γ ⊢𝛼 𝑥 : bounded Γ ⊢𝛼 𝑣 : 𝑡 𝑡 ↘ (∅, ∅)
+Γ ⊢𝛼 unfold(𝑥,𝑣) : (∅, ∅) × bounded
+𝜇𝐹 programs consist of a series of value, function, and stream function declarations. Thus, we also
+define a top-level judgment Γ ⊢𝛼 𝑑 :: program that states that a 𝜇𝐹 program 𝑑 contains declarations
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:35
+that are all well-formed. This judgment is defined as follows:
+Γ ⊢𝛼 𝜖 :: program
+Γ, G ⊢𝛼 𝑒 : 𝑡, G
+′
+Γ, 𝑝 : 𝑡 ⊢𝛼 𝑑 :: program
+Γ ⊢𝛼 val 𝑝 = 𝑒;𝑑 :: program
+Γ, G ⊢𝛼 fun 𝑝 -> 𝑒 : 𝑡, G
+′
+Γ, 𝑓 : 𝑡 ⊢𝛼 𝑑 :: program
+Γ ⊢𝛼 val 𝑓 = fun 𝑝 -> 𝑒;𝑑 :: program
+Γ ⊢𝛼 stream { init = 𝑒
+′
+; step(𝑝state,𝑝in) = 𝑒 } : (𝑡init, stepfn(𝑝state, 𝑝in, Γ, 𝑒))
+Γ,𝑚 : (𝑡init, stepfn(𝑝state, 𝑝in, Γ, 𝑒)) ⊢𝛼 𝑑 :: program
+Γ ⊢𝛼 val 𝑚 = stream { init = 𝑒
+′
+; step(𝑝state,𝑝in) = 𝑒 };𝑑 :: program
+where if 𝑑 is empty (i.e. all streams including main are valid) the judgment holds trivially.
+E SOUNDNESS
+E.1 Executions
+During the execution of a program, the only constructs that can dynamically allocate memory
+are sample and observe which add a new node to the delayed sampling graph using the assume
+operation. These two probabilistic constructs can only be used in a model, i.e., the argument of the
+infer operator. We thus focus on the memory footprint of infer’s transition function.
+The execution of the transition function infer of infer comprises three steps (see Section 4.1):
+(1) draw a set of particles, i.e., pairs (state, graph), (2) execute the model for each particle, (3) extract
+the distributions of state and outputs. The only operation that can dynamically allocate memory is
+the second one, where the delayed sampling graph can be altered.
+At iteration 𝑛, for each particle, the current pair (state, graph) is obtained from a succession of
+application of the model transition function from the initial state 𝑠0 and an empty graph 𝑔0 = ∅
+(step (1) in the definition of infer can only drop some execution paths). We call this sequence
+(𝑠0, 𝑔0), (𝑠1, 𝑔1), . . . an execution of the model. The following properties states that if only boundedmemory execution are possible, then the infer function executes in bounded-memory.
+Lemma E.1 (Execution Sufficiency). For all stream functions 𝑚 and environments 𝛾, let
+stream { init = 𝑒init ; step(𝑝state,𝑝input) = 𝑒 }𝛾
+′ = ⟦𝑚⟧𝛾 and let 𝑠𝑚 = ⟦𝑒init⟧𝛾
+′ and let 𝑓𝑚 =
+𝜆(𝑠, 𝑣). {[𝑒]}𝛾+ [𝑠/𝑝state,𝑣/𝑝input ] and let 𝑠𝑖
+, 𝑓𝑖 = ⟦infer(𝑚)⟧𝛾 . We say that 𝑓𝑖 produces a sequence
+of distributions (𝜇𝑛)𝑛∈N given an input sequence (𝑖𝑛)𝑛∈N if 𝑓𝑖(𝜇𝑛,𝑖𝑛) = (𝜔𝑛, 𝜇𝑛+1) for some sequence of output distributions (𝜔𝑛)𝑛∈N. Similarly, we say 𝑓𝑚 produces the execution (𝑔𝑛, 𝑠𝑛)𝑛∈N if
+𝑓𝑚 (𝑠𝑛,𝑖𝑛) (𝑔𝑛, 1) = ( (𝑜𝑛, 𝑠𝑛+1),𝑤𝑛, 𝑔𝑛+1) for some sequences of outputs (𝑜𝑛)𝑛∈N and weights (𝑤𝑛)𝑛∈N.
+The lemma states that for all input sequences (𝑖𝑛)𝑛∈N, if 𝑓𝑖 produces the sequence (𝜇𝑛)𝑛∈N, then for
+all 𝑛 and (𝑔𝑛, 𝑠𝑛) ∈ support(𝜇𝑛), there exists an execution (𝑔
+′
+𝑛
+, 𝑠′
+𝑛
+)𝑛∈N such that 𝑔
+′
+𝑛 = 𝑔𝑛, 𝑠
+′
+𝑛 = 𝑠𝑛, and
+𝑓𝑚 produces (𝑔
+′
+𝑛
+, 𝑠′
+𝑛
+)𝑛∈N.
+Proof. Proceed by induction on 𝑛. If 𝑛 = 0, the distribution 𝜇0 is obtained by the execution
+of 𝑓𝑚 by each particle on the initial state and the empty graph. So the support of 𝜇0 is obtained
+by the execution of 𝑓𝑚. If 𝑛 > 0, by definition of infer, each pair (𝑔𝑛, 𝑠𝑛) from the support of the
+distribution 𝜇𝑛 is obtained by the application of 𝑓𝑚 on (𝑔𝑛−1, 𝑠𝑛−1) drawn from the distribution
+𝜇𝑛−1. By application of the induction hypothesis, (𝑔𝑖
+, 𝑠𝑖)0≤𝑖<𝑛 is an execution produced by 𝑓𝑚, and
+therefore (𝑔𝑖
+, 𝑠𝑖)0≤𝑖 ≤𝑛 is also produced by 𝑓𝑚. □
+Corollary E.2. If all executions of 𝑓𝑚 are bounded-memory, then for any input sequence (𝑖𝑛)𝑛∈N
+and any execution (𝑔𝑛, 𝑠𝑛)𝑛∈N such that for all 𝑛, every (𝑔𝑛, 𝑠𝑛) ∈ support(𝜇𝑛), (𝑔𝑛, 𝑠𝑛)𝑛∈N has bounded
+memory when 𝜇𝑛 is produced by 𝑓𝑖
+.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:36 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+E.2 Type Soundness
+In this section, we show that the type system is sound. We first define the ⊨ relations referenced in
+Section 6.5. We then prove the soundness theorems stated in Section 6.5.
+Variable Mappings. Both delayed sampling and the type system use a set of fresh variable names
+to label random variables. Because the type system and the delayed sampling execution may each
+use a different name for conceptually the same random variable, we define an association that maps
+between these namespaces. We use the notation ℓ to refer to a function that maps a delayed sampling
+variable to a type system variable, and ℓ∗ to the extension of ℓ to sets: ℓ∗ (𝑋ˆ) = {ℓ(𝑋) | 𝑋 ∈ 𝑋ˆ }.
+E.2.1 Entailment. Here we establish what it means for a value to entail a type. A value entails a
+type if the type accurately captures the random variables the value could refer to, as well as the
+shape of the value (i.e. whether the value is a scalar, a pair, or a stream function). Because step
+function types include type contexts, we also establish what it means for an environment to entail
+a type context.
+A stream value entails bounded if it produces a sequence of states in which every delayed
+sampling graph is bounded. We formalize this as follows. Given a sequence of inputs (𝑖𝑛)𝑛∈N and
+an initial state 𝑠0, we say a stream function 𝑓 produces the sequence of state (𝑠𝑛)𝑛∈N on (𝑠0,𝑖), if
+𝑓 (𝑖𝑛, 𝑠𝑛) = (𝑜𝑛, 𝑠𝑛+1) for some output sequence (𝑜𝑛)𝑛∈N. We say 𝑠, is bounded if every sequence
+delayed sampling graphs contained in 𝑠 is low-level bounded-memory.
+Definition E.3 (Type Entailment). A value 𝑣 entails a type 𝑡, written 𝑣 ⊨
+ℓ
+𝑡, under the following
+circumstances:
+𝑐 ⊨
+ℓ
+(∅, ub)
+𝑋 ⊨
+ℓ
+(lb, ub) ⇐⇒ lb ⊆ {ℓ(𝑋)} ⊆ ub
+app(op, 𝑣) ⊨
+ℓ
+(lb, ub) ⇐⇒ lb ⊆ ℓ∗ (frv(𝑣)) ⊆ ub
+(𝑣1,𝑣2) ⊨
+ℓ
+𝑡1 × 𝑡2 ⇐⇒ 𝑣1 ⊨
+ℓ
+𝑡1 and 𝑣2 ⊨
+ℓ
+𝑡2
+stream { init = 𝑒init ; step(𝑝in,𝑝state) = 𝑒state }𝛾𝑒
+⊨
+ℓ
+(𝑡init, stepfn(𝑝in, 𝑝state, Γ𝑒, 𝑒state)) ⇐⇒ 𝑒init ⊨
+ℓ
+𝑡init ∧𝛾𝑒 ⊨
+ℓ
+Γ𝑒
+(𝑠0, 𝑓 ) ⊨
+ℓ
+stream(𝑡init, 𝑆) ⇐⇒ 𝑠0 ⊨
+ℓ
+𝑡init and 𝑓 ⊨
+ℓ
+𝑆
+𝑓 ⊨
+ℓ
+stepfn(𝑝in, 𝑝state, Γ𝑒, 𝑒) ⇐⇒ ∃𝛾 . 𝛾 ⊨
+ℓ
+Γ𝑒 and 𝑓 = 𝜆(𝑠, 𝑣). {[𝑒]}𝛾+ [𝑠/𝑝state,𝑣/𝑝in ]
+𝛾 ⊨
+ℓ
+Γ ⇐⇒ ∀𝑥 : 𝑡 ∈ Γ. 𝛾 (𝑥) = 𝑣 s.t. 𝑣 ⊨
+ℓ
+𝑡
+(𝑠0, 𝑓 ) ⊨ bounded ⇐⇒ ∀i. 𝑓 produces 𝑠 on (𝑠0,𝑖)
+⇒ 𝑠 is bounded
+We further define a version of type entailment that only applies to a restricted set of variables.
+Definition E.4 (Restricted Type Entailment). A value 𝑣 entails a type 𝑡 – restricted to the variable
+set 𝑋ˆ, written 𝑣 ⊨
+ℓ
+𝑋ˆ
+𝑡, under the following circumstances:
+𝑐 ⊨
+ℓ
+𝑋ˆ
+(∅, ub)
+𝑋 ⊨
+ℓ
+𝑋ˆ
+(lb, ub) ⇐⇒ 𝑋 ∈ 𝑋ˆ ⇒ lb ⊆ {ℓ(𝑋)} ⊆ ub
+app(op, 𝑣) ⊨
+ℓ
+𝑋ˆ
+(lb, ub) ⇐⇒ 𝑋 ∈ 𝑋ˆ ⇒ lb ⊆ ℓ∗ (frv(𝑣)) ⊆ ub
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:37
+The rules for any other values are similar to those in Definition E.3, but pass the set 𝑋ˆ through
+unchanged for recursive definitions.
+The fold operation ↘ is designed to generate a scalar type that encapsulates the free variables
+of a value while disregarding its shape.
+Lemma E.5 (Fold Entailment). If 𝑣 ⊨
+ℓ
+𝑡 and 𝑡 ↘ (lb, ub), then lb ⊆ ℓ∗ (frv(𝑣)) ⊆ ub.
+A traced graph entails an 𝑚-consumed abstract graph if the abstract graph soundly approximates
+the variables that are not used.
+Definition E.6 (𝑚-consumed Graph Entailment). A traced graph (𝑔, 𝜏) entails an 𝑚-consumed
+abstract graph G, written (𝑔, 𝜏) ⊨
+ℓ
+mc G, if for every variable 𝑋 not in G.in \ G.con and for every 𝑋0
+such that ℓ(𝑋0) = 𝑋, 𝑋0 is used in 𝜏.
+A traced graph entails an unseparated-path abstract graph if the path function soundly approximates the unseparated paths in the traced graph and the separator set soundly approximates the
+set of variables that are observed or valued.
+Definition E.7 (Unseparated Path Graph Entailment). A graph (𝑔, 𝜏) entails an unseparated-path
+abstract graph G, written (𝑔, 𝜏) ⊨
+ℓ
+up G if for every 𝑋1, 𝑋2 that are referenced in 𝜏, G.𝑝(ℓ(𝑋1), ℓ(𝑋2))
+is at least the length of the unseparated path between 𝑋1 and 𝑋2 in 𝜏, and, for all 𝑋 referenced in 𝜏,
+G.𝑠𝑒𝑝(ℓ(𝑋)) is only true if 𝑋 is a separator in 𝜏.
+Entailment from Section 6.5. Here, we define the entailment relations that are referenced in
+Section 6.5. These definitions are defined in terms of the relevant definitions in this section with
+the variable map ℓ existentially quantified:
+𝑣 ⊨𝛼 𝑡 ⇐⇒ ∃ℓ. 𝑣 ⊨
+ℓ
+𝑡
+𝛾 ⊨𝛼 Γ ⇐⇒ ∃ℓ. 𝛾 ⊨
+ℓ
+Γ
+𝑣, (𝑔, 𝜏) ⊨𝛼 𝑡, G ⇐⇒ ∃ℓ. 𝑣 ⊨
+ℓ
+𝑡 ∧ (𝑔, 𝜏) ⊨
+ℓ
+𝛼 G
+𝛾, (𝑔, 𝜏) ⊨𝛼 Γ, G ⇐⇒ ∃ℓ. 𝛾 ⊨
+ℓ
+Γ ∧ (𝑔, 𝜏) ⊨
+ℓ
+𝛼 G
+We further extend these definitions to incorporate a restricted variable set 𝑋ˆ.
+𝑣 ⊨𝛼,𝑋ˆ 𝑡 ⇐⇒ ∃ℓ. 𝑣 ⊨
+ℓ
+𝑋ˆ
+𝑡
+𝛾 ⊨𝛼,𝑋ˆ Γ ⇐⇒ ∃ℓ. 𝛾 ⊨
+ℓ
+𝑋ˆ
+Γ
+𝑣, (𝑔, 𝜏) ⊨𝛼,𝑋ˆ 𝑡, G ⇐⇒ ∃ℓ. 𝑣 ⊨
+ℓ
+𝑋ˆ
+𝑡 ∧ (𝑔, 𝜏) ⊨
+ℓ
+𝛼 G
+𝛾, (𝑔, 𝜏) ⊨𝛼,𝑋ˆ Γ, G ⇐⇒ ∃ℓ. 𝛾 ⊨
+ℓ
+𝑋ˆ
+Γ ∧ (𝑔, 𝜏) ⊨
+ℓ
+𝛼 G
+E.2.2 Soundness Theorems. An𝑚-consumed type judgment is sound if it abstracts the𝑚-consumed
+property of the semantics according to the entailment relations.
+Special Case of Theorem 6.1 (𝑚-consumed Type Soundness). If 𝛾, (𝑔, 𝜏) ⊨mc Γ, G and Γ, G ⊢mc
+𝑒 : 𝑡, G
+′ and {[𝑒]}𝛾
+(𝑔, 𝜏),𝑤 = 𝑣, (𝑔
+′
+, 𝜏 ′
+),𝑤′
+, then 𝑣, (𝑔
+′
+, 𝜏 ′
+) ⊨mc 𝑡, G
+′
+Proof. By structural induction on derivations of ⊢mc. □
+Proving the soundness of the 𝑚-consumed judgment producing the bounded type requires
+strengthening this theorem to work with partial traces, meaning the abstract graph applies only to
+the tail end of the trace rather than the whole trace. Using the notation 𝜏1 ⊕ 𝜏2 to mean the trace 𝜏1
+appended with 𝜏2, we formalize this as follows:
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:38 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+Lemma E.8. 𝑚-consumed Soundness on Partial Traces If 𝛾, (𝑔, 𝜏2) ⊨mc Γ, G and Γ, G ⊢mc 𝑒 : 𝑡, G
+′
+and {[𝑒]}𝛾
+(𝑔, 𝜏1 ⊕ 𝜏2),𝑤 = 𝑣, (𝑔
+′
+, 𝜏 ′
+),𝑤′
+, then 𝜏
+′ = 𝜏1 ⊕ 𝜏
+′
+2
+and 𝑣, (𝑔
+′
+, 𝜏 ′
+2
+) ⊨mc 𝑡, G
+′
+Proof. By structural induction on derivations of ⊢mc. The individual steps are the same as the
+previous theorem, except that they also use the associativity of ⊕. □
+An unseparated-path type judgment is sound if it abstracts the unseparated path property of the
+semantics according to the entailment relations.
+Special Case of Theorem 6.1 (Unseparated Path Type Soundness). If 𝛾, (𝑔, 𝜏) ⊨up Γ, G and
+Γ, G ⊢up 𝑒 : 𝑡, G
+′ and {[𝑒]}𝛾
+(𝑔, 𝜏),𝑤 = 𝑣, (𝑔
+′
+, 𝜏 ′
+),𝑤′
+, then 𝑣, (𝑔
+′
+, 𝜏 ′
+) ⊨up 𝑡, G
+′
+We also strengthen this theorem to aid in proving the soundness of the bounded judgment.
+Lemma E.9. Unseparated Paths Soundness on Partial Traces If 𝛾, (𝑔, 𝜏1 ⊕ 𝜏3) ⊨up,frv (𝜏1⊕𝜏3) Γ, G
+and Γ, G ⊢up 𝑒 : 𝑡, G
+′ and {[𝑒]}𝛾
+(𝑔, 𝜏1 ⊕ 𝜏2 ⊕ 𝜏3),𝑤 = 𝑣, (𝑔
+′
+, 𝜏 ′
+),𝑤′
+, then 𝜏
+′ = 𝜏1 ⊕ 𝜏2 ⊕ 𝜏
+′
+3
+and
+𝑣, (𝑔
+′
+, 𝜏1 ⊕ 𝜏
+′
+3
+) ⊨up,frv (𝜏1⊕𝜏
+′
+3
+)
+𝑡, G
+′
+Proof. By structural induction on derivations of ⊢up. The individual steps are the same as the
+previous theorem, except that they also use the associativity of ⊕. □
+Theorem E.10 (Analysis Soundness). If 𝛾 ⊨𝛼 Γ and Γ ⊢𝛼 𝑚 : bounded, then ⟦𝑚⟧𝛾
+⊨𝛼 bounded.
+Proof. We first show that any execution of a stream function 𝑚 satisfying Γ ⊢mc 𝑚 bounded
+satisfies the high-level 𝑚-consumed semantic property. We then show that any execution of a
+stream function 𝑚 satisfying Γ ⊢up 𝑚 bounded satisfies the high-level unseparated paths semantic
+property. Then, by Theorem 5.11 and Lemma E.1, if 𝑚 satisfies both these properties, then calling
+infer on 𝑚 must be bounded.
+𝑚-consumed. Here, we show that any execution of a stream function𝑚 satisfying Γ ⊢mc 𝑚 bounded
+satisfies the 𝑚-consumed semantic property. We show this using the definition of ⊢mc. Let (𝑔𝑖
+, 𝜏𝑖)
+be the 𝑖th step of the execution. By Lemma E.8, G captures all variables introduced at time 𝑖. Also
+by Lemma E.8, G
+′
+captures the variables that are guaranteed to be consumed between 𝑖 and 𝑖 + 𝑛.
+Thus, any variable introduced at time step 𝑖 must either be consumed within 𝑛 steps (where 𝑛 is
+a static bound) or must is not stored in the program state. If it is consumed, the variable will be
+𝑚-consumed at all future time steps where 𝑚 is at most 𝑛 times a constant bound based on the
+number of sample statements in the stream function. If it is not stored in the program state, it can
+never be used and is therefore always 0-consumed.
+Unseparated Paths. We proceed by contradiction. Assume that 𝑠𝑖
+, (𝑔𝑖
+, 𝜏𝑖)𝑖 ∈N is an execution that
+violates the unseparated paths semantic property. At some time step 𝑗, the execution must a) add
+a variable to the delayed sampling graph in such a way that it increases the unseparated path
+starting from some variable in the graph, and b) store the variable starting the increased path in 𝑠𝑗+1.
+Otherwise, the execution would easily satisfy the property. According to Lemma E.9, we must have
+that after each iteration the abstract graph also has a variable with starting an increased path and
+that some reference 𝑟
+∗
+contained in the type 𝑡
+′
+references this variable. Letting 𝑅ˆ be the set of all
+possible references 𝑟
+∗
+, by the pidgeonhole principle, after 𝑘 ≥ size(𝑡) = size(𝑡
+′
+) ≥ |𝑅ˆ| iterations,2
+the longest path in the abstract graph starting from a variable referenced by an element of 𝑅ˆ must
+have increased by at least 1. Similarly, after 𝑛 ≥ path(𝑡, G) instances of this pattern, the longest
+path in the abstract graph starting from a variable referenced in 𝑅ˆ must have increased by at least
+path(G, 𝑡) and thus be the longest such graph starting from a state variable. This contradicts the
+termination condition that path(𝑡, G) = path(𝑡
+′′
+, G
+′
+). □
+2
+the equality of size(𝑡) and size(𝑡
+′
+) is enforced by the type rules in Figure 18 of Appendix B
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:39
+F BENCHMARKS
+Each of these benchmarks are followed by a main stream that serves as the entry point of the
+program:
+val main = stream {
+init = infer f;
+step (f, args) = unfold (f, args)
+}
+F.1 Kalman
+val f = stream {
+init = 0.;
+step (pre_x, obs) =
+let x = sample (gaussian (pre_x, 1.0)) in
+let () = observe (gaussian (x, 1.0), obs) in
+(x, x)
+}
+F.2 Kalman Hold-First
+val kalman = stream {
+init = (true, 0., 0.);
+step ((first, i, pre_x), obs) =
+let (i, pre_x) =
+if first then (let i = sample (gaussian(0., 1.)) in (i, i))
+else (i, pre_x) in
+let x = sample (gaussian (pre_x, 1.)) in
+let () = observe (gaussian (x, 1.), obs) in
+(x, (false, i, x))
+}
+F.3 Gaussian Random Walk
+val f = stream {
+init = (true, 0.);
+step ((first, x), ()) =
+let x = if first then sample (gaussian (0., 1.)) else sample (gaussian (x, 1.)) in
+(x, (false, x))
+}
+F.4 Coin
+val f = stream {
+init = (true, 0.);
+step ((first, xt), yobs) =
+let xt = if first then sample (beta (1., 1.)) else xt in
+let () = observe (bernoulli (xt), yobs) in
+(xt, (false, xt))
+}
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:40 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+F.5 Outlier
+val f = stream {
+init = (true, 0., 0.);
+step ((first, xt, outlier_prob), yobs) =
+let (xt, outlier_prob) =
+if first then
+(sample (gaussian (0., 100.)), sample (beta (100., 1000.)))
+else (sample (gaussian (xt, 1.)), outlier_prob) in
+let is_outlier = sample (bernoulli (outlier_prob)) in
+let () =
+if is_outlier then (observe (gaussian (0., 100.), yobs))
+else (observe (gaussian (xt, 1.), yobs)) in
+(xt, (false, xt, outlier_prob))
+}
+F.6 MTT
+val f = stream {
+init = (true, List.nil);
+step ((first, t), (inp, cmd)) =
+let last_t = t in
+let t_survived =
+List.filter (fun (_, _) -> eval (sample (bernoulli (0.5))), last_t) in
+let n_new = sample (poisson (1.0)) in
+let t_new = List.init (n_new, fun _ -> (0, sample (bernoulli (0.5)))) in
+let t_tot = List.append (t_survived, t_new) in
+let t = List.map (fun (tr_num, tr) -> (tr_num, sample (bernoulli (tr))), t_tot) in
+let obs = List.map (fun (_, tr) -> bernoulli (tr), t) in
+let n_clutter = sub (List.length (inp), List.length (obs)) in
+let () = observe (poisson (0.5), n_clutter) in
+let clutter = List.init (n_clutter, fun _ -> bernoulli (tr)) in
+let obs_shuffled = sample (shuffle (List.append (obs, clutter))) in
+let () =
+if (not (lt (n_clutter, 0))) then
+List.iter2 (fun (var, value) ->
+observe (gaussian (0.5, var), value), obs_shuffled, inp)
+else () in
+(t, (false, t))
+}
+F.7 SLAM
+val f = stream {
+init = (true, 0., Array.empty);
+step ((first, x, map), (obs, cmd)) =
+let map =
+if first then Array.init (100, fun _ -> sample (bernoulli (0.5))) else map in
+let wheel_slip = sample (bernoulli (0.5)) in
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+Statically Bounded-Memory Delayed Sampling for Probabilistic Streams 115:41
+let x = if first then 0. else if wheel_slip then x else plus (x, cmd) in
+let o = Array.get (map, x) in
+let _ = observe (bernoulli (ite (o, 0.9, 0.1)), obs) in
+((x, map), (false, x, map))
+}
+G PRECISION LIMITATIONS
+The precision of the analysis is limited by path and complex sensitivity, two common challenges
+for static analysis. The analysis can be overly conservative when facing conditional branches, for
+example in the following snippet:
+let x = sample bernoulli(0.5) in
+let y = sample gaussian (0., 1.) in
+let () = if x then observe (gaussian (y, 1.), 1.) else () in
+let () = if x then () else observe (gaussian (y, 1.), -1.) in
+y
+According to the analysis, y is not consumed because each branch is separately and conservatively
+judged to not consume y, even though there is no path where y is unobserved. A more sophisticated
+analysis that reasons about actual values, not just affected variables, would be more precise here.
+Similarly, the analysis can be imprecise in the presence of complex data such as tuples. Consider
+the following snippet:
+let x = sample (gaussian(0., 1.)) in
+let y = sample (gaussian(0., 1.)) in
+let (a, b) =
+if (sample (bernoulli(0.5))) then
+(gaussian (x, 1.), gaussian (y, 1.))
+else (gaussian (y, 1.), gaussian (x, 1.)) in
+let () = observe (a, 1.) in
+let () = observe (b, 2.) in
+(x, y)
+Like the previous example, x, y are not considered consumed even though there is no path that
+does not observe both. The analysis can determine that both a and b may reference x and y but
+neither alone must do so. Knowledge about a and b taken as a pair is lost when they are stored into
+the tuple. In this case, some kind of alias or shape analysis might recover the relationship between
+the fields of a tuple.
+Without executing for multiple iterations, the 𝑚-consumed analysis would be occasionally too
+conservative due to requiring that all variables be used before the end of the current iteration of
+the step function. Consider:
+stream {
+init = 0.;
+step (x_prev, obs) =
+let _ = observe (gaussian (x_prev, 1.), obs) in
+let x = sample (gaussian (x_prev, 1.)) in
+(x, x)
+}
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.
+115:42 Eric Atkinson, Guillaume Baudart, Louis Mandel, Charles Yuan, and Michael Carbin
+In this example, every sample is eventually consumed but only on the subsequent iteration of
+the step function. If the 𝑚-consumed analysis only considered one iteration, it would reject this
+example. Allow introduced variables to be consumed over multiple iterations as we do allows this
+example to pass the analysis.
+Most examples do not require a significant number of iterations for the unseparated paths
+analysis to converge. However, the analysis may fail to detect convergence in programs with many
+variables if the iteration bound parameter is too low, as in the following program which requires
+four iterations:
+stream {
+init = (0., 0., 0., 0.);
+step ((x_p, x_pp, x_ppp, x_pppp), obs) =
+let x = sample (gaussian (x_p, 1.)) in
+let _ = observe (gaussian (x, 1.), 1.0) in
+(x_pppp, (x, x_p, x_pp, x_ppp))
+}
+In this program, the longest unseparated path increases over four iterations, after which variables
+start being dropped from the state and the maximum length converges. We suggest that the
+parameter should be set to be comfortably larger than the number of variables or statements in the
+program to avoid this issue. Since each iteration is fast to run, it should not cause performance
+degradation.
+Finally, the analysis could incorporate higher-order functions, though they would be hard to
+analyze statically, and the storage of chains of closures built over many iterations could itself violate
+a bound on memory usage.
+Proc. ACM Program. Lang., Vol. 5, No. OOPSLA, Article 115. Publication date: October 2021.

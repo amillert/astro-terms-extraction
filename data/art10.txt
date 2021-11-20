@@ -1,0 +1,3054 @@
+arXiv:2109.13148v1 [eess.SP] 27 Sep 2021
+MIMO-OFDM Dual-Functional
+Radar-Communication Systems: Low-PAPR
+Waveform Design
+Xiaoyan Hu, Member, IEEE, Christos Masouros, Senior Member, IEEE,
+Fan Liu, Member, IEEE, Ronald Nissel, Member, IEEE,
+Abstract—In this paper, we explore a dual-functional radarcommunication (DFRC) system for achieving integrated sensing
+and communications (ISAC). The technique of orthogonal frequency division multiplexing (OFDM) is leveraged to overcome
+the frequency-selective fading of the wideband multiple-input
+multiple-output (MIMO) systems with one multi-antenna DFRC
+base station (BS) and multiple single-antenna user equipment
+(UEs). In order to restrain the high peak-to-average power ratio
+(PAPR) of OFDM signals, we aim to jointly design low-PAPR
+DFRC MIMO-OFDM waveforms. This is done by utilizing a
+weighted objective function on both communication and radar
+performance metrics under power and PAPR constraints. The
+formulated optimization problems can be equivalently transformed into standard semi-definite programming (SDP) and can
+be effectively solved by semi-definite relaxation (SDR) method,
+where we prove that globally optimal rank-1 solution can be
+obtained in general. We further develop a low-complexity method
+to solve the problems with much reduced overheads. Moreover,
+the practical scenario with oversampling on OFDM signals
+is further considered, which has a significant effect on the
+resulting PAPR levels. The feasibility, effectiveness, and flexibility
+of the proposed low-PAPR DFRC MIMO-OFDM waveform
+design methods are demonstrated by a range of simulations on
+communication sum rate, symbol error rate as well as radar
+beampattern and detection probability.
+Index Terms—Spectrum sharing, DFRC, MIMO radar, communications, OFDM, PAPR
+I. INTRODUCTION
+A. Motivations and Prior Works
+The explosive growth of mobile and Internet-of-things (IoT)
+devices along with the severe spectrum shortage have driven
+the demand for an ever-increasing spectrum usage efficiency.
+To meet the impending need of massive connectivity in 2025
+with around 75 billion devices worldwide [1], sharing/resuing
+spectrum resources that have already been assigned to other
+existing applications is regarded as a promising strategy for
+future communication networks. Among the available applications, radar spectrum is widely regarded as a promising
+candidate that can facilitate communication and radar spectrum sharing (CRSS) due to the fact that the radar spectrum
+X. Hu and C. Masouros are with the Department of Electronic and Electrical
+Engineering, University College London, London WC1E 7JE, UK (Email:
+{xiaoyan.hu, c.masouros}@ucl.ac.uk).
+Fan Liu is with the Department of Electical and Electronic Engineering,
+Southern University of Science and Technology, Shenzhen, China ( Email:
+liuf6@sustech.edu.cn).
+R. Nissel is with Huawei Technologies, Gothenburg, Sweden (Email:
+ronald.nissel@huawei.com).
+provides large frequency bands that are suitable for wireless
+communications, and thus a win-win spectrum sharing policy
+can be achieved for both sides [2]. As a step further, with
+sharing one set of hardware equipment and signal processing
+frameworks for communications and radar, dual-functional
+radar-communication (DFRC) design provides a cost-efficient
+way for achieving integrated sensing and communications
+(ISAC) [3, 4]. In fact, the techniques of DFRC and ISAC are
+eagerly required by future intelligent 6G and IoT applications,
+such as smart cities, smart homes, automatic driving, industry
+4.0, etc., which have drawn great attention from both academia
+and industry recently [3–6].
+DFRC systems aim at fulfilling wireless communications
+and radar detections simultaneously through designing a single
+transmitted waveform. For radar-centric DFRC systems [3, 7–
+9], standard radar waveforms are employed and information is
+introduced by modulating and signaling for communications.
+In comparison, for communication-centric DFRC systems [4,
+10–12], the communication waveforms are directly exploited
+for sensing by extracting the radar information from targets
+echoes. It is known that radar-centric DFRC systems are
+capable of providing desirable sensing performance but with
+limited communication rates below 5G requirements, while
+communication-centric systems can achieve favorable communication performance but with unreliable and difficult-to-tune
+sensing performance [5, 6]. Recently, more attention is focused
+on DFRC systems with joint DFRC waveform design [13–15]
+to guarantee both sensing and communication performance,
+which is not limited by any existing radar or communication
+waveforms and is promising to achieve scalable performance
+trade-off between the two functionalities.
+The technique of orthogonal frequency division multiplexing (OFDM), as a key enabler for 4G and 5G wireless
+networks, is part of communication standards and has been
+studied extensively [16–18]. Actually, OFDM has also recently
+been exploited for radar sensing [10, 19–22]. The orthogonal property of OFDM waveform fulfilled by the discrete
+Fourier transform (DFT) and inverse DFT (IDFT) operations
+at transceivers can facilitate signal processing for both communications and radar sensing. A pioneer work [10] considered a
+communication-centric DFRC multiple-input multiple output
+(MIMO) OFDM system which provided a way of introducing
+radar sensing into a MIMO-OFDM system. In [19], a radarcentric DFRC MIMO-OFDM system with sidelobe control for
+communications was studied where the transmit and receive
+beamforming were optimized to maximize the radar metric
+of Kullback-Leibler divergence. The total radiated power was
+minimized in another radar-centric DFRC work [20] through
+subcarrier selection and power allocation with a primary radar
+purpose and a secondary communications purpose. Both radarcentric and joint design scenarios were addressed in recent
+work [21] where the DFRC trade-off waveform was optimized by taking the feedback overhead for conveying transmit
+waveform control information into consideration. A wideband
+DFRC MIMO-OFDM waveform was jointly designed in [22],
+where precoding and antenna selection matrices were optimized to meet a joint communication-sensing performance.
+Even though OFDM waveform is an excellent candidate
+for joint design of DFRC systems, one major disadvantage of
+OFDM waveform is high peak-to-average power ratio (PAPR)
+which should be effectively dealt with. Otherwise, high PAPR
+may cause non-linear distortion of the transmit signals and lead
+to radar/communication performance degradation considering
+the limited linear region of the low-cost power amplifiers [23–
+25]. In [19], the PAPR constraints were considered in a radarcentric DFRC system to restrain the PAPR of MIMO-OFDM
+waveform. However, to the best of our knowledge, most of the
+DFRC OFDM systems in the state-of-the-art literature have not
+taken the PAPR constraints into consideration, especially for
+the joint design DFRC systems. Moreover, PAPR is originally
+defined on the continuous-time passband signals [18], and thus
+oversampling may be necessary for obtaining accurate PAPR
+levels based on the discrete-time MIMO-OFDM waveform. It
+is verified that the discrete-time OFDM signal can get almost
+the same PAPR as the continuous-time signal if it is Υ-times
+interpolated (oversampled) with Υ ≥ 4 [18, 23].
+B. Our Contributions
+In this paper, we consider a wideband DFRC multi-user
+MIMO (MU-MIMO) OFDM system, where a multi-antenna
+DFRC base station (BS) acts as a cellular BS and a MIMO
+radar to generate DFRC MIMO-OFDM waveforms used for
+downlink data transmission and far-field targets detection
+simultaneously. We design low-PAPR DFRC MIMO-OFDM
+waveforms so as to achieve a tunable performance trade-off
+between wireless communications and radar sensing.
+Our main contributions are summarized as follows:
+• We jointly design the DFRC MIMO-OFDM waveforms
+by optimizing a weighted objective function on both
+communications and radar performance metrics under transmit power and PAPR constraints. The PAPR
+constraints are introduced to restrain the modulus of the
+DFRC MIMO-OFDM waveforms so as to avoid signal
+distortion caused by hardware limitation, e.g., low-cost
+non-linear power amplifiers, leading to energy-efficient
+data transmissions and target detections.
+• We first address low-PAPR DFRC MIMO-OFDM waveform design in the scenario with Nyquist-rate sampling.
+The PAPR of discrete-time DFRC MIMO-OFDM waveform with Nyquist-rate sampling is derived and used for
+PAPR constraints. The formulated problem is transformed
+into a standard semi-definite programming (SDP) and can
+be optimally solved by the semi-definite relaxation (SDR)
+method, where we can prove that the rank-1 solution
+exists in general.
+• A low-complexity method is further proposed to divide
+the original problem into sub-problems and obtain an
+effective solution with much reduced complexity. All
+the subproblems can be solved parallelly with much
+less optimization variables, and thus the computational
+complexity can be significantly reduced.
+• We further consider the practical case of DFRC MIMOOFDM waveform with an oversampling rate Υ ≥ 4,
+and design a new low-PAPR approach. Oversampling
+is required in practical OFDM systems with low-cost
+non-linear power amplifiers, where the PAPR level of
+ODFM waveform can be measured in a more accurate
+way. We derive the PAPR expression and transform
+the optimization problem for low-PAPR DFRC MIMOOFDM waveform design into a standard SDP though
+elaborate transformations. The global optimal solution
+can also be achieved by the SDR method which is shown
+to offer rank-1 solution in general. We further advance
+this approach with a low-complexity method to obtain an
+effective solution.
+The simulation results verify that the PAPR levels of our designed DFRC MIMO-OFDM waveform can be reduced from
+12.5dB/10.5dB to 3dB in the case of radar/communication
+priority with very slight performance degradation. Satisfactory
+performance tradeoff between the communications and radar
+can be achieved through effectively tuning the weighting factor
+on these two functionalities, demonstrating the feasibility,
+effectiveness, and flexibility of the proposed methods for lowPAPR DFRC MIMO-OFDM waveform design.
+The rest of this paper is organized as follows. Section II
+describes the considered system models including the DFRC
+waveform, the communication, and the radar models. The
+problem formulation as well as the low-PAPR DFRC MIMOOFDM waveform design with Nyquist-rate sampling are given
+in Section III. In Section IV, the practical scenario with
+oversampling is considered where the optimization problem
+is solved based on a more accurate PAPR measurement. The
+simulation results are provided in Section V, and we conclude
+our paper in Section VI.
+Notations: Unless specified otherwise, the upper and lower
+case bold symbols represent matrices (i.e., A) and vectors
+(i.e., x). The notations (·)
+∗
+, (·)
+T and (·)
+H denote complex
+conjugate, transpose and Hermitian transpose operations for
+vectors or matrices. Also, A†
+represents the Moore-Penrose
+pseudo-inverse of matrix A. Tr {X} is the trace of square
+matrix X and rank(A) represents the rank of matrix A. [A]i,j
+denotes the (i, j)-th element of matrix A. diag(·) can form a
+diagonal-form matrix using elements in (·). vec(A) represents
+vectorization on matrix A. ⊗ denotes the Kronecker product.
+|·|, kxk, kAkF
+denote the absolute value of scalers, the l2 norm
+of vector x and Frobenius norm of matrix A, respectively.
+II. SYSTEM MODEL
+We consider a wideband DFRC MU-MIMO system as
+shown in Fig. 1, where a DFRC-BS equipped with a uniform
+linear array (ULA) of Nt-antenna transmits DFRC waveforms,
+8(  8( K
+8(  8( K-
+WDUJHW 
+WDUJHW 
+WDUJHW M
+h
+h
+hK-1
+hK
+Fig. 1. An illustration of the DFRC MIMO-OFDM system, where a Ntantenna DFRC-BS simultaneously serves K downlink UEs and probes M
+far-field targets through jointly designing the DFRC MIMO-OFDM waveform.
+aiming at serving K downlink single-antenna user equipment
+(UEs) and sensing M far-field targets simultaneously.
+In the considered wideband DFRC MIMO-OFDM system
+with sufficient bandwidth, high distance resolution can be
+achieved for radar detection. However, the communication
+channels with multiple taps undergo significant frequencyselective fading due to the fact that the bandwidth is much
+larger than the channel coherence bandwidth [17]. It is well
+known that OFDM is an effective technique for overcoming
+frequency-selective fading while fully exploiting the frequency
+diversity, which is widely used in practical communication
+systems. Through the OFDM technique, each wideband channel can be divided into multiple orthogonal frequency-flat
+subchannels [18]. On the other hand, the OFDM technique
+introduces the disadvantage of enlarging the PAPR of the
+transmitted signal waveform, which may lead to crucial signal
+distortion. Hence, the transmitted signal waveform should be
+carefully designed so as to effectively restrain the corresponding PAPR of the OFDM signals.
+In this paper, the proposed system is denoted as DFRC
+MIMO-OFDM system, and the transmitted signal waveform
+is named as DFRC MIMO-OFDM waveform. Our objective
+is to effectively design the transmitted DFRC MIMO-OFDM
+waveform under transmit power and specific PAPR constraints,
+so as to obtain desirable low-PAPR DFRC MIMO-OFDM
+waveform achieving satisfactory performance tradeoff between
+communications and radar functionalities.
+A. DFRC MIMO-OFDM Waveform Formulation
+We assume that the wireless communication channels are
+with the memory of U − 1, i.e., each has U effectively nonzero channel taps. In addition, the length of the effective
+data symbols in each block is Ns which need modulate
+Ns subcarriers for transmissions [17], and we denote the
+index of symbols/subcarriers as n ∈ Ns = {1, · · · , Ns}. In
+order to eliminate inter-symbol interference (ISI) of wideband
+multicarrier transmissions, the standard OFDM technique of
+cyclic prefix (CP) is utilized [18]. The length of CP is denoted
+as Nc with Nc ≥ U − 1, and thus the total number of timedomain samples per block is N = Ns + Nc. Without lose of
+generality, we use Nc = U − 1 in this paper.
+1) Symbol Data and Preoding Model: Let
+S = [S
+T
+1
+, · · · , S
+T
+Ns
+]
+T ∈ C
+NsK×L (1)
+represent the symbol data matrix for all UEs of k ∈ K =
+{1, · · · , K} on Ns subcarriers, transmitted during a communication frame with length L.
+1 Here, Sn = [sn,1, · · · , sn,K]
+T ∈
+C
+K×L is the symbol matrix for all UEs on subcarrier n ∈ Ns
+with sn,k ∈ C
+L×1 being the specific symbol vector for user
+k. In addition, W = diag(W1, · · · ,WNs
+) ∈ C
+NsNt×NsK is
+the compact precoding matrix for all UEs on all subcarriers
+where Wn = [wn,1, · · · , wn,K] ∈ C
+Nt×K is the precoding
+matrix for all UEs on subcarrier n ∈ Ns with wn,k ∈ C
+Nt×1
+being the specific precoding vector for user k.
+The transmit symbol data S is first precoded by W in the
+frequency domain and then converted to the time domain by
+IDFT operation before subcarrier modulations. We further use
+Xs = WS = [XT
+1
+, · · · , XT
+Ns
+]
+T ∈ C
+NsNt×L
+(2)
+to indicate the baseband precoded symbol matrix on all
+subcarriers before the IDFT processing where Xn = WnSn ∈
+C
+Nt×L for n ∈ Ns. We denote Fs ∈ C
+Ns×Ns as the
+normalized DFT matrix for data transmissions with
+F
+s
+n,m =
+1
+√
+Ns
+e
+−
+j2π
+Ns
+(n−1)(m−1) (3)
+being the (n, m)-th element of Fs for n, m ∈ Ns. The IDFT
+processing at the transmitter of the DFRC-BS is operated
+by (FH
+s ⊗ INt
+) ∈ C
+NsNt×NsNt considering the fact that the
+ULA array is equipped with Nt transmit antennas. Hence, the
+transmitted time-domain data signal waveform after IDFT can
+be further expressed as
+G , (F
+H
+s ⊗ INt
+)Xs = [GT
+1
+, · · · , GT
+Ns
+]
+T ∈ C
+NsNt×L, (4)
+where Gn = (f
+H
+s,n⊗INt
+)Xs ∈ C
+Nt×L is the transmitted DFRC
+MIMO-OFDM signal from Nt antennas on the n-th subcarrier
+for n ∈ Ns. Also, fs,n ∈ C
+Ns×1
+indicates the n-th column of
+the DFT matrix Fs corresponding to the (I)DFT operations on
+the n-th subcarrier.
+2) DFRC MIMO-OFDM Waveform with CP: The next step
+is adding CP with size Nc = U − 1, which is crucial for
+eliminating the ISI caused by multi-path frequency-selective
+fading. It is operated by repeating the last Nc symbols at the
+beginning of the original symbol sequence [26]. We denote
+Xc = [XT
+Ns−Nc+1, XT
+Ns−Nc+2, · · · , XT
+Ns
+]
+T ∈ C
+NcNt×L, (5)
+Fc = [fs,Ns−Nc+1,fs,Ns−Nc+2, · · · ,fs,Ns
+] ∈ C
+Ns×Nc
+, (6)
+and let
+X˙ = [XT
+c
+, XT
+s
+]
+T ∈ C
+NNt×L, (7)
+F˙ = [Fc, Fs] ∈ C
+Ns×N , (8)
+then the transmitted DFRC MIMO-OFDM waveform after
+adding CP can be expressed as
+G˙ , (F˙ H ⊗ INt
+)X˙ ∈ C
+NNt×L
+= [GT
+Ns−Nc+1, GT
+Ns−Nc+2, · · · , GT
+Ns
+, GT
+1
+, · · · , GT
+Ns
+]
+T, (9)
+1L is the length of the radar pulse/communication block, corresponding to
+the number of OFDM symbols in the time domain.
+recalling that N = Nc + Ns. Through operating the IDFT
+and adding the CP at the transmitter side, the effects of ISI
+caused by frequency-selective fading can be eliminated after
+removing the CP and operating the DFT at the receiver side.
+B. MIMO-OFDM Communication Model
+1) Overall Downlink Channel and Received Signal: After
+adding the CP, the signal is then up-converted to the radio
+frequency (RF) domain through subcarrier modulations for
+transmission via Nt RF chains connected to Nt antennas.
+As mentioned before, the wireless channels from the DFRCBS to the downlink UEs are assumed as wideband frequencyselective fading channels with memory of U − 1, which is
+assumed time-invariant for a sufficiently long time-scale [17].
+Hence, the discrete-time impulse response of the channel from
+the DFRC-BS to UE k ∈ K can be denoted as
+hek(τ) =
+U
+X−1
+u=0
+hek,uδ(τ − u) ∈ C
+1×Nt
+, ∀k ∈ K, ∀τ (10)
+where hek,u ∈ C
+1×Nt
+is the time-invariant channel vector
+of the u-th tap and it is assumed as hek,u ∼ CN (0,
+1
+U
+INt
+)
+with independent identically distributed (i.i.d.) Rayleigh fading
+coefficients for any k ∈ K and u ∈ U = {0, · · · , U − 1}.
+Furthermore, we use
+He (τ) =
+U
+X−1
+u=0
+He uδ(τ − u) ∈ C
+K×Nt
+, ∀τ (11)
+to represent the compact channel matrix from the DFRC-BS to
+K downlink UEs, where He u = [heT
+1,u, · · · , heT
+K,u]
+T ∈ C
+K×Nt
+is the corresponding channel matrix of the u-th tap.
+Lemma 1. The overall effective downlink channel matrix
+of the DFRC MIMO-OFDM system on the n-th symbol subcarrier can be written in frequency domain as [17, 26]
+Hn =
+U
+X−1
+u=0
+He ue
+−
+j2πu(n−1)
+Ns , ∀n ∈ Ns. (12)
+Also, we have Hn = [h
+T
+1,n, · · · , h
+T
+K,n]
+T ∈ C
+K×Nt with
+hk,n =
+PU−1
+u=0 hek,ue
+−
+j2πu(n−1)
+Ns ∈ C
+1×Nt being the corresponding channel for UE k ∈ K. In addition, the received
+signal of symbol data sequence can be expressed as
+Ys = HsXs + Zs ∈ C
+NsK×L (13)
+where Hs = diag(H1, · · · , HNs
+) ∈ C
+NsK×NsNt and Zs ∈
+C
+NsK×L is the matrix of the additive white gaussian noise
+(AWGN) on Ns subcarriers with i.i.d. random variables following CN (0, σ2
+). Specifically, the corresponding noiseless
+received signal on the subcarrier n can be expressed as HnXn
+for n ∈ Ns [17, 26].
+Proof. See Appendix A.
+In this paper, we assume that the channels are known to
+the DFRC-BS, which can be obtained through conventional
+channel estimation methods.
+2) Multi-user Interference (MUI) and Sum Rate: The
+downlink MU-MIMO OFDM transmissions will induce MUI,
+which will have great effects on the performance of the
+achievable sum rate as well as the symbol error rate (SER)
+of the downlink UEs. Assuming that the data symbols for
+all UEs of k ∈ K on all subcarriers of n ∈ Ns follow the
+same constellation modulation, we can re-express the compact
+received signal in (13) as
+Ys = S
+|{z}
+Signal
++ (HsXs − S)
+| {z }
+MUI
++ Zs
+|{z}
+Noise
+, (14)
+where HsXs −S represents the MUI signals caused by multiuser transmissions [27]. The signal-to-interference-plus-noise
+ratio (SINR) of UE k ∈ K on subcarrier n ∈ Ns per frame
+can be further expressed as
+SINRk,n =
+E{|s
+l
+n,k|
+2}
+E{|hk,nxl
+n − s
+l
+n,k|
+2} + σ
+2
+, (15)
+where s
+l
+n,k is the l-th element of the symbol vector sn,k and
+x
+l
+n ∈ C
+Nt×1
+is the l-th column of the precoded symbol
+matrix Xn for all UEs. The expectations in (15) are taken
+with respect to (w.r.t.) the time index l ∈ L = {1, · · · , L}
+[14], and E{|s
+l
+n,k|
+2} is fixed with given constellation mode.
+Hence, the maximum achievable sum rate of the K downlink
+UEs on subcarrier n can be given as
+Rn =
+X
+K
+n=1
+log2
+(1 + SINRk,n). (16)
+The average sum rate/spectral efficiency of the MIMO-OFDM
+system is measured as
+R =
+1
+Ns
+X
+Ns
+n=1
+Rn. (17)
+Note that the MUI is an important performance metric of
+the DFRC MIMO-OFDM system which should be minimized
+from the perspective of communications, so as to increase the
+achievable sum rate and decrease the SER. To this end, in the
+following we employ the MUI as our objective/cost function
+for enhancing the communication performance of the DFRC
+MIMO-OFDM system, given as
+min
+Xs
+
+HsXs − S
+
+
+2
+F
+. (18)
+C. MIMO-OFDM Radar Model
+1) Radar Beampattern: Radar beampattern is a crucial
+indicator for measuring the radar detection and tracking performance. Note that MIMO radar is capable of achieving higher
+degrees of freedom (DoFs) than traditional phased-array radar
+through generating uncorrelated MIMO waveforms [28]. It
+has been verified that designing MIMO radar beampattern
+can be equivalently transformed into designing the probing
+signal waveform as the radar beampattern is highly related to
+the covariance matrix of the probing waveform [14, 28–30].
+For the considered DFRC MIMO-OFDM system, the transmit
+radar beampattern versus the detection angle θ is written as
+Bd(θ) = 1
+Ns
+X
+Ns
+n=1
+a
+H(θ)RG,na(θ), (19)
+which is averaged on the Ns subcarriers. Here a(θ) ∈ C
+Nt×1
+is the transmit steering vector given as
+a(θ) = [e
+−j
+Nt−1
+2
+π sin θ
+, e−j
+Nt−3
+2
+π sin θ
+, · · · , ej
+Nt+1
+2
+π sin θ
+]
+T,
+(20)
+under the assumption that even number of transmit antennas
+are equipped at the DFRC-BS ULA and the center of the ULA
+is chosen as the reference point. In addition, RG,n ∈ C
+Nt×Nt
+is the effective spatial covariance matrix of the transmit DFRC
+MIMO-OFDM waveform on the n-th subcarrier for n ∈ Ns
+which is defined as
+RG,n =
+1
+L
+GnGH
+n
+. (21)
+In order to ensure that the covariance matrices {RG,n}n∈Ns
+are positive-definite, we assume that the frame length satisfies
+L ≥ Nt, which is easy to achieve in the considered wideband
+scenario with approximately time-invariant channels.
+2) Radar Detection Probability: From the perspective of
+radar, another important performance indicator is the detection
+probability. To derive the detection probability, we first express
+the radar received target echo signal by the DFRC-BS at the
+l-th snapshot/frame as
+y
+r
+l = αΥ(θ)g
+s
+l + z
+r ∈ C
+NsNt×1
+, (22)
+which is an expanded radar received echo vector considering
+the Ns i.i.d data streams on the Ns subcarriers for l ∈ L.
+Here, α is the complex path loss of the radar-target-radar path,
+g
+s
+l = (FH
+s ⊗ INt
+)x
+l
+s ∈ C
+NsNt×1 with x
+l
+s ∈ C
+NsNt×1 being
+the l-th column of the precoded signal matrix Xs, and z
+r ∼
+CN (0, σ2
+r
+INsNt
+) is the AWGN noise for radar reception. In
+addition, Υ(θ) = INs ⊗ Υe (θ) ∈ C
+NsNt×NsNt with Υe (θ) =
+ar(θ)a
+T
+t
+(θ) ∈ C
+Nt×Nt where ar(θ) and at(θ) are the transmit
+and receive steering vector with ar(θ) = at(θ) = a(θ).
+Next by leveraging the Generalized Likelihood Ratio Test
+(GLRT) [14, 31, 32], we can further obtain the asymptotic
+radar detection probability as
+PD = 1 − FX 2
+2
+(µ)
+(ζ) = 1 − FX 2
+2
+(µ)
+
+F
+−1
+X 2
+2
+(1 − Pf)
+
+, (23)
+where Pf = 1 − FX 2
+2
+(ζ) is the false alarm rate and FX 2
+2
+is
+the chi-squared cumulative distribution function (CDF) with 2
+DoFs. In order to endure a constant false alarm rate Pf
+, we
+have ζ = F
+−1
+X 2
+2
+(1 − Pf) under the Neyman-Pearson criterion
+with F
+−1
+X 2
+2
+being the inverse function of the chi-squared CDF
+with 2 DoFs. In addition, the function FX 2
+2
+(µ)
+in (23) is the
+non-central chi-squared CDF with 2 DoFs and the non-central
+parameter µ is defined as
+µ = L|α|
+2P
+r
+t
+tr
+Υ(θ)RGΥH(θ)(σ
+2
+r
+I)
+−1
+
+= SNRRtr
+Υ(θ)RGΥH(θ)
+
+, (24)
+where P
+r
+t
+is the power of the DFRC MIMO-OFDM probing
+waveform and RG =
+1
+LGGH ∈ C
+NsNt×NsNt
+. In addition, the
+signal-to-noise (SNR) ratio of the radar received target echo
+signal is denoted as SNRR =
+L|α|
+2Pt
+σ2
+r
+[31].
+To design our DFRC MIMO-OFDM waveform, we employ
+a desired benchmark of the MIMO-OFDM radar waveform,
+denoted as G0 , (FH
+s ⊗ INt
+)Xs,0 with Xs,0 being the radar
+waveform before IDFT operation, which is capable to achieve
+desirable detection probability. One such benchmark waveform
+of G0 can be obtained by leveraging the Directional Beampattern Design. From the viewpoint of radar performance, it is
+beneficial to make the DFRC waveform G = (FH
+s ⊗ INt
+)Xs
+to be as close to G0 as possible. Hence, the objective/cost
+function for enhancing the radar performance of the DFRC
+MIMO-OFDM system is given as
+min
+Xs
+
+(F
+H
+s ⊗ INt
+)Xs − G0
+
+
+2
+F
+. (25)
+III. LOW-PAPR DFRC MIMO-OFDM WAVEFORM
+DESIGN WITH NYQUIST-RATE SAMPLING
+In this section, we consider the scenario leveraging the
+Nyquist-rate sampling where the sampled sequence corresponds to the symbol sequence [33]. Our aim is to achieve a
+desirable performance tradeoff between communications and
+radar detections through elaborately designing the precoded
+DFRC MIMO-OFDM waveform matrix Xs ∈ C
+NsNt×L under
+the PAPR as well as the power allocation constraints.2
+A. PAPR of the DFRC MIMO-OFDM Waveform
+PAPR is defined as the ratio between the maximum power
+and the average power of the complex passband signal [18],
+and thus the PAPR constraint on the considered discrete-time
+DFRC MIMO-OFDM waveform can be given as
+PAPR(Xs) =
+max
+i,l
+
+
+
+h
+F˙ H ⊗ INt
+
+X˙
+i
+i,l
+
+
+
+2
+1
+NNtL
+
+
+
+
+F˙ H ⊗ INt
+
+X˙
+
+
+
+2
+F
+≤ ε, (26)
+where ε ∈ [1, NNtL] is the maximum allowable PAPR
+threshold of the DFRC MIMO-OFDM system. Based on
+the fact that the radar is usually required to transmit at
+its maximum available power in practice, we then have the
+following equality power allocation constraint
+1
+L
+
+
+
+
+F˙ H ⊗ INt
+
+X˙
+
+
+
+2
+F
+= Pt, (27)
+where the power budget Pt is totally utilized for generating the
+DFRC MIMO-OFDM waveform. Hence, this PAPR constraint
+defined in (26) can be simplified as
+max
+i,l
+
+
+
+h
+F˙ H ⊗ INt
+
+X˙
+i
+i,l
+
+
+
+2
+≤
+εPt
+NNt
+,
+∀i ∈ N˙
+t = {1, · · · , NNt}, ∀l ∈ L, (28)
+which is equivalent to the following set of constraints
+
+
+
+
+h
+F
+H
+s ⊗ INt
+
+Xs
+i
+i,l
+
+
+
+
+2
+≤
+εPt
+NNt
+,
+∀i ∈ Nst = {1, · · · , NsNt}, ∀l ∈ L. (29)
+2
+It is easy to notify that the signal matrix with CP, i.e., X˙
+, can be totally
+determined by the symbol signal matrix Xs according to their definitions in
+sectio
+B. Problem Formulation
+In order to achieve desirable performance tradeoff between
+communications and radar under the PAPR and power allocation constraints, we can formulate the DFRC MIMO-OFDM
+waveform optimization problem as
+(P1) : min
+Xs
+ρ
+kSk
+2
+F
+
+HsXs − S
+
+
+2
+F
++
+1 − ρ
+kG0k
+2
+F
+
+(F
+H
+s ⊗ INt
+)Xs − G0
+
+
+2
+F
+(30a)
+s.t.
+
+
+
+
+h
+F
+H
+s ⊗ INt
+
+Xs
+i
+i,l
+
+
+
+
+2
+≤
+εPt
+NNt
+,
+∀i ∈ Nst, ∀l ∈ L, (30b)
+1
+L
+
+
+
+
+F˙ H ⊗ INt
+
+X˙
+
+
+
+2
+F
+= Pt, (30c)
+where a weighted objective function considering the normalized objectives relating to the performance of communications
+and radar is leveraged. It is easy to verify that
+
+
+
+
+F˙ H ⊗ INt
+
+X˙
+
+
+
+2
+F
+=
+
+
+
+G˙
+
+
+
+2
+F
+=
+
+
+
+F
+H
+s ⊗ INT
+
+Xs
+
+
+2
+F
++
+
+Γc
+
+F
+H
+s ⊗ INT
+
+Xs
+
+
+2
+F
+= kGk
+2
+F + kΓcGk
+2
+F
+(31)
+where Γc ∈ R
+NsNt×NsNt defined as
+Γc =
+
+0(Ns−Nc)Nt 0(Ns−Nc)Nt×NcNt
+0NcNt×(Ns−Nc)Nt
+INcNt
+
+(32)
+is utilized to abstract the signals in G used for CP that
+ΓcG = [0, · · · , 0, GT
+Ns−Nc+1, · · · , GT
+Ns
+]
+T ∈ C
+NsNt×L
+(33)
+where the zero matrix 0 in (33) is with the size of L × Nt. In
+order to facilitate the solving process of problem (P1) in (30),
+we can divide the equality power allocation constraint (30c)
+into two equality power allocation constraints respectively on
+the symbol signals and the CP signals as
+1
+L
+
+
+
+F
+H
+s ⊗ INT
+
+Xs
+
+
+2
+F
+=
+1
+L
+kGk
+2
+F = βPt, (34)
+1
+L
+
+Γc
+
+F
+H
+s ⊗ INT
+
+Xs
+
+
+2
+F
+=
+1
+L
+kΓcGk
+2
+F = (1 − β)Pt, (35)
+by introducing a power splitting parameter β ∈ (0, 1). For
+simplicity, we fix β =
+Ns
+N
+and then we have βPt =
+Ns
+N
+Pt ,
+P
+s
+t
+and (1 − β)Pt =
+Nc
+N
+Pt , P
+c
+t
+, which is reasonable on the
+basis of average power allocation on data transmissions and
+will be used in the rest of this paper.3
+In order to further simplify problem (P1), we denote D =
+FH
+s ⊗ INt ∈ C
+NsNt×NsNt which is a full-rank matrix with
+D−1 = (F
+H
+s
+)
+−1 ⊗ I
+−1
+Nt = Fs ⊗ INt = DH. (36)
+Considering G = (FH
+s ⊗ INt
+)Xs = DXs, the optimization
+variable Xs can be re-expressed as Xs = D−1G. Let HD =
+HsD−1 ∈ C
+NsK×NsNt
+, then problem (P1) in (30) with the
+3The technique of CP is beneficial to avoid ISI cased by frequency-selective
+fading but at the cost of consuming extra energy and thus degrade the energy
+efficiency. The effects of adding CP on the degradation of energy efficiency
+can be eliminated by enlarging Ns where β =
+Ns
+N
+can approach to 1.
+newly introduced power allocation constraints (34) and (35)
+can be further rewritten as
+(P2) : min
+G
+ρ
+kSk
+2
+F
+
+HDG − S
+
+
+2
+F
++
+1 − ρ
+kG0k
+2
+F
+
+G − G0
+
+
+2
+F
+(37a)
+s.t.
+
+
+[G]
+i,l
+
+
+2
+≤
+εPt
+NNt
+, ∀i ∈ Nst, ∀l ∈ L, (37b)
+kGk
+2
+F = LPs
+t
+, (37c)
+kΓcGk
+2
+F = LPc
+t
+, (37d)
+which can be solved by directly optimizing the DFRC MIMOOFDM waveform after IDFT operations, i.e., G , (FH
+s ⊗
+INt
+)Xs, and will be addressed in the next sub-section.
+C. MIMO-OFDM DFRC Waveform Design
+It is easy to verify that the objective function of problem
+(P2) in (37) can be equivalently re-expressed in the form of
+
+AG − B
+
+
+2
+F
+(38)
+where
+A =
+ √
+ρ
+kSkF
+HT
+D,
+√
+1 − ρ
+kG0kF
+INsNt
+T
+∈ C
+(NsK+NsNt)×NsNt
+, (39)
+B =
+ √
+ρ
+kSkF
+S
+T,
+√
+1 − ρ
+kG0kF
+GT
+0
+T
+∈ C
+(NsK+NsNt)×L. (40)
+To further facilitate the optimization, we then transform problem (P2) in (37) with the objective function (38) into an
+equivalent vector form as below
+(P3) : min
+g
+
+
+Age − b
+
+
+
+2
+(41a)
+s.t. |gq|
+2 ≤
+εPt
+NNt
+, ∀q ∈ NstL, (41b)
+kgk
+2 = LPs
+t
+, (41c)
+
+
+
+Γecg
+
+
+
+2
+= LPc
+t
+, (41d)
+where we have
+Ae = IL ⊗ A ∈ C
+(NsK+NsNt)L×NsNtL
+, (42)
+g = vec(G) ∈ C
+NsNtL×1
+, (43)
+b = vec(B) ∈ C
+(NsK+NsNt)L×1
+, (44)
+Γec = IL ⊗ Γc ∈ C
+NsNtL×NsNtL, (45)
+and gq indicates the q-th element of the vector g for q ∈
+NstL = {1, · · · , NsNtL}.
+Moreover, the minimization of the objective function in
+(41a) without any constraints can be equivalently transformed
+into a problem with an auxiliary parameter ξ as follows
+min
+g
+
+
+Age − ξb
+
+
+
+2
+, s.t. |ξ|
+2 = 1. (46)
+Note that if (g
+o
+, ξo
+) is the optimal solution of problem
+(46), then g
+o
+(ξ
+o
+)
+∗
+is the optimal solution for minimizing the
+objective function in (41a). Based on this observation, problem
+(P3) in (41) can be equivalently reformulated as
+(P4) : min
+g,ξ
+[g
+H, ξ∗
+]
+"
+Ae HAe −Ae Hb
+−b
+HA b e Hb
+# 
+g
+ξ
+
+s.t. diag(ggH) ≤
+εPt
+NNt
+1NsNtL, (47b)
+kgk
+2 = LPs
+t
+, (47c)
+
+
+
+Γecg
+
+
+
+2
+= LPc
+t
+, (47d)
+|ξ|
+2 = 1, (47e)
+which is a homogeneous quadratically constrained quadratic
+program (QCQP) and can be solved by SDR. We denote
+gb = [g
+H, ξ∗
+]
+H ∈ C
+(NsNtL+1)×1
+, (48)
+Gb = gbgb
+H ∈ C
+(NsNtL+1)×(NsNtL+1)
+, (49)
+Q =
+"
+Ae HAe −Ae Hb
+−b
+HA b e Hb
+#
+∈ C
+(NsNtL+1)×(NsNtL+1)
+, (50)
+Γbc =
+
+ΓeH
+c Γec 0NsNtL×1
+01×NsNtL 0
+
+∈ C
+(NsNtL+1)×(NsNtL+1)
+, (51)
+problem (P4) in (47) can be further rewritten as
+(P5) : min
+Gb
+Tr(QGb ) (52a)
+s.t. Gb q,q ≤
+εPt
+NNt
+, ∀q ∈ NstL, (52b)
+Tr(Gb ) = LPs
+t + 1, (52c)
+Tr(ΓbcGb ) = LPc
+t
+, (52d)
+Gb NsNtL+1,NsNtL+1 = 1, (52e)
+Gb  0, (52f)
+rank(Gb ) = 1, (52g)
+through optimizing the hermitian semi-definite matrix variable
+Gb . By dropping the rank-1 constraint on Gb in (52g), problem
+(P5) in (52) becomes a standard SDP and can be effectively
+solved by the classic SDR technique via the existing numerical
+tools, e.g., CVX.
+Lemma 2. It can be proved that the rank-1 solution exist in
+general for the SDR of problem (P5) in (52), indicating that
+the globally optimal solution of problem (P5) can always be
+obtained by solving its SDR without considering the rank-1
+constraint (52g), denoted as Gb o
+.
+Proof. See Appendix B.
+Once we obtain the optimal solution of Go based on Gb o
+,
+then the optimal precoded DFRC MIMO-OFDM waveform on
+the symbol subcarriers can be expressed as Xo
+s = D−1
+s Go
+.
+The previously proposed SDR method for solving problem
+(P5) in (52) can obtain the global optimal solution of the
+original problem (P2) in (37), but its computation complexity
+is quite high. We can observe that the number of optimization
+variables for problem (P5) is (NsNtL + 1)2 which is nearly
+proportional to the square of NsNtL, and thus high computational complexity may hinder its use in practical systems,
+especially considering the wideband scenario with longer
+coherent frame, i.e., with larger L. Next, we propose a method
+with much lower complexity by dividing the original problem
+(P2) into L subproblems corresponding to each frame/snapshot
+of the DFRC MIMO-OFDM waveform.
+D. Low-Complexity Approach
+In order to solve problem (P2) in (37) with low complexity,
+we further transform problem (P2) into the following form
+(P6) : min
+{gl}l∈L
+X
+L
+l=1
+
+ρ
+kSk
+2
+F
+
+HDgl − sl
+
+
+2
++
+1 − ρ
+kG0k
+2
+F
+
+gl − g0,l
+
+
+2
+
+(53a)
+s.t. |gl,i|
+2 ≤
+εPt
+NNt
+, ∀i ∈ Nst, ∀l ∈ L, (53b)
+kglk
+2 = P
+s
+t
+, ∀l ∈ L, (53c)
+kΓcglk
+2 = P
+c
+t
+, ∀l ∈ L, (53d)
+where gl ∈ C
+NsNt×1
+, sl ∈ C
+NsK×1
+and g0,l ∈ C
+NsNt×1
+correspond to the l-th column of G, S and G0, respectively.
+Also, gl,i indicates the i-th element of gl
+. In problem (P6), the
+original sum power allocation constraints in (37c) and (37d) of
+problem (P2) is respectively further relaxed into L individual
+power allocation constraints as in (53c) and (53d) for l ∈ L,
+which is optimal in the average basis and easy to operate in
+practical communication systems. Note that problem (P6) can
+be parallelly solved by addressing L sub-problems as shown
+in the following l-th sub-problem (P6.1)
+(P6.1) : min
+gl
+ρ
+kSk
+2
+F
+kHDgl − slk
+2 +
+1 − ρ
+kG0k
+2
+F
+kgl − g0,lk
+2
+(54a)
+s.t. |gl,i|
+2 ≤
+εPt
+NNt
+, ∀i ∈ Nst, (54b)
+kglk
+2 = P
+s
+t
+, (54c)
+kΓcglk
+2 = P
+c
+t
+, (54d)
+which can be finally transformed into the following form
+(P6.2) : max
+Gb l
+Tr(QlGb l) (55a)
+s.t. Gb l,i,i ≤
+εPt
+NNt
+, ∀i ∈ Nst, (55b)
+Tr(Gb l) = P
+s
+t + 1, (55c)
+Tr(Γ˙
+cGb l) = P
+c
+t
+, (55d)
+Gb l,NsNt+1,NsNt+1 = 1, (55e)
+Gb l  0, (55f)
+rank(Gb l) = 1, (55g)
+which is similar to problem (P5) in (52) where
+Gb l = gblgb
+H
+l ∈ C
+(NsNt+1)×(NsNt+1)
+, (56)
+Ql =
+
+AHA −AHbl
+−b
+H
+l A bH
+l bl
+
+∈ C
+(NsNt+1)×(NsNt+1) (57)
+Γ˙
+c =
+
+Γ
+H
+c Γc 0NsNt×1
+01×NsNt 0
+
+∈ C
+(NsNt+1)×(NsNt+1)
+, (58)
+with gbl = [g
+H
+l
+, ξ∗
+l
+] ∈ C
+(NsNt+1)×1
+and bl ∈ C
+(NsK+NsNt)×1
+being the l-th column of B. The SDR of problem (P6.2) in
+(55) can also be solved with CVX by dropping the rank-1
+constraint (55g), and it can be verified that the rank-1 solution
+exist in general via the same method of Lemma 2.
+The number of optimization variables for solving problem
+(P6.2) in (55) is (NsNt+1)2
+, and thus the computational complexity/running time can be significantly reduced comparing
+with solving problem (P5) in (52). In the simulation results, we
+leverage the low-complexity method of solving sub-problems
+proposed in this section due to the fact that it is easy to exceed
+the array size of MATLAB operation when solving the original
+problem (P5) in (52) with the SDR algorithm given in Section
+III-C, especially with larger values of Ns, Nt and L.
+E. Desired Benchmark of Radar Waveform with Directional
+Beampattern Design
+In this subsection, we provide a desired benchmark for the
+radar detection waveform of the MIMO-OFDM system by utilizing the technique of directional beampattern design, denoted
+as Gd
+0 = (FH
+s ⊗ INt
+)Xd
+s,0
+, where Xd
+s,0
+is the corresponding
+precoded waveform. Assuming Rd ∈ C
+Nt×Nt
+is a Hermitian
+positive semi-definite covariance matrix corresponding to a
+well designed MIMO radar beampattern on a single carrier,
+the radar detection waveform of the considered MIMO-OFDM
+system via the directional beampattern design can be obtained
+by solving the following MUI minimization problem
+min
+G
+kHDG − Sk
+2
+F
+(59a)
+s.t.
+1
+L
+GGH = INs ⊗ Rd. (59b)
+Considering the Cholesky decomposition on Rd, we have
+INs ⊗ Rd = ΦΦH, (60)
+where Φ ∈ C
+NsNt×NsNt
+is a lower triangular matrix. Without
+loss of generality, we assume Rd is positive-definite such that
+INs ⊗ Rd is positive-definite as well which can guarantee
+that Φ is invertible. Hence, the constraint in (59b) can be
+equivalently re-expressed as
+1
+L
+Φ
+−1G(Φ
+−1G)
+H = INsNt
+. (61)
+Let us denote GΦ =
+q
+1
+LΦ−1G, then problem (59) can be
+reformulated as
+min
+GΦ
+
+
+
+√
+LHDΦGΦ − S
+
+
+
+2
+F
+(62a)
+s.t. GΦGH
+Φ = INsNt
+, (62b)
+which has been proven as the Orthogonal Procrustes problem
+(OPP) [34], and a simple closed-form global optimal solution
+based on the Singular Value Decomposition (SVD) is given as
+GΦ = UINsNt×LVH, (63)
+where UΣVH = ΦHHH
+DS is the SVD of ΦHHH
+DS. Hence, the
+optimal solution of the original problem (59) with directional
+radar beampattern design can be expressed as
+Gd
+0 =
+√
+LΦGΦ =
+√
+LΦUINsNt×LVH, (64)
+which can be used as a desired benchmark of radar waveform,
+i.e., G0, used in problem (P2) in (37).
+IV. LOW-PAPR DFRC MIMO-OFDM WAVEFORM
+DESIGN WITH OVERSAMPLING
+OFDM introduces large amplitude variations in time, which
+may result in significant signal distortion in the presence of
+non-linear amplifiers. In practical OFDM systems utilizing
+low-cost non-linear amplifiers, the technique of oversampling
+is usually required for digital pre-distortion to avoid serious
+distortion of the time-domain signals [35]. Meanwhile, we
+can obtain a more accurate PAPR measurement through the
+oversampled signals compared with the scenario leveraging
+Nyquist-rate sampling in Section III (oversampling rate equals
+to 1). Based on the results in [18, 23], PAPR levels can be
+accurately measured if the discrete-time signals are Υ-times
+interpolated (oversampled) with Υ ≥ 4. Hence, in this section, we further address the low-PAPR DFRC MIMO-OFDM
+waveform design in the practical scenario with oversampling.
+A. Problem Formulation
+Considering an oversampling rate Υ ≥ 4, the corresponding IDFT of each transmit antenna should with ΥNs input
+and output points. We further denote Fos ∈ C
+ΥNs×ΥNs
+as the normalized oversampling DFT matrix where F
+os
+i,m =
+√
+1
+Ns
+e
+−j
+2π
+ΥNs
+(i−1)(m−1) is the (i, m)-th element with index
+i, m ∈ Nos = {1, 2, · · · , ΥNs}. In addition, the precoded
+symbol matrix should be Υ-times interpolated with 0 as
+Xos =
+h
+XT
+1
+, · · · , XT
+Ns/2
+, 0, · · · , 0
+| {z }
+ΥNs−1 0L×Nt
+,
+XT
+Ns/2+1, · · · , XT
+Ns
+iT
+∈ C
+ΥNsNt×L, (65)
+considering even number of subcarriers Ns, then the oversampled IDFT output can be written as (FH
+os ⊗ INt
+)Xos ∈
+C
+ΥNsNt×L. Hence, the PAPR constraint of the oversampled
+discrete-time signal for the DFRC MIMO-OFDM waveform
+after IDFT can be expressed as
+PAPR(Xos) =
+max
+γ,l
+
+
+
+
+(FH
+os ⊗ INt
+)Xos
+γ,l
+
+
+
+2
+1
+ΥNNtL
+
+
+(F˙ H
+os ⊗ INt
+)X˙
+os
+
+
+
+2
+F
+(a)
+=
+max
+γ,l
+
+
+
+
+(FH
+os ⊗ INt
+)Xos
+γ,l
+
+
+
+2
+1
+NNtL
+
+
+(F˙ H ⊗ INt
+)X˙
+
+
+
+2
+F
+(b)
+=
+max
+γ,l
+
+
+
+
+(FH
+os ⊗ INt
+)Xos
+γ,l
+
+
+
+2
+1
+NNt
+Pt
+≤ ε, (66)
+where γ ∈ Nγst = {1, · · · , ΥNsNt}, l ∈ L and
+F˙
+os = [F
+c
+os, Fos] ∈ C
+ΥNs×(ΥNs+Nc)
+, (67)
+X˙
+os = [(Xc
+os)
+T, XT
+os] ∈ C
+(ΥNs+Nc)Nt×L (68)
+with Fc
+os ∈ C
+ΥNs×Nc being formulated by the last Nc columns
+of Fos while Xc
+os ∈ C
+Nc×Nt being formulated by the last
+NcNt rows of Xos, similar to the definitions of Fc in (6) and
+Xc in (5), respectively. It is easy to observe that Xc
+os = Xc in
+the practical scenario where Nc ≤ Ns/2, which is considered
+in this paper.4
+In (66), (a) and (b) are based on the fact that
+1
+Υ
+
+(F˙ H
+os ⊗ INt
+)X˙
+os
+
+
+2
+F
+=
+
+(F˙ H ⊗ INt
+)X˙
+
+
+2
+F
+= LPt. (69)
+Hence, the PAPR constraint in (66) is equivalent to the set of
+PAPR constraints given below:
+
+
+
+
+(F
+H
+os ⊗ INt
+)Xos
+γ,l
+
+
+
+2
+≤
+εPt
+NNt
+, ∀γ ∈ Nγst, ∀l ∈ L. (70)
+It is easy to note the effective elements of the oversampled
+matrix Xos ∈ C
+ΥNsNt×L in (65) are exactly the elements
+of the original precoded symbol matrix Xs ∈ C
+NsNt×L. For
+utilizing the accurate PAPR constraint (70) and facilitating the
+formulation of the optimization problem for the effective matrix Xs, one challenging lies in transforming (FH
+os ⊗ INt
+)Xos
+in (70) into a function of Xs, which is also a key step for
+simplifying the problem solving process and reducing the
+computational complexity. To this end, we further denote an
+equivalent oversampling DFT matrix Feos ∈ C
+ΥNs×Ns as
+Feos =
+
+
+
+1
+√
+Ns
+e
+−j
+2π
+ΥNs
+(n−1)(m−1)
+,
+n = 1, · · · ,
+Ns
+2
+, m = 1, · · · , ΥNs,
+1
+√
+Ns
+e
+−j
+2π
+ΥNs
+(ΥNs−Ns+(n−1))(m−1)
+,
+n =
+Ns
+2
++ 1 · · · , Ns, m = 1, · · · , ΥNs,
+(71)
+and it is easy to prove that
+(F
+H
+os ⊗ INt
+)Xos = (FeH
+os ⊗ INt
+)Xs ∈ C
+ΥNsNt×L. (72)
+Then the PAPR constraints in (70) can be equivalently transformed into
+
+
+
+
+(FeH
+os ⊗ INt
+)Xs
+
+γ,l
+
+
+
+2
+≤
+εPt
+NNt
+, ∀γ ∈ Nγst, ∀l ∈ L. (73)
+Considering the equivalent IDFT operation FeH
+os ⊗ INt ∈
+C
+ΥNsNt×NsNt and DFT operation Feos ⊗INt ∈ C
+NsNt×ΥNsNt
+over the MIMO-OFDM system, we further have
+(Feos ⊗ INt
+)(FeH
+os ⊗ INt
+) = INsNt ⇔
+(FeH
+os ⊗ INt
+)
+† = Feos ⊗ INt = (FeH
+os ⊗ INT
+)
+H, (74)
+where (FeH
+os ⊗ INt
+)
+†
+represents the Moore-Penrose pseudoinverse of FeH
+os⊗INt
+. Hence, we can formulate the optimization
+problem similar as problem (P2) in (37) by optimizing the
+DFRC MIMO-OFDM waveform matrix after IDFT operation,
+i.e., G = DXs, with the consideration of the accurate PAPR
+constraints in (73), which is expressed as
+(P1) : min b
+G
+ρ
+kSk
+2
+F
+kHDG − Sk
+2
+F +
+1 − ρ
+kG0k
+2
+F
+kG − G0k
+2
+F
+(75a)
+s.t.
+
+
+[ΘG]γ,l
+
+
+2
+≤
+εPt
+NNt
+, ∀γ ∈ Nγst, ∀l ∈ L, (75b)
+kGk
+2
+F = LPs
+t
+, (75c)
+4
+In order to improve the energy efficiency of practical OFDM communication systems, the number of symbols is usually set to be much larger than
+the length of CP, i.e., Ns ≫ Nc. In the scenario considered in this paper, we
+assume that Ns/2 ≥ Nc.
+kΓcGk
+2
+F = LPc
+t
+, (75d)
+where Θ = DosD−1 ∈ C
+ΥNsNt×NsNt with Dos = FeH
+os ⊗INt
+.
+The PAPR constraints in (75b) can be equivalently transformed
+into the vector form with the optimization vector g as
+diag(Θgg e HΘe H) ≤
+εPt
+NNt
+1ΥNsNtL. (76)
+where Θe = IL ⊗ Θ ∈ C
+ΥNsNtL×NsNtL.
+Similar to the case with Nyquist-rate sampling in Section
+III, we can finally re-express problem (Pb1) in (75) as
+(P2) : max b
+Gb
+Tr(QGb ) (77a)
+s.t. diag(Θb Gb Θb H) ≤
+εPt
+NNt
+1ΥNsNtL, (77b)
+Tr(Gb ) = LPs
+t + 1, (77c)
+Tr(ΓbcGb ) = LPc
+t
+, (77d)
+Gb NsNtL+1,NsNtL+1 = 1, (77e)
+Gb  0, (77f)
+rank(Gb ) = 1, (77g)
+where Θb =
+
+Θ 0 e ΥNsNtL×1
+
+∈ C
+ΥNsNtL×(NsNtL+1). Problem (Pb2) has a similar structure to problem (P5) in (52) and
+can be optimally solved in a similar way. Moreover, we can
+also divide the problem (P2b ) in (77) into L subproblems each
+corresponding to one frame/snapshot as in Section III-D, and
+then leverage the low-complexity algorithm to obtain the lowPAPR DFRC MIMO-OFDM waveform solution by solving L
+subproblems parallelly.
+V. SIMULATION RESULTS
+In this section, simulation results are given to demonstrate
+the effectiveness of the proposed methods for designing the
+low-PAPR DFRC MIMO-OFDM waveform in both scenarios
+with Nyquist-rate sampling (NS) and oversampling (OS). The
+performance comparison for these two cases are given to verify
+the necessity of utilizing oversampling in practical OFDM
+systems for measuring the PAPR levels of OFDM signals.
+The performance results for communications and radar are
+analyzed with either communication priority or radar priority
+based on the weighting factor ρ, demonstrating the feasibility,
+effectiveness, and flexibility of the proposed DFRC waveform
+design methods. Also, the performance tradeoff between communications and radar are investigated to show the capability
+of the proposed waveform design methods in achieving satisfactory balance between these two functionalities.
+In the following figures, the proposed low-PAPR DFRC
+MIMO-OFDM waveform design scheme is named as ‘DFRC’
+where we consider four different PAPR threshold values:
+0.3dB, 1dB, 2dB, 3dB, and one benchmark without PAPR
+constraints; The benchmark scheme of desired radar waveform
+with directional beampattern design in noted as ‘DirectionalStrict’; Another banchmark scheme of power constrained zero
+forcing (ZF) beamforming is denoted as ‘ZF-Power Constrained’, where the power of transmitted ZF waveform is
+limited by the same power budget of the ‘DFRC’ scheme.
+The unit-power QPSK alphabet is utilized as the constellation
+for the communication UEs, and the SNR is defined as Pt/σ2
+.
+Other basic simulation parameters are listed in Table I unless
+specified otherwise. The obtained results in the following
+figures are averaged over 1000 Monte Carlo simulations.
+TABLE I
+SIMULATION PARAMETERS
+Parameter Symbol Value
+Number of transmit antennas at the DFRC-BS Nt 8
+Number of subcarriers Ns 16
+Number of non-zero channel taps U 4
+Length of CP Nc 3
+Number of active UEs K 2
+Number of targets M 3
+The frame length L 128
+Power budget for each OFDM symbol Pt 1W
+Oversampling rate Υ 4
+A. Performance Comparison for Scenarios with NS and OS
+In this subsection, we show the performance comparisons
+between the cases with NS and OS discussed in Section III and
+Section IV, respectively. In Fig. 2, Fig. 3, and Fig. 4, we depict
+the curves of the average sum rate, SER, and radar detection
+probability PD of all the schemes versus the weighting ratio
+parameter ρ. It is known that the radar function has higher
+priority as ρ approaches to 0 while communication function
+dominates as ρ approaches to 1.
+0 0.2 0.4 0.6 0.8 1
+2.5
+2.7
+2.9
+3.1
+3.3
+3.5
+3.7
+3.9
+4.1
+4.3
+4.5
+4.7
+Average Achievable Sum Rate (bps/Hz)
+(a) NS: 8×2 SNR=20dB
+0 0.2 0.4 0.6 0.8 1
+2.5
+2.7
+2.9
+3.1
+3.3
+3.5
+3.7
+3.9
+4.1
+4.3
+4.5
+4.7
+(b) OS: 8×2 SNR=20dB
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+Fig. 2. The average achievable sum rate versus ρ for SNR=20dB.
+0 0.2 0.4 0.6 0.8 1
+10-4
+10-3
+10-2 SER
+(a) NS: 8×2 SNR=20dB
+0 0.2 0.4 0.6 0.8 1
+10-4
+10-3
+10-2
+(b) OS: 8×2 SNR=20dB
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+Fig. 3. The average SER versus ρ for SNR=20dB.
+Fig. 2 and Fig. 3 present the variation of two important
+communication performance metrics: sum rate and SER versus
+ρ. From these two figures, we can observe that the average sum
+rates of the DFRC scheme increase with ρ while the average
+SERs decrease with ρ in both the NS and OS scenarios,
+which coincides the intuition that the communication priority
+increases with ρ and thus better communication performance
+can be achieved with larger ρ. The benchmark performance of
+the ZF-Power Constrained and the Directional-Strict schemes
+is not affected by ρ. It is easy to note that the communication
+performance of sum rates and SERs for the proposed DFRC
+scheme degrades to the Directional-Strict scheme when ρ
+approaches 0, which operates a desired radar-only waveform
+design. Correspondingly, the communication performance approaches to the ZF-Power Constrained scheme as ρ is close
+to 1, operating a communication-only waveform design.5
+0 0.2 0.4 0.6 0.8 1
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+PD
+(a) NS: 8×2 SNRR
+= -4dB
+0 0.2 0.4 0.6 0.8 1
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+(b) OS: 8×2 SNRR
+= -4dB
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+Fig. 4. The average radar detection probability PD versus ρ for SNRR=−4dB.
+Fig. 4 shows that the radar detection probability values
+PD of the DFRC scheme decreases as ρ increases along
+with the design focus transforming from radar priority to
+communication priority. Similarly, it demonstrates that the
+radar detection performance can catch up the Directional-Strict
+scheme when ρ is close 0 while gradually degrades to the ZFPower Constrained scheme as ρ approaches 1. Note that the
+proposed DFRC scheme can achieve better radar detection performance (also better sum rate performance as shown in Fig.
+2) than the ZF-Power Constrained scheme when ρ approaches
+1, demonstrating the effectiveness of the proposed methods
+for low-PAPR DFRC MIMO-OFDM waveform design.
+From Fig. 2 to Fig. 4, we can see that better DFRC performance can be achieved with more relaxed PAPR constraints as
+PAPR threshold from 0.3dB to 3dB and even without PAPR
+constraints. Moreover, it is clearly shown that the gaps between
+the DFRC curves with different PAPR constraints are much
+wider in the case with OS, indicating that the performance
+degradations caused by tightening the PAPR constraints are
+more obvious in the case with OS compared to NS. It is known
+that high PAPR is a vital disadvantage of the OFDM technique,
+and thus the PAPR levels of DFRC MIMO-OFDM waveforms
+should be carefully measured and then restrained through
+effective low-PAPR DFRC MIMO-OFDM waveform design
+so as to meet the hardware requirements. In the case with
+NS, the measurement of PAPR is less accurate compared with
+OS due to insufficient sampling, resulting in a set of compact
+DFRC curves even with different PAPR constraints. These
+three figures verify the necessity of oversampling in measuring
+5
+In Fig. 3, the SER values of the ZF-Power Constrained schemes for the
+two cases are both 0, so the curves are not drawn with the log-scale y-axis.
+the accurate PAPR levels of OFDM waveforms in practical
+systems with low-cost non-linear power amplifiers. Hence, in
+the following sub-sections, we will present more simulation
+results of low-PAPR MIMO-OFDM waveform design for the
+case with OS.
+B. More Simulation Results for Communications and Radar
+with Oversampling
+1) Performance for Communications: In Fig. 5 and Fig. 6,
+the communication performance results of average sum rate
+and SER versus SNR are shown in scenarios with communication priority (ρ = 0.8) and radar priority (ρ = 0.2).
+0 10 20 30
+SNR (dB)
+1
+1.5
+2
+2.5
+3
+3.5
+4
+Average Achievable Sum Rate (bps/Hz)
+0 10 20 30
+SNR (dB)
+10-5
+10-4
+10-3
+10-2
+10-1
+SER
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+Fig. 5. The average achievable sum rate and SER versus SNR for comunication priority with ρ=0.8.
+0 10 20 30
+SNR (dB)
+1
+1.5
+2
+2.5
+3
+3.5
+4
+Average Achievable Sum Rate (bps/Hz)
+0 10 20 30
+SNR (dB)
+10-3
+10-2 SER
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+Fig. 6. The average achievable sum rate and SER versus SNR for radar
+priority with ρ=0.2.
+From Fig. 5 and Fig. 6, it is easy to observe that the
+communication-only ZF-Power Constrained scheme provides
+a upper bound while the radar-only Directional-Strict scheme
+provides a lower bound for communication performance in
+both scenarios with communication priority (ρ = 0.8) and
+radar priority (ρ = 0.2). For the case with communication
+priority (ρ = 0.8), the communication performance of sum
+rate and SER for the DFRC scheme is highly superior to
+the Directional-Strict scheme and close to the ZF-Power
+Constrained scheme. For the case with radar priority (ρ = 0.2),
+the communication performance of sum rate degrades to the
+Directional-Strict scheme. The SER performance of the DFRC
+scheme with more restrict PAPR constraints such as 0.3dB
+and 1dB is worse than the Directional-Strict scheme since
+no PAPR constraints are executed for the Directional-Strict
+scheme. Both two figures show that average sum rates of
+all the schemes gradually saturate as the SNR increases due
+to the fact the noise power gradually becomes negligible as
+SNR increases considering the fixed limited signal power and
+thus MUI dominates leading to the sum rate saturation.6 The
+values of SER decreases as SNR increases and the restriction
+effects of PAPR constraints on SER performance become more
+obvious with the enlarging of SNR.
+2) Performance for Radar: In Fig. 7 and Fig. 8, the radar
+performance results of detection beampattern are presented in
+the scenarios with radar priority (ρ = 0.2) and communication
+priority (ρ = 0.8), where three targets of interest with angles
+of −π/3, 0 and π/3 are considered. In Fig. 9, we further show
+the radar detection probability PD versus ρ in two scenarios
+with different radar received target echo SNRR.
+-50 0 50
+ (deg)
+-6
+-4
+-2
+0
+2
+4
+6
+8
+Beampattern (dBi)
+(a): 8×2 PAPR= 0.3dB, = 0.2
+-50 0 50
+ (deg)
+-6
+-4
+-2
+0
+2
+4
+6
+8
+(b): 8×2 PAPR= 3dB, = 0.2
+ZF-Power Constrained
+Directional-Strict
+DFRC with PAPR
+Fig. 7. Radar beampatterns for radar priority with ρ=0.2.
+-50 0 50
+ (deg)
+-6
+-4
+-2
+0
+2
+4
+6
+8
+Beampattern (dBi)
+8×2 PAPR= 0.3dB, = 0.8
+-50 0 50
+ (deg)
+-6
+-4
+-2
+0
+2
+4
+6
+8
+8×2 PAPR= 3dB, = 0.8
+ZF-Power Constrained
+Directional-Strict
+DFRC with PAPR
+Fig. 8. Radar beampatterns for communication priority with ρ=0.8.
+The performance of radar beampattern shown in Fig. 7 and
+Fig. 8 demonstrates the effectiveness of the designed lowPAPR DFRC MIMO-OFDM waveform in detecting targets,
+where we can observe that three targets can be clearly distinguished in both the cases with radar priority (ρ = 0.2)
+and communication priority (ρ = 0.8). For radar priority
+(ρ = 0.2), the beampattern of the proposed DFRC scheme
+can well match the desired Directional-Strict scheme and can
+be enhanced by relaxed PAPR constraints. Looser beampattern
+fit is achieved in the case of communication priority (ρ = 0.8)
+but can still achieve satisfactory detection performance. For the
+6
+In order to make a fair comparison, we also limit the ZF signal power
+with the same power budget Pt for each OFDM symbol, which restricts the
+performance of ZF scheme and leads to saturation of sum rate performance
+for ZF-Power Constrained scheme at high SNR.
+communication-only ZF-Power Constrained scheme, the beam
+gains at all directions are almost the same which is impossible
+to detect the interested targets. From the comparison of the
+DFRC scheme between two sub-figures with different PAPR
+thresholds in Fig. 7-8, we can see that better beampattern
+match can be achieved with relaxed PAPR constraints.
+0 0.2 0.4 0.6 0.8 1
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+PD
+(a): 8×2 SNRR
+= -4dB
+0 0.2 0.4 0.6 0.8 1
+0
+0.1
+0.2
+0.3
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1
+(b): 8×2 SNRR
+= -2dB
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+Fig. 9. The average radar detection probability PD versus ρ for SNRR =
+−4dB and SNRR = −2dB.
+The performance results of radar detection probability PD
+versus ρ are depicted in Fig. 9 with SNRR = −4dB and
+SNRR = −2dB. As a crucial radar performance metric, PD is
+highly affected by the radar received target echo SNRR, which
+is described in Section II-C2. The larger SNRR, the better
+radar detection performance can be achieved. For the case of
+SNRR = −4dB, PD ≥ 0.8 can be achieved by all the DFRC
+curves when ρ ≤ 0.6 even with the strictest PAPR constraint
+of 0.3dB, and PD ≥ 0.65 for the case with communication
+priority ρ = 0.8. When SNRR increases to −2dB, DFRC
+curves are capable to achieve PD ≥ 0.9 for ρ = 0.8 and the
+detection probability can always approach 1 as the DirectionalStrict scheme when ρ ≤ 0.6.
+C. Performance Tradeoff between Communications and Radar
+In this section, we try to analyze the direct performance
+tradeoff between functionalities of communications and radar.
+The communication results of average sum rate and SER
+versus the radar detection probability PD are depicted in Fig.
+10 and Fig. 11 for SNRR = −4dB and SNRR = −2dB,
+respectively. The six points shown in these two figures correspond to ρ = [0.01, 0.2, 0.4, 0.6, 0.8, 0.99].
+0 0.2 0.4 0.6 0.8 1
+PD
+2.4
+2.6
+2.8
+3
+3.2
+3.4
+3.6
+3.8
+4
+4.2
+4.4
+Average Achievable Sum Rate (bps/Hz)
+(a) Sum Rate vs PD
+: SNRR
+= -4dB
+0 0.2 0.4 0.6 0.8 1
+PD
+10-4
+10-3
+10-2SER
+(b) SER vs PD
+: SNRR
+= -4dB
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+Fig. 10. The average achievable communication sum rate and SER for
+SER=20dB versus the radar detection probability PD for SNRR=−4dB.
+0 0.2 0.4 0.6 0.8 1
+PD
+2.4
+2.6
+2.8
+3
+3.2
+3.4
+3.6
+3.8
+4
+4.2
+4.4
+Average Achievable Sum Rate (bps/Hz)
+(a) Sum Rate vs PD
+: SNRR
+= -2dB
+0 0.2 0.4 0.6 0.8 1
+PD
+10-4
+10-3
+10-2 SER
+(b) SER vs PD
+: SNRR
+= -2dB
+ZF-Power Constrained
+Directional-Strict
+DFRC-PAPR=0.3dB
+DFRC-PAPR=1dB
+DFRC-PAPR=2dB
+DFRC-PAPR=3dB
+DFRC-no PAPR Constraints
+PAPR increasing
+direction ( ->1)
+PAPR increasing
+direction ( =0.8)
+PAPR increasing
+direction ( ->1)
+PAPR increasing
+direction ( =0.8)
+Fig. 11. The average achievable communication sum rate and SER for
+SER=20dB versus the radar detection probability PD for SNRR=−2dB.
+In Fig. 10, we draw two required thresholds for sum rate
+and PD in sub-figure (a) and two thresholds for SER and
+PD in sub-figure (b). For requirements of (PD,sum rate), the
+points located in the top right corner of sub-figure (a) are
+satisfactory. In contrast, the points in the bottom right corner of
+sub-figure (b) are satisfactory for the (PD,SER) requirements.
+Giving the requirements of these three performance metrics for
+communications and radar, we can effectively set parameter ρ
+satisfying certain PAPR constraints (hardware requirements).
+In Fig. 11 with SNRR = −2dB, the PD requirements are
+easier to be satisfied since most of the points are located in
+the area of PD ≥ 0.8, and thus the satisfactory settings of
+ρ and PAPR thresholds can be flexibly selected based on the
+requirements of sum rate and SER.
+8 9 10 11 12 13 14 15 16 17
+PAPR (dB)
+0
+0.2
+0.4
+0.6
+0.8
+1
+Empirical CDF
+ZF-Power Constrained
+Directional-Strict
+DFRC =0.01
+DFRC =0.2
+DFRC =0.4
+DFRC =0.6
+DFRC =0.8
+DFRC =0.99
+Fig. 12. The empirical CDF of the PAPR (dB) without considering the PAPR
+constraints.
+In Fig. 12, the empirical CDFs of waveform PAPR for the
+proposed DFRC scheme with different ρ values as well as the
+two benchmarks are provided, where the PAPR constraints
+are not considered. It is clear to see that the PAPR of the
+proposed DFRC scheme is within the range of [9,14]dB if no
+PAPR constraints are used. For radar priority of ρ approaching
+0, the PAPR levels with average value of 12.5dB get close to
+the radar-only Directional-Strict scheme with average value
+of 13.5dB. For communication priority of ρ close to 1, the
+PAPR levels approach to the communication-only ZF-Power
+Constrained scheme with average value of 10.5dB. All these
+PAPR levels are too high to satisfy the strict hardware requirements in practical communication systems. In comparison with
+the simulation results in the previous figures, we can clearly
+observe that we can restrain the PAPR levels of the DFRC
+waveform to 3dB, 2dB, 1dB and even 0.3dB without too much
+performance degradation for both communications and radar,
+demonstrating the feasibility and effectiveness of the proposed
+low-PAPR DFRC MIMO-OFDM waveform design methods.
+VI. CONCLUSION
+In this paper, we investigate the low-PAPR DFRC waveform
+design for MIMO-OFDM systems, where the scenario with
+Nyquist-rate sampling and oversampling are considered for
+measuring the waveform PAPR levels. A weighted objective
+function on normalized communication performance metric
+MUI and radar performance metric (distance to desired radar
+waveform) is minimized under the transmit power and PAPR
+constraints. The optimization problems can be transformed
+into standard SDP, then the SDR method is leveraged to find
+the optimal solution where the rank-1 constraint is satisfied in
+general. In addition, low-complexity methods are provided to
+reduce the overload for solving the SDP problems where the
+original problems are divided into subproblems corresponding
+to each frame/snapshot. The simulation results demonstrate
+that oversampling on OFDM signals can provide an accurate
+way for measuring the PAPR levels. Moreover, the feasibility, effectiveness, and flexibility of the proposed low-PAPR
+DFRC MIMO-OFDM waveform design methods are verified
+by sufficient numerical simulations.
+APPENDIX A
+PROOF OF LEMMA 1
+Considering the IDFT operation applied at the DFRC-BS
+transmitter and the DFT processing operated at the downlink
+UE receivers, the received baseband signal of UE k during
+frame l ∈ L in the frequency domain can be expressed as
+y
+l
+k = FsHs
+k
+(F
+H
+s ⊗ INt
+)x
+l
+s ∈ C
+Ns×1
+. (78)
+where x
+l
+s ∈ C
+NsNt×1
+is the l-th column of Xs and Hs
+k ∈
+C
+Ns×NsNt
+is a block circulant channel matrix given as
+H
+s
+k =
+
+
+
+
+
+
+
+
+
+
+
+
+
+hek,0 0 · · · 0 hek,U−1 · · · hek,1
+hek,1 hek,0 · · · 0 0 · · · hek,2
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+hek,U−1 hek,U−2 · · · hek,0 0 · · · 0
+0 hek,U−1 · · · hek,1 hek,0 · · · 0
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+. 0
+0 0 · · · hek,U−1 hek,U−2 · · · hek,0
+
+
+
+
+
+
+
+
+
+
+
+
+
+, (79)
+thanks to the operation of adding CP. We further denote the
+overall effective downlink channel matrix of UE k as
+hk , FsHs
+k
+(F
+H
+s ⊗ INt
+) ∈ C
+Ns×NsNt
+= FsHs
+kΩΩT(F
+H
+s ⊗ INt
+)ΩΩT
+(a)
+= Fs[Hs
+k,1
+, · · · , Hs
+k,Nt
+]ΩT(F
+H
+s ⊗ INt
+)ΩΩT
+(b)
+= Fs[Hs
+k,1
+, · · · , Hs
+k,Nt
+](INt ⊗ F
+H
+s
+)ΩT
+(c)
+= [FsHs
+k,1F
+H
+s
+, · · · , FsHs
+k,NtF
+H
+s
+]ΩT
+(d)
+= [Λk,1, · · · , Λk,Nt
+]Ω
+T
+(e)
+= diag(hk,1, · · · , hk,Ns
+) ∈ C
+Ns×NsNt
+, (80)
+where (a) holds by column permutation Hs
+kΩ with ΩΩT =
+INsNt
+that Hs
+k
+is transformed into Nt circulant channel
+matrix Hs
+k,nt
+∈ C
+Ns×Ns
+for nt ∈ Nt = {1, · · · , Nt}.
+In addition, through both raw and column permutations,
+we have ΩT(FH
+s ⊗ INt
+)Ω = (INt ⊗ FH
+s
+), leading to (b).
+The equation of (c) is based on the special structure of
+(INt ⊗ FH
+s
+). Then FsHs
+k,nt
+FH
+s = Λk,nt
+as (d) [26], where
+Λk,nt ∈ C
+Ns×Ns
+is a diagonal matrix with elements Λk,nt,n = PU−1
+u=0
+ehk,u,nt
+e
+−
+j2πu(n−1)
+Ns for nt ∈ Nt and n ∈ Ns. After the
+final column permutation on [Λk,1, · · · , Λk,Nt
+] with ΩT in
+(d), a diagonal structure can be obtained as in (e) where
+hk,n = [Λk,1,n, · · · ,Λk,Nt,n]
+=
+U
+X−1
+u=0
+[ehk,u,1, · · · , ehk,u,Nt
+]e
+−
+j2πu(n−1)
+Ns
+=
+U
+X−1
+u=0
+hek,ue
+−
+j2πu(n−1)
+Ns ∈ C
+1×Nt
+, n ∈ Ns, k ∈ K. (81)
+Hence, combining (78), we have
+y
+l
+k = hkx
+l
+s = diag(hk,1, · · · , hk,Ns
+)x
+l
+s
+. (82)
+Further considering all the K users and L symbol frames, a
+compact form of the noiseless received signal can be given as
+Ys = HsXs ∈ C
+NsK×L, (83)
+where Hs = diag(H1, · · · , HNs
+) ∈ C
+NsK×NsNt with Hn =
+[h
+T
+1,n, · · · , h
+T
+K,n]
+T ∈ C
+K×Nt
+. The proof of Lemma 1 has been
+completed.
+APPENDIX B
+PROOF OF LEMMA 2
+It is easy to observe that the problem (P5) in (52) ignoring
+the rank-1 constraint (52g) is a convex optimization problem,
+and thus the optimal solution must satisfy the Karush-KuhnTacker (KKT) conditions [36]. We first express the Lagrangian
+function of such problem as
+L =Tr
+QGb
+
++
+NXsNtL
+q=1
+λq
+
+Tr
+ΠqGb
+
+−
+εPt
+NNt
+
++ ν
+
+Tr
+Gb
+
+− LPs
+t − 1
+
++ ̺
+
+Tr
+ΓbcGb
+
+− LPc
+t
+
+− Tr
+ΨGb
+
+− ϕ
+
+Tr
+ΠNsNtL+1Gb
+
+− 1
+
+, (84)
+where λq ≥ 0 for q ∈ NstL and Ψ  0 are the Lagrangian
+multipliers corresponding to the inequality constraints (52b)
+and (52f), while ν, ̺ and ϕ are the Lagrangian multipliers corresponding to the equality constraints (52c), (52d), and (52e).
+For the global optimal solution of the considered problem, the
+optimal Lagrangian multipliers are uniquely determined.
+Here, Πq ∈ R
+NsNtL+1 is a diagonal matrix where only the
+q-th element on the diagonal line is non-zero with value of 1.
+Hence, we can obtain the KKT conditions given below
+∂L
+∂Gb
+= Q +
+NXsNtL
+q=1
+λqΠq + νI + ̺Γbc − Ψ − ϕΠNsNtL+1 = 0
+λq
+
+Tr
+ΠqGb
+
+−
+εPt
+NNt
+
+= 0, λq ≥ 0, q ∈ NstL, (86)
+Tr
+ΨGb
+
+= 0, Ψ  0 (87)
+Tr
+Gb
+
+− LPs
+t − 1 = 0, (88)
+Tr
+ΓbcGb
+
+− LPc
+t = 0, (89)
+Tr
+ΠNsNtL+1Gb
+
+− 1 = 0. (90)
+The above KKT conditions should be satisfied with the global
+optimal solution of problem (P5) in (52) ignoring the rank1 constraint. We denote the optimal solution as Gb o
+, and the
+corresponding optimal Lagrangian multipliers are denoted as
+λ
+o
+q
+, ν
+o
+, ̺
+o
+, ϕ
+o
+, and Ψo
+. From the condition (85), we have
+Ψo = Q +
+N
+XsNtL
+q=1
+λ
+o
+qΠq + ν
+o
+I + ̺
+oΓbc − ϕ
+oΠNsNtL+1
+= Q + Πo + ν
+o
+I + ̺
+oΓbc − ϕ
+oΠNsNtL+1, (91)
+where Πo  0 is a diagonal matrix with
+diag(Πo
+) = [λ
+o
+1
+, λo
+2
+, · · · , λo
+NsNtL, 0]T (92)
+and the rank of Πo
+is determined by the number of nonzero Lagrangian multipliers λ
+o
+q
+for q ∈ NstL. It is easy to
+verify that Γbc  0 is also a diagonal matrix with NcNtL
+non-zero elements which with the same value of 1, and thus
+rank(Γbc) = NcNtL. Hence, we can obtain
+Πo + ν
+o
+I + ̺
+oΓbc ≻ 0, (93)
+by considering the fact Πo
+, ν
+o
+and ̺
+o
+are uniquely determined
+and the special case of ν
+o = 0 rarely occurs. Based on
+the definition of Q in (50) and the non-negative property of
+objective function (47a), we know that Q  0. Hence, we can
+further derive that
+Ξ , Q + Πo + ν
+o
+I + ̺
+oΓbc ≻ 0, (94)
+which can be verified by contradiction. Assuming that Ξ  0,
+there exists at least one vector x ∈ C
+(NsNtL+1)×1
+such that
+x
+HΞx ≤ 0, also we have
+x
+HΨox = x
+HΞx − ϕ
+ox
+HΠNsNtL+1x ≥ 0 (95)
+due to the fact that Ψo  0. Considering that ΠNsNtL+1  0
+as well, we have x
+HΠNsNtL+1x ≥ 0, leading to the results
+of x
+HΨox = 0, x
+HΠNsNtL+1x = 0 and x
+HΞx = 0. In
+addition, x
+HQx ≥ 0, and thus x
+H(Πo + ν
+o
+I + ̺
+oΓbc)x =
+x
+HΞx − x
+HQx ≤ 0, which contradicts the result in (93).
+Based on the expression (91), we further have
+rank(Ψ) ≥ rank(Ξ) − rank(ΠNsNtL+1)
+≥ NsNtL + 1 − 1 = NsNtL. (96)
+Since Tr
+ΨGb
+
+= 0 with Ψ  0 and Gb  0, it follows that
+ΨGb = 0 and rank(Ψ) + rank(Gb ) ≤ NsNtL + 1, and thus
+rank(Gb ) ≤ NsNtL + 1 − rank(Ψ) ≤ 1. (97)
+Also, rank(Gb ) ≥ 1 as it is a non-zero matrix, leading to the
+final result of rank(Gb ) = 1.
+REFERENCES
+[1] P. Brown, “75.4 billion devices connected to the internet of things by
+2025,” 2016, [Online]. Available: https://electronics360.globalspec.com
+/article/6551/75-4-billion-devices-connected-to-the-internet-of-things-by
+-2025.
+[2] H. Griffiths, L. Cohen, S. Watts, E. Mokole, C. Baker, M. Wicks, and
+S. Blunt, “Radar spectrum engineering and management: Technical and
+regulatory issues,” Proceedings of the IEEE, vol. 103, no. 1, pp. 85–102,
+2015.
+[3] A. Hassanien, M. G. Amin, E. Aboutanios, and B. Himed, “Dualfunction radar communication systems: A solution to the spectrum
+congestion problem,” IEEE Signal Process. Mag., vol. 36, no. 5, pp.
+115–126, 2019.
+[4] D. Ma, N. Shlezinger, T. Huang, Y. Liu, and Y. C. Eldar, “Joint radarcommunication strategies for autonomous vehicles: Combining two key
+automotive technologies,” IEEE Signal Process. Mag., vol. 37, no. 4,
+pp. 85–97, 2020.
+[5] F. Liu, C. Masouros, A. P. Petropulu, H. Griffiths, and L. Hanzo, “Joint
+radar and communication design: Applications, state-of-the-art, and the
+road ahead,” IEEE Transactions on Communications, vol. 68, no. 6, pp.
+3834–3862, 2020.
+[6] J. A. Zhang, F. Liu, C. Masouros, R. W. Heath Jr, Z. Feng, L. Zheng,
+and A. Petropulu, “An overview of signal processing techniques for joint
+communication and radar sensing,” arXiv preprint arXiv:2102.12780,
+2021.
+[7] R. M. Mealey, “A method for calculating error probabilities in a radar
+communication system,” IEEE Trans. Space Electron. Telemetry, vol. 9,
+no. 2, pp. 37–42, 1963.
+[8] G. N. Saddik, R. S. Singh, and E. R. Brown, “Ultra-wideband multifunctional communications/radar system,” IEEE Trans. Microw. Theory
+Techn., vol. 55, no. 7, pp. 1431–1437, 2007.
+[9] A. Hassanien, M. G. Amin, Y. D. Zhang, and F. Ahmad, “Dual-function
+radar-communications: Information embedding using sidelobe control
+and waveform diversity,” IEEE Trans. Signal Process., vol. 64, no. 8,
+pp. 2168–2181, 2016.
+[10] C. Sturm and W. Wiesbeck, “Waveform design and signal processing
+aspects for fusion of wireless communications and radar sensing,” Proc.
+IEEE, vol. 99, no. 7, pp. 1236–1259, 2011.
+[11] D. Gaglione, C. Clemente, C. V. Ilioudis, A. R. Persico, I. K. Proudler,
+and J. J. Soraghan, “Fractional fourier based waveform for a joint radarcommunication system,” in 2016 IEEE Radar Conference (RadarConf),
+2016, pp. 1–6.
+[12] P. Kumari, J. Choi, N. Gonzlez-Prelcic, and R. W. Heath, “Ieee
+802.11ad-based radar: An approach to joint vehicular communicationradar system,” IEEE Trans. Veh. Technol., vol. 67, no. 4, pp. 3012–3027,
+2018.
+[13] F. Liu, C. Masouros, A. Li, H. Sun, and L. Hanzo, “MU-MIMO communications with MIMO radar: From co-existence to joint transmission,”
+IEEE Trans. Wireless Commun., vol. 17, no. 4, pp. 2755–2770, 2018.
+[14] F. Liu, L. Zhou, C. Masouros, A. Li, W. Luo, and A. Petropulu, “Toward dual-functional radar-communication systems: Optimal waveform
+design,” IEEE Trans. Signal Process., vol. 66, no. 16, pp. 4264–4279,
+2018.
+[15] X. Liu, T. Huang, N. Shlezinger, Y. Liu, J. Zhou, and Y. C. Eldar, “Joint
+transmit beamforming for multiuser MIMO communications and mimo
+radar,” IEEE Transactions on Signal Processing, vol. 68, pp. 3929–3944,
+2020.
+[16] G. Stuber, J. Barry, S. McLaughlin, Y. Li, M. Ingram, and T. Pratt,
+“Broadband MIMO-OFDM wireless communications,” Proc. IEEE,
+vol. 92, no. 2, pp. 271–294, 2004.
+[17] D. Tse and P. Viswanath, Fundamentals of wireless communication.
+Cambridge university press, 2005.
+[18] Y. S. Cho, J. Kim, W. Y. Yang, and C. G. Kang, MIMO-OFDM wireless
+communications with MATLAB. John Wiley & Sons, 2010.
+[19] T. Tian, T. Zhang, L. Kong, and Y. Deng, “Transmit/receive beamforming for MIMO-OFDM based dual-function radar and communication,”
+IEEE Trans. Veh. Technol., vol. 70, no. 5, pp. 4693–4708, 2021.
+[20] C. Shi, Y. Wang, F. Wang, S. Salous, and J. Zhou, “Joint optimization
+scheme for subcarrier selection and power allocation in multicarrier dualfunction radar-communication system,” IEEE Syst. J., vol. 15, no. 1, pp.
+947–958, 2021.
+[21] M. F. Keskin, V. Koivunen, and H. Wymeersch, “Limited feedforward
+waveform design for OFDM dual-functional radar-communications,”
+IEEE Trans. Signal Process., vol. 69, pp. 2955–2970,
+[22] Z. Xu and A. Petropulu, “A wideband dual function radar communication system with sparse array and OFDM waveforms,” arXiv preprint
+arXiv:2106.05878, 2021.
+[23] S. H. Han and J. H. Lee, “An overview of peak-to-average power
+ratio reduction techniques for multicarrier transmission,” IEEE Wireless
+Commun., vol. 12, no. 2, pp. 56–65, 2005.
+[24] D.-W. Lim, S.-J. Heo, and J.-S. No, “An overview of peak-to-average
+power ratio reduction schemes for ofdm signals,” J. Commun. Netw.,
+vol. 11, no. 3, pp. 229–239, 2009.
+[25] G. Wunder, R. F. Fischer, H. Boche, S. Litsyn, and J.-S. No, “The
+PAPR problem in OFDM transmission: New directions for a long-lasting
+problem,” IEEE Signal Process. Mag., vol. 30, no. 6, pp. 130–144, 2013.
+[26] B. Muquet, Z. Wang, G. Giannakis, M. de Courville, and P. Duhamel,
+“Cyclic prefixing or zero padding for wireless multicarrier transmissions?” IEEE Trans. Commun., vol. 50, no. 12, pp. 2136–2148, 2002.
+[27] S. K. Mohammed and E. G. Larsson, “Per-antenna constant envelope
+precoding for large multi-user MIMO systems,” IEEE Trans. Commun.,
+vol. 61, no. 3, pp. 1059–1071, 2013.
+[28] J. Li and P. Stoica, MIMO radar signal processing. John Wiley &
+Sons, 2008.
+[29] P. Stoica, J. Li, and Y. Xie, “On probing signal design for MIMO radar,”
+IEEE Trans. Signal Process., vol. 55, no. 8, pp. 4151–4161, 2007.
+[30] D. R. Fuhrmann and G. San Antonio, “Transmit beamforming for MIMO
+radar systems using signal cross-correlation,” IEEE Trans. Aerosp.
+Electron. Syst., vol. 44, no. 1, pp. 171–186, 2008.
+[31] I. Bekkerman and J. Tabrikian, “Target detection and localization using
+MIMO radars and sonars,” IEEE Trans. Signal Process., vol. 54, no. 10,
+pp. 3873–3883, 2006.
+[32] S. M. Kay, “Fundamentals of statistical signal processing. detection
+theory, volume ii,” Printice Hall PTR, pp. 1545–5971, 1998.
+[33] K. Paterson and V. Tarokh, “On the existence and construction of good
+codes with low peak-to-average power ratios,” IEEE Transactions on
+Information Theory, vol. 46, no. 6, pp. 1974–1987, 2000.
+[34] T. Viklands, “Algorithms for the weighted orthogonal procrustes problem
+and other least squares problems,” Ph.D. dissertation, Datavetenskap,
+2006.
+[35] M. Sharif, M. Gharavi-Alkhansari, and B. Khalaj, “On the peak-toaverage power of OFDM signals based on oversampling,” IEEE Trans.
+Commun., vol. 51, no. 1, pp. 72–78, 2003.
+[36] S. Boyd and L. Vandenberghe, Convex optimization. Cambridge
+university press, 2004.
