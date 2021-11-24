@@ -16,12 +16,20 @@ import numpy as np
 docs = []
 
 for i in range(1, 21):
+  print(i)
   with open(os.path.join("./data", f"art{i}.txt")) as f:
     doc = f.read()
     tokens = list(filter(
         lambda l: l.isalpha() and l not in stopwords.words("english"),
         map(lambda l: l.lower(), word_tokenize(doc))))
     docs.append(" ".join(tokens))
+
+with open("out", "w") as fout:
+  for doc in docs:
+    fout.write(doc)
+    fout.write("\n")
+
+docs2 = list(map(lambda l: l.strip(), open("out", "r").readlines()))
 
 # TF-IDF based terms extraction
 tfidf_vectorizer = TfidfVectorizer(
@@ -43,6 +51,9 @@ termScoresFiltered = list(filter(
 len(set(termScoresFiltered)), len(termScoresFiltered)
 
 extracted_terms = set(map(lambda l: l[0], termScoresFiltered))
+
+print(termScoresFiltered)
+exit(12)
 
 print(extracted_terms)
 
