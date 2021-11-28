@@ -1,814 +1,1366 @@
-Draft version September 28, 2021
-Typeset using LATEX default style in AASTeX63
-Finding Fast Transients in Real Time Using Novel Light Curve Analysis Algorithm
-Robert Strausbaugh ,
-1 Antonino Cucchiara,2, 1 Michael Dow Jr.,1 Sara Webb,3 Jielai Zhang ,
-3, 4
-Simon Goode,3 and Jeff Cooke3
-1University of the Virgin Islands
-Number 2 Brewers Bay Rd.
-St. Thomas, VI 00802, USA
-2College of Marin
-3Centre for Astrophysics and Supercomputing, Swinburne University of Technology, Mail Number H29, PO Box 218, 31122 Hawthorn,
-VIC, Australia
-4ARC Centre of Excellence for Gravitational Wave Discovery (OzGrav), Hawthorn, 3122, Australia
-(Received; Revised; Accepted)
-Submitted to ApJ
+Machine learning synthetic spectra for probabilistic redshift estimation:
 ABSTRACT
-The current data acquisition rate of astronomical transient surveys and the promise for significantly
-higher rates during in the next decade necessitate the development of novel approaches to analyze
-astronomical data sets and promptly detect objects of interest. The Deeper, Wider, Faster (DWF)
-program is a survey focused on the identification of fast evolving transients, such as fast radio bursts,
-gamma-ray bursts, and supernova shock breakouts. It employs a multi-frequency simultaneous coverage
-of the same part of the sky over several orders of magnitude. Using the Dark Energy Camera mounted
-on the 4-meter Blanco telescope, DWF captures a 20 second g-band exposure every minute, at a
-typical seeing of ∼ 1
-00 and an airmass of ∼ 1.5. These optical data are collected simultaneously with
-observations conducted over the entire electromagnetic spectrum – from radio to γ-rays – as well as
-cosmic ray observations. In this paper, we present a novel real-time light curve analysis algorithm,
-designed to detect transients in the DWF optical data; this algorithm functions independently from,
-or in conjunction with, image subtraction. We present a sample of fast transients detected by our
-algorithm, as well as a false-positive analysis. Our algorithm is customizable and can be tuned to be
-sensitive to transients evolving over different timescales and flux ranges.
-1. INTRODUCTION
-The field of transient astronomy is booming, with several successful completed, ongoing, and planned optical surveys
-that will come online in the coming years, specifically designed to find transient phenomena. Among the former, the
-Palomar Transient Factory/Intermediate Palomar Transient Factory (PTF/iPTF, Rau et al. 2009; Law et al. 2009)
-the Panoramic Survey Telescope and Rapid Response System (Pan-STARRS, Magnier et al. 2013), the Sloan Digital
-Sky Survey (SDSS, Wolf et al. 2016) The Supernova Survey, the Zwicky Transient Facility (ZTF, Bellm et al. 2019;
-Graham et al. 2019) the Dark Energy Survey (DES, Dark Energy Survey Collaboration et al. 2016) the All Sky
-Automated Survey for Supernovae (ASAS-SN, Kochanek et al. 2017) and the Transiting Exoplanet Survey Satellite
-(TESS, Ricker et al. 2015) have provided a census of a large variety of supernovae (SNe), tidal-disruption events, and
-exo-planet confirmations. In the latter category, the Vera C. Rubin Observatory and Nancy Grace Roman Telescope
-will push our understanding of the transient sky towards deeper limits and longer wavelengths. An overview of the
-field of view, depth, and cadence of these surveys can be found in Table 1. In conjunction with some of these optical
-surveys, gravitational wave (GW) detectors like the Advanced Laser Interferometer Gravitational-wave Observatory
-(aLIGO, LIGO Scientific Collaboration et al. 2015) and Virgo (Acernese et al. 2015), and neutrino detectors such as
-Corresponding author: Robert Strausbaugh
-robert.strausbaugh@uvi.edu
-arXiv:2109.13203v1 [astro-ph.IM] 27 Sep 2021
-2 Strausbaugh et al.
-Table 1. Optical Transient Survey Details
-Field of View Cadence [days unless
-Survey Name Depth [square degrees] otherwise noted]
-Pan-STARRS1 7 g ∼ 22 90
-SDSS SN Survey 3 r ∼ 22 4
-PTF/iPTF SN Survey 7.8 g ∼ 21.3 5
-DES 2.5 g ∼ 25 5
-ZTF 47 g ∼ 20.5 1-3
-ASAS-SN 4.5 v ∼ 17 2-3
-TESS 4 × 24 broadband*∼ 15 2-30 minutes
-LSST 9.6 g ∼ 24 3
-Roman 9 J ∼25 5
-DWF 2.5
-†
-g ∼ 24 1 minute
-Note—The field of view, depth, and cadence of notable past, present, and future
-transient surveys. The TESS broadband* wavelengths span Rc-, Iz-, and z-bands.
-†The field-of-view quoted for DWF is the “on-sky” area of the science CCDs and not
-the footprint FOV that includes CCD gaps that is typically listed.
-IceCube (IceCube Collaboration 2005) and the Baksan Neutrino Observatory (Kuzminov 2012) have ushered us in a
-new era of multi-messenger transient astronomy.
-We expect that the discovery of new and exciting transient phenomena will continue at higher pace thanks to the
-Vera C. Rubin Observatory/Legacy Survey of Space and Time (LSST, Ivezić et al. 2019): the telescope is being
-constructed in Cerro Pachón, Chile (with a planned first light date in 2022 before commencing operations in 2023),
-and aims to image the sky in Wide, Fast, Deep mode at a depth of g ∼ 24 every 3 days (LSST Science Collaboration
-et al. 2017). The Nancy Grace Roman Telescope/Wide-field Infrared Space Telescope (WFIRST, Spergel et al. 2015)
-will cover an area of 9 square degrees at an average depth of J ∼ 25 with a cadence of 5 days in a proposed medium
-depth supernova survey when it is launched on its scheduled date in 2025 (Akeson et al. 2019; Hounsell et al. 2018).
-We summarize the characteristics of these planned instruments in Table 1.
-1.1. Current Survey Results
-In this section we briefly summarize some of the seminal discoveries that the next-generation of surveys will look to
-build upon. For example, Pan-STARRS results include the outburst from a SN progenitor one year before its explosion
-(Fraser et al. 2013), a lack of super-luminous SNe with light-curves compatible with pair-instability models (Nicholl
-et al. 2013), and the first interstellar asteroid detection (de la Fuente Marcos & de la Fuente Marcos 2017). Similarly,
-the most recent SDSS survey results include the detection of baryonic acoustic oscillation measurements (Alam et al.
-2017), evidence for the Epoch of Reionization around z ∼ 6 (Becker et al. 2001), high redshift (z > 5.6) quasars
-(Fan et al. 2001), and indirect dark matter detection via weak-lensing (Fischer et al. 2000). And finally, in the recent
-years PTF/iPTF/ZTF have further enhanced our knowledge on tidal disruptions events (TDEs, Hung et al. 2018),
-gamma-ray burst (GRB) orphan afterglows (Singer et al. 2013), and hosts of novel SNe (Arcavi et al. 2010; Goobar
-et al. 2017; Kasliwal et al. 2010; Ofek et al. 2010; Horesh et al. 2012; Cao et al. 2013; Ofek et al. 2013).
-Due to the design of these facilities and their observational strategies, there is still a lack of discoveries of fast (. 1
-hour) and faint (mg & 21) transients (see Figure 3 right panel). There are several science cases that benefit from the fast
-identification (and potential classification) of rapidly varying transients with simultaneous observations spanning the
-electromagnetic spectrum. Fast radio bursts (FRBs) are a class of objects characterized by either single, or repeating
-radio bursts evolving on sub-second time scales; finding emission at frequencies other than radio is important toward
-understanding the progenitors and ignition mechanism(s) for these events. The first emission other than radio observed
-to accompany an FRB was recently detected from a magnetar in the Milky Way at X-ray frequencies; although the
-bursts are weaker in the radio than extragalactic FRBs, this event suggests that magnetars may be the progenitors of
-at least some FRBs (Andersen et al. 2020; Bochenek et al. 2020; Lin et al. 2020).
-Fast Transient Finding Algorithm 3
-Figure 1. Left: Adopted from Laher et al. (2017). Comparison of the field of views of various astronomical surveys. The DWF
-program uses the same telescope as the DES, the Blanco 4-meter scope at Cerro Tololo Inter-American Observatory in Chile.
-Right: The transit depth and characteristic timescales of transients detected by PTF/iPTF and the phase space occupied by
-the ZTF survey. Adopted from b
-. Comparison of the cadence and depth of PTF iPTF and ZTF surveys.
-a http://bryanpenprase.org/wp-content/uploads/2016/01/screenshot_175.jpg
-b http://bryanpenprase.org/wp-content/uploads/2016/01/screenshot_175.jpg
-Also, due to a lack of sufficient early time observations of SNe, the shock breakout mechanism for type Ia SNe
-and the ignition mechanisms for core-collapse SNe (CC-SNe) are still not well understood. Type Ia SNe are critical
-for determining cosmological distance scales, and are used to measure the accelerated expansion of the universe
-(Riess et al. 1998). Despite their use as standard candles, the shock breakout mechanism for type Ia SNe is not
-conclusively understood (Nomoto 1982). Identification and follow-up of a type Ia SNe within the first day can lead to
-an understanding of the shock breakout mechanism including the detection of a cooling tail, indicative of a delayed
-detonation transition (Piro et al. 2010). More importantly, the nature and progenitors of SNe Ia is unclear. The
-detection of UV/optical bursts from SNe Ia ejecta colliding with a companion star (e.g., Cao et al. 2015) helps
-to secure the single-degenerate progenitor model for some fraction of events; these detections must occur on short
-timescales. A better understanding of type Ia SNe could be the key towards resolving the more than 3σ discrepancy
-between measurements of the Hubble Constant using the cosmic microwave background (e.g. by Planck, Hinshaw
-et al. 2013; Planck Collaboration et al. 2020) and measurements made using the cosmic distance ladder method (e.g.,
-Riess et al. 1998, 2016), on which type Ia SNe are a vital rung.
-The study of CC-SNe is important in understanding the ends of the life cycles of massive stars and is believed to
-be one of the main drivers of nucleosynthesis of elements heavier than iron (Arnett & Clayton 1970). Early detection
-and follow-up of CC-SNe can distinguish between various theorized ignition mechanisms such as: magneto-rotational
-instabilities (Akiyama et al. 2003), standing accretion shocks (Blondin et al. 2003), acoustic shocks (Burrows et al.
-2007), and QCD phase transitions (Sagert et al. 2009).
-The first GRB orphan afterglow may have been detected in the radio (Law et al. 2018), but was discovered at
-such a late time after its prompt emission, that deep optical follow ups resulted in only upper limits. Searches are
-also being performed by ZTF (Andreoni et al. 2020a) for orphan afterglows and kilonovae. One candidate orphan
-afterglow (Coughlin et al. 2020) was later associated with prompt γ- and X-ray emission from GRB 201103B (Svinkin
-et al. 2020); the optical component was reported first by ZTF, instilling confidence in the veracity of their method
-in detecting and identifying orphan afterglows. The study of orphan afterglows would allow us to calculate GRB jet
-angles, as well as the true GRB rate (Rhoads 1997).
-Although we have made many discoveries with surveys such as PTF, ZTF, and ASAS-SN, and plan on continued
-success with the Vera C. Rubin Observatory and Nancy Roman Space Telescope, there is a void in the parameter
-space for fast, faint transients that remains unfilled. Our understanding of GRB orphan afterglows, short GRBs, FRBs,
-SN ignition mechanisms and shock-breakouts, and electro-magnetic counterparts to gravitational wave events can be
-greatly enhanced by detecting these transients in real-time across several segments of the electromagnetic spectrum.
-Due to the rarity of these events, the use of wide-field facilities is needed.
-4 Strausbaugh et al.
-1.2. Challenges of Detecting and Studying Fast Transients
-The challenges of “big-data” in astronomy have been well documented (e.g., Feigelson & Babu 2012; Zhang & Zhao
-2015; Kremer et al. 2017; Zhang et al. 2015). As seen in Table 1, the cadence of many optical transient surveys
-allows for longer processing times, but could limit the speed with which astronomers detect transient phenomena,
-with potential delays of several days between the start of an event and its detection. The Deeper, Wider, Faster
-program offers a different approach to other optical surveys, and presents new challenges to analyze incoming data
-in “real-time”. The real-time, fast processing by DWF (described in Section 2.1) is by no means ideal or optimal;
-the lossy compression adds artifacts and the fast data processing is much poorer than normal processing, creating
-additional artifacts and poorer astrometry and alignments, which can yield poorer subtractions. This sub-optimal
-fast processing is necessary, however, in order to identify events and trigger follow-up before sources fade. Detailed
-follow-up of these events, ideally spectra, can shed light on the early phases of SNe, GRB afterglows, FRBs, and other
-transient phenomena. The challenges outlined here are unique to DWF due to the fast cadence and the opportunity
-for transient detection on minute time-scales. It is these challenges that motivate the work presented here.
-In this paper we present an automated, customizable fast transient identification algorithm centered mainly on
-DWF source light curve analysis. We summarize the DWF program in Section 2 and describe the DWF data sets
-analyzed in this work. In Section 3 we motivate the need for a transient detection algorithm that is independent from
-image subtraction, and present the elements of a novel fast transient detection algorithm. The results of running the
-algorithm on both real-time DWF data and later-time further processed data sets is presented in Section 4. Finally
-in Section 5, we describe how this algorithm will be deployed in future DWF runs.
-2. DEEPER, WIDER, FASTER PROGRAM
-The Deeper, Wider, Faster program (DWF, Andreoni & Cooke 2019), is peculiar among all the aforementioned
-transient surveys. The primary goal of DWF is to identify transient phenomena on the shortest timescales; DWF
-searches from milliseconds to hours in various wavelengths. The deep optical component of DWF is carried out by
-the Dark Energy Camera (DECam) collecting 20s exposures in a 1 minute cadence, at g ∼ 23 magnitude limits, a
-wide-field (∼ 3 deg2
-) of view (a comparison of DWF with other surveys can be found in Table 1). In conjunction with
-optical observations carried out with DECam on the 4m Blanco Telescope in Chile, wide-field ground- and space-based
-observatories spanning the entire electromagnetic spectrum are coordinated either to simultaneously collect data on
-the same region of the sky, or coordinated to trigger rapid (or later-time) follow-up of transient sources. Data collected
-by DECam for real-time analysis is highly compressed (Vohl et al. 2017), to minimize transfer speed, and sent directly
-from the summit on Cerro Tololo, Chile to the OzSTAR supercomputer at Swinburne University of Technology in
-Australia for processing and analysis. In addition, these data are also transferred using lossless compression and fully
-processed by a modified version of the photpipe NOAO Community Pipeline (Rest et al. 2005; Swaters & Valdes 2007;
-Valdes & Swaters 2007) at a later time.
-The DWF program, like many other transient surveys (e.g., PTF and SN Legacy Survey, among others, Cao et al.
-2016; Perrett et al. 2010), relies on an image subtraction pipeline (Mary pipeline, Andreoni et al. 2017) to detect
-potential sources of interest in real time. A ranked list of candidates is presented to astronomers and volunteers for
-further visual inspection of image cutouts (small fraction of the DECam FOV centered on a single detected source)
-and light curves using the interactive tools described in Meade et al. (2017).
-2.1. DWF Data Samples
-Here, we describe the DWF data stream in more detail, the light curve creation process, and the final inputs
-that will be fed into the transient identification algorithm. The data collected by DECam for the DWF program is
-unique among transient surveys in its cadence, and therefore some of its discoveries are the first of their kind. For
-DWF, the 4-meter Blanco telescope, on which DECam is mounted, collects continuous 20s exposures at ∼ 1 minute
-cadence, when including readout time. In each 20s exposure, DECam reaches a depth of g ∼ 23 under normal DWF
-observing conditions, ∼ 1.0 arcsecond seeing at ∼ 1.5 airmass. The slightly higher than ideal airmass is due to the
-visibility requirements for simultaneous observations in the radio, conducted by telescopes in either Australia or South
-Africa, and telescopes operating at other wavelengths in the Antarctic, North America, and other locations, including
-space-based telescopes.
-The g-band is selected as the main observing band for DWF as DECam sensitivity is ∼ 0.5 magnitudes deeper than
-in redder filters, many fast bursts are hot and blue, and DWF target fields are typically at low Galactic extinction.
-Fast Transient Finding Algorithm 5
-Table 2. DWF Runs Analyzed with FTF Algorithm
-Field Name RA (center) Dec (center) Start Date End Date
-4-hour 04:10:00 -55:00:00 2015-01-14 2015-01-17
-2015-12-18 2015-12-22
-Antlia†
-10:30:04 -35:19:24 2018-06-07 2018-06-09
-2017-02-03 2017-02-07
-FRB010724 01:18:00 -75:12:00 2015-12-18 2015-12-22
-CDFS Legacy+ 03:30:00 -28:06:00 2019-12-03 2019-12-07
-FRB171019+ 22:17:32 -08:39:32 2019-12-05 2019-12-07
-Note—DWF fields analyzed as a part of this study. Fields noted with a +
-are those with real-time data. Fields noted with a † are those that have
-been analyzed in Webb et al. (2020).
-Most DWF target fields have template reference images taken prior to the run in multiple filters. In addition, and if
-there are no reference images (i.e., for newly discovered FRB or short-GRB fields), the target fields are observed either
-at the start or end of the night (or both) in other filters, typically r- and i-bands to determine source colors.
-The DWF program collects data with DECam over a ∼ 3 deg2 field of view. This wide-field is covered by the 62
-individual DECam CCDs. The data from each CCD is saved as an extension in a multi-extension fits file. These data
-are processed and analyzed in two ways.
-Firstly, for real-time, or fast analysis, the image files are ‘lossy’, compressed at the summit using the method described
-in Vohl et al. (2017), and sent to OzSTAR supercomputer at Swinburne University of Technology for data analysis.
-Data transfer from the Cerro Tololo summit in Chile to Australia is too slow to enable data processing, analysis,
-and transient candidate identification within minutes, which is necessary for fast transients. The lossy compression is
-tunable to the speed of the internet and can speed up transfer by compressing the data up to ∼20× and still enable
-detection of ∼ 95% of the transients. Furthermore, to enable fast identification and rapid response follow-up triggers,
-these data are ‘fast’ processed in parallel on the OzSTAR supercomputer. The fast processing sacrifices some aspects
-of a full processing pipeline for speed. Both the lossy compression and the fast processing result in several artifacts in
-the images that are not typically observed in conventional transient pipeline analyses.
-The real-time data processing for the data collected on the dates used in this work includes using Swarp (Bertin et al.
-2002) to align and stack images, SExtractor (Bertin & Arnouts 1996) to identify sources, and HOTPANTS (Becker
-2015) to perform image subtractions. After performing image subtraction and source extraction on the differenced
-images, the Mary pipeline (Andreoni et al. 2017) runs a machine learning algorithm on the potential candidates to
-minimize CCD artifacts. The remaining candidates are then ranked based on their presence in The Second-Generation
-Guide Star Catalog (GSC-II, Lasker et al. 2008) and in previous nights of the DWF run, with higher rankings given
-to those sources that are present in neither GSC-II, nor previous DWF nights. Data analyzed in this manner will be
-referred to as “real-time” data. We note that the real-time processing is different for later runs.
-Secondly, the data are separately sent to the NOAO High-Performance Pipeline System (Swaters & Valdes 2007;
-Valdes & Swaters 2007) to provide post-run, fully processed and well-calibrated data for later-time analyses. These
-data are used for fast transient detection after burst, fast transient searches cross-matched with other wavelengths,
-fast transients associated with slower-evolving events (e.g., supernova shock breakouts), slower-evolving events caught
-early by DWF, and other applications. For the data used here, sources were identified using SExtractor and the images
-are not stacked, nor image subtracted, however. Magnitudes from SExtractor identified sources are calibrated against
-the SkyMapper Data Release 2 catalogue (Onken et al. 2019). Data analyzed in this manner will be referred to as
-“post-run” data. For both data processing methods, the light curves are generated for sources that have one or more
-detections at the same coordinates; DWF targets are named using these coordinates. For each DWF source, a data
-point or upper limit is generated every ∼ 1 minute, unless the source location falls off the CCD, either in chip gaps or
-off the edge of DECam field of view as a result of small offsets in guiding, tracking, and hexapod tip-tile corrections,
-as a result of changing weather, moving to a new field, etc.
-6 Strausbaugh et al.
-There are a total of 5 DWF fields analyzed in this work, shown in Table 2. There are 2 “real-time” data sets covering
-the CDFS Legacy and FRB171019 fields. There are 5 “post-run” data sets covering two epochs on the 4-hour and
-Antlia fields and one epoch on the FRB010724 field. The two 4-hour and Antlia epochs analyzed here are from two
-separate runs, spaced 11 months and 16 months apart, respectively; this second pointing can help establish if there is
-any recurrence or periodicity to transient behavior observed.
-The 4-hour field is one of the first fields observed by DWF. The first DWF run employed an observational routine
-with dithering. Analyzing the first run on the 4-hour field can determine how robust the FTF algorithm is to dithered
-data; subsequent DWF runs have moved away from the dithered approach due to confounding issues discussed in
-Section 4.1. The Antlia field was chosen for analysis, in part because comparisons can be drawn between this work,
-and work done in Webb et al. (2020). The FRB010724 data is from a dense field with 839,729 light curves generated
-over 5 days. The two “real-time” fields were chosen out of necessity; older “real-time” data was not stored for later
-analysis, and the COVID-19 pandemic, which has halted operations for many observing sites across the world, had
-precluded the acquisition of “real-time” data sets from Cerro Tololo for several months. The results of running the
-FTF algorithm on the 5 data sets in Table 2 are presented in Section 4. The naming convention for the light curves
-presented in this paper are the survey name, DWF, followed by the right ascension (RA) and declination (DEC) in
-sexagesimal coordinates as follows: DWFRADEC.
-3. ALGORITHM FOR EARLY SOURCE DETECTION
-Despite its ubiquity, the use of image subtraction techniques to identify transient sources is wrought with challenges.
-The convolution of PSFs between images can be challenging, if not impossible between different instruments and
-different seeing conditions; even when feasible, convolution can be computationally intensive. The very large number
-of source detections in image subtracted frames and the inability to have humans analyze them all in a reasonable time
-frame (especially for fast transients), or do so with any solid accuracy to trigger followup observations, necessitates the
-use of machine learning frameworks to identify false-positives (Masci et al. 2017; Díaz et al. 2016; Duev et al. 2019),
-further complicating the process and increasing computational demands. Source extraction codes (e.g., SExtractor)
-can be fooled by sources that are not real, for example cosmic rays, cross-talk on images, or mis-aligned subtractions.
-As surveys search for transients to fainter magnitudes, they begin to hit the noise/source threshold and many detections
-are too ambiguous to accurately identify.
-Furthermore, the machine-learning (ML) approach requires extensive training and large training set samples (typically in the hundreds of thousands of images), increasing the demands on human time and capital. The challenges
-associated with image subtraction have led to attempts to identify transient sources through real-time direct image
-comparisons (Wardęga et al. 2020), light curve analysis (Liu et al. 2020), or late-time light curve analysis (e.g., Webb
-et al. 2020).
-In addition, definitive source classification is hardly possible with image subtraction alone: transient characterization
-is confirmed through follow-up observations, including spectroscopic data; however, telescope time using sensitive
-spectroscopic instruments is very limited, and the time-window for observing fast-fading sources is narrower than the
-cadence of conventional transient surveys. If enough data of the source is rapidly available for a light curve to be made
-(e.g. within a few minutes of the first data acquisition), preliminary classification can be performed, using simple
-metrics such as its rise and/or decay rate and peak brightness. This early classification using light curves can inform
-astronomers about the resources they should allocate to these targets which are always limited; this kind of observation
-strategy will be crucial for LSST, and is the service that brokers will be performing for the community (Förster et al.
-2020; Narayan et al. 2018; Narayan et al. 2018; Smith 2019; Patterson et al. 2019; Möller et al. 2021). With better
-sampling, including light curves spanning multiple wavelength bands, a more precise classification of sources can be
-achieved (Bloom et al. 2012; Ball et al. 2006; Debosscher et al. 2007; Richards et al. 2011; Kim & Bailer-Jones 2016;
-Jamal & Bloom 2020), but progress on this front is still minimal due to the complexity of the data and classification
-algorithms.
-3.1. Fast Transient Finding (FTF) Algorithm
-Given the obstacles inherent in using image subtraction techniques, and the necessity of a light curve analysis to
-classify peculiar transient events, we propose to identify these transient phenomena with a direct light curve analysis of
-the DWF data stream. The algorithm we describe can be used as an independent verification for candidates detected
-Fast Transient Finding Algorithm 7
-via other methods (e.g. image subtraction, machine learning algorithms); a flow chart of the FTF algorithm is shown
-in Figure 2.
-Figure 2. For a given DWF field, a total number of N sources are detected. A light curve (LC) will be generated for each
-source during post-run processing, or in real-time for those sources identified as potential transients from image subtraction (see
-Section 2.1 for a thorough discussion of the different data types). Each LC is fed into the algorithm described in Section 3.1 in
-a parallel-processed manner. The LCs are separated into n − (SW − 1) different sliding windows, where n is the number of data
-points in the LC and SW is the size of the sliding window. Each of these sliding windows are processed in parallel, fit linearly,
-and the sign of the slope is determined: positive, negative, or flat. The signs from the slopes of the individual sliding windows
-is recombined and the number of inflection points (IPs) in the LC is counted. Those LCs with fewer than 5 IPs are saved as
-potential transients.
-For each unique source observed during the DWF run, we separate the light curve data using a sliding window (SW),
-a technique common in financial time series analysis (Chou & Nguyen 2018; Chou & Truong 2019; Karathanasopoulos
-et al. 2016) as well as machine learning applications across several disciplines (Dietterich 2002; Kaneda & Mineno
-2016; Selvin et al. 2017; Helwan & Uzun Ozsahin 2017). The user can define the size of the sliding window parameter,
-but is limited by the number of data points contained within an individual light curve file (light curves may have
-missing points due to changing weather conditions, upper limits, or artifacts that prevent our photometric pipeline to
-accurately estimate the magnitude of the source).
-3.2. Statistical Selection of Algorithm Parameters
-Based on the typical field cadence and the number of points per light curve we can assess the best SW size.
-We emphasize here that, while we focus in this paper on finding known categories of fast evolving transients (e.g.,
-GRB afterglows, kilonovae, etc.) the FTF algorithm can be easily customized for different or novel types of variable
-phenomena by changing the sliding window size (Figure 3) and the slope threshold (Figure 4); searches for new types
-of fast-evolving transients is an important focus of DWF and we will us the FTF to pursue these targets in the future.
-In Figure 3, we present the histograms of the number of data points present in each light curve for all of the fields and
-runs analyzed in this work, for both the “real-time” and “post-run” data. The red dashed line in Figure 3 represents
-our choice of a SW=5; this avoids the predominance of noisy light curves (SW  5) and mitigates the risk of averaging
-over rapidly rising and falling light curves or flares with larger windows (SW  5).
-Over each sliding window, we compute a simple linear fit, g = αt + g0 (where g is the observed magnitude, t is the
-time in minutes from the first observation, α is the temporal decay index, and g0 is the intercept), and return the
-slope and its uncertainty.
-A histogram of the slopes of each window from real-time and post-processed fields is plotted in the two graphs in
-Figure 4. We find that the distributions of slopes is well-modeled with a Laplace Distribution, represented by the
-8 Strausbaugh et al.
-Figure 3. Amalgamated histogram of the number of data points present in each light curve for all of the fields and runs
-analyzed in this work in both the real-time data (left) and post-run processed data (right) sets. The red dashed line is plotted
-at 5, the chosen sliding window size in the FTF algorithm explored in this paper; the sliding window parameter can be changed
-to search for transients evolving on different time scales.
-Figure 4. Histograms of the slope of each separate sliding window for the real-time data (left) and the post-run processed
-data (right). We fit the histogram with a Laplacian Distribution, as defined in Equation 1 and plot the b term, with a red
-dashed line; the slopes within the red dashed lines are considered “flat” in the FTF algorithm explored in this paper; this slope
-threshold can be tuned to search for transients with different intensities, as shown by the blue dashed line in Figure 5.
-probability density function
-P(x) = 1
-2b
-exp 
-|x − µ|
-b
-
-(1)
-where µ is the mean (which, in the case of this function is equal to the median as well as the mode), the variance is
-2b
+Photometric redshift estimation algorithms are often based on representative data from observational campaigns. Data-driven
+methods of this type are subject to a number of potential deficiencies, such as sample bias and incompleteness. Motivated by these
+considerations, we propose using physically motivated synthetic spectral energy distributions in redshift estimation. In addition,
+the synthetic data would have to span a domain in colour-redshift space concordant with that of the targeted observational
+surveys. With a matched distribution and realistically modelled synthetic data in hand, a suitable regression algorithm can be
+appropriately trained; we use a mixture density network for this purpose. We also perform a zero-point re-calibration to reduce the
+systematic differences between noise-free synthetic data and the (unavoidably) noisy observational data sets. This new redshift
+estimation framework, syth-z, demonstrates superior accuracy over a wide range of redshifts compared to baseline models
+trained on observational data alone. Approaches using realistic synthetic data sets can therefore greatly mitigate the reliance on
+expensive spectroscopic follow-up for the next generation of photometric surveys.
+Key words: methods: statistical – galaxies: distances and redshifts – galaxies: statistics
+1 INTRODUCTION
+Ongoing and near-future photometric surveys such as the Dark Energy Survey (DES, Abbott et al. 2005), the Kilo-Degree Survey
+(KiDS, de Jong et al. 2013), the Hyper Suprime-Cam Survey (HSC,
+Aihara et al. 2018a,b), Euclid (Laureĳs et al. 2011), the Vera C. Rubin
+Observatory’s Legacy Survey of Space and Time (LSST, Abell et al.
+2009), and the Roman Space Telescope (Green et al. 2012) encounter
+several hurdles that were not faced by previous, more shallow, surveys such as the Sloan Digital Sky Survey (SDSS, York et al. 2000).
+As galaxy catalogues continue to be substantially larger in size and
+fainter in magnitude, spectroscopic follow-ups to obtain confirmation of galactic properties become prohibitively expensive (Newman
+et al. 2015a; Stanford et al. 2021). This necessitates alternatives to
+spectroscopic follow-ups via synthetic modeling, using a combination of stellar population synthesis (SPS) models and star formation
+histories (SFHs) from parametric models (e.g., Alsing et al. 2020),
+semi-analytic models (e.g., Pacifici et al. 2012), or hybrid approaches
+combining empirical and semi-analytic models (e.g., LSST Dark Energy Science Collaboration (LSST DESC) et al. 2021).
+Photometric redshift estimation of individual galaxies typically
+relies upon data either in the form of Spectral Energy Distributions
+(SED) templates for matching (Fernández-Soto et al. 1999; Benítez
+2000a), or as training sets for machine learning algorithms (Firth
+★ E-mail:nramachandra@anl.gov
+et al. 2003). The supervised learning algorithms are designed to find
+a mapping between sets of dependent variables based on a training
+set with input-target examples. In an ideal case, these algorithms can
+predict outputs (like galaxy redshifts) for combinations of input variables (like galaxy colours) never previously encountered, therefore
+generalizing training data to unseen situations. However, in a more
+realistic situation, supervised learning algorithms inherit biases presented in the training data. Therefore, to prevent these biases, it is
+mandatory to optimise supervised learning models using training
+sets encompassing all cases expected to be found in the envisaged
+application scenario.
+The majority of machine learning (ML) algorithms designed to
+infer photometric redshifts use observational photometric data for
+training (Carrasco Kind & Brunner 2013a, 2014; Graff et al. 2014;
+Almosallam et al. 2016a; Almosallam et al. 2016b; Cavuoti et al.
+2016; Sadeh et al. 2016; Graham et al. 2018; Fadikar et al. 2021).
+This approach is not ideal, however, because spectroscopic surveys
+can only estimate redshifts at the bright end of sources detected
+by photometric surveys, given their significantly slower observing
+speeds. Furthermore, aiming to reduce the level of star-galaxy misclassification, most spectroscopic surveys incorporate strict selection
+criteria on colour space that result in not being able to observe some
+galaxy types. Taken together, these issues may lead to unrealistic
+predictions for galaxy types, especially faint galaxies with uncommon properties. One approach to overcome biases originating from
+© 2021 The Authors
+arXiv:2111.12118v1 [astro-ph.CO] 23 Nov 2021
+2 Ramachandra et al.
+incomplete observations is to employ stellar population synthesis
+models to generate more complete training data sets.
+The viability of stellar population synthesis modelling in photometric redshift estimation is currently explored in template fitting
+codes. For instance, Hernán-Caballero et al. (2021) use the stellar population synthesis code cigale (Boquien et al. 2019) with
+delayed-exponential star formation histories to create templates, and
+then introduce these in a customized version of the template-fitting
+code lephare (Arnouts et al. 1999) to compute photometric redshifts
+for galaxies of the miniJPAS survey (Bonoli et al. 2021), which observed ' 1 deg2
+of the northern sky using the 56 narrow-band filters
+of the J-PAS survey (Benitez et al. 2014). A similar approach is
+also utilized in the COSMOS-2020 (Weaver et al. 2021) catalogue
+or the PAUS survey (Alarcon et al. 2021), where log-normal star
+formation histories are used to create 17 generated synthetic SEDs
+from Flexible Stellar Population Synthesis (fsps, Conroy et al. 2009;
+Conroy & Gunn 2010). These are also utilized in the template fitting
+code eazy (Brammer et al. 2008) to estimate the redshift. Both these
+approaches, while demonstrating the usefulness of synthetic SEDs,
+also highlight the need for more realistic galaxy formation models in
+the future surveys of LSST, Euclid and SPHEREx (Doré et al. 2014).
+Furthermore, expanding the template set to include more realistic
+and diverse galaxy formation physics often leads to an unaffordable
+increase in compute time for current and future surveys.
+Another issue with photometric redshift estimation is that the mapping is not an injective function, due to the relatively sparse input
+dimension, resulting in degeneracies. Hence a simple point-estimate
+for a galaxy’s “photo-z” is less desirable than a probability distribution function (PDF) that is conditioned on the observed photometric colours, i.e, 𝑝(𝑧|𝑐) (Mandelbaum et al. 2008; Almosallam
+et al. 2016b; Benítez 2000b; Izbicki et al. 2017; Carrasco Kind &
+Brunner 2013b), and possibly other properties, such as morphology
+and galaxy clustering. However, a full Bayesian posterior estimation
+of 𝑝(𝑧|𝑐) may not be practically feasible with traditional statistical
+approaches. This is primarily due to nontrivial issues with scaling
+the inference problem to billions of galaxies. Despite having a robust forward model and massive parallelization abilities, obtaining
+full redshift posteriors for individual galaxies is still prohibitively
+expensive.
+Artificial neural networks could be used as inference machines
+as alternatives to traditional posterior estimation techniques, by sampling over the model parameters of network weights and biases (Neal
+2012). However, the numerical expense of sampling over a large number of model parameters can be numerically expensive, as is the case
+with deep neural networks. Consequently, neural networks employing Bayesian inference techniques for robust uncertainty estimates
+(Mackay 1995; Gal 2016; Wenzel et al. 2020) are an active field of
+research.
+It should also be noted that for photometric redshift estimation
+and downstream analyses, a simpler conditional density estimator
+that quantifies the uncertainty in the predictions with respect to the
+data-prior suffices for most purposes. Approximating the likelihoods
+using parameterized models could further reduce the computational
+expense. This could provide the much-needed scalability to billions
+of galaxies, whilst providing robust uncertainty estimations for redshift predictions. Hence we adopt this approach in our photometric redshift estimation by approximating the conditional distribution
+𝑝(𝑧|𝑐) using a mixture of Gaussian distributions. Our redshift estimation algorithm syth-z is constructed with both the above considerations: the synthesis of physically modelled mock photometric data,
+and adaptation of synthetic data in a probabilistic framework that is
+scalable to a large number of galaxies. In this paper, we show that
+with robust physical modelling and meticulous sampling, we may
+achieve high levels of accuracy in photo-z estimation over a baseline
+of observation-based training.
+The methodology described above is a hybrid approach that
+bridges aspects of both ML and template methods of photometric redshift estimation. The ML interpretation is straightforward –
+weights of a neural network are optimized to learn the mapping between broad-band photometry and redshifts. From a template-fitting
+methods perspective, syth-z is built upon complex empirical star formation histories (SFHs) and SEDs, and these are approximated using
+an interpolation technique. This novel combination makes syth-z a
+powerful framework for predicting galactic redshifts.
+The paper is organized as follows. The process of creating the
+synthetic galaxy colours is introduced in Section 2.1. Details of the
+data from the photometric surveys of SDSS, VIPERS and DEEP2 are
+described in Section 2.2. In Section 3 we explain the probabilistic
+machine learning algorithm used for computing the redshift PDF,
+given galaxy colours. We also introduce zero-point adjustments performed to reduce the systematic differences between synthetic and
+observed colours. In Section 4, we demonstrate the advantage of
+using synthetically-trained photometric redshift estimation against a
+baseline training scheme of using survey data for training. We discuss
+our findings and summarize the major results in Section 5.
+Throughout this work, we use extinction-corrected magnitudes in
+the AB system and Planck 2015 cosmological parameters (Planck
+Collaboration et al. 2014): Ωm = 0.314, ΩΛ = 0.686, Ωb = 0.049,
+𝜎8 = 0.83, ℎ0 = 0.67, and 𝑛s = 0.96.
+2 TRAINING AND VALIDATION DATA
+We begin with the curation of the training and validation data used
+throughout this paper. In contrast to the traditional machine learning
+frameworks, the testing or validation set is different from the training data. That is, the syth-z training is entirely carried out with the
+synthetic data, and ‘out-of-set’ data is used for benchmarking. In this
+section, we begin by presenting the process of modelling synthetic
+training data from stellar population synthesis codes. Next, we tabulate the observational galaxy samples used for validating the photo-𝑧
+algorithm introduced in Section 3.2.
+2.1 Synthetic spectral energy distributions
+Modelling galaxy SEDs is a long-standing problem in astronomy
+due to the dependence of the light of a galaxy on several properties
+and their correlations, such as star formation history, metallicity, dust
+type and abundance, and gas properties. The most common approach
+to predict galaxy SEDs is by using stellar population synthesis (SPS)
+models, which rely upon stellar evolution theory to produce precise
+galaxy spectral energy distributions in the ultraviolet, optical, and
+infrared ranges (for a review see Conroy 2013). Throughout this
+work, we generate galaxy colours using the SPS model fsps (Conroy
+et al. 2009; Conroy & Gunn 2010) together with its python interface
+(Foreman-Mackey et al. 2014), which include a plethora of parameters controlling galaxy properties. Our strategy is to produce synthetic
+galaxy photometry approximately spanning the same region of the
+colour space as galaxies from observations (see Section 2.2).
+Producing synthetic colours representative of the colours of the
+observed galaxies is challenging due to the large diversity of properties influencing colours. For example, Pacifici et al. (2015) show that
+precise modelling of star formation histories, metallicity enrichment
+MNRAS 000, 1–14 (2021)
+Synthetic spectra for redshift estimation: SYTH-Z 3
+histories, dust attenuation, and nebular emission is necessary to produce colours covering the same region of the colour space as observed
+galaxies. Among these properties, the star formation history presents
+the strongest influence on broadband colours (e.g., Chaves-Montero
+& Hearin 2020). The two main approaches for modelling SFHs are
+parametric functional forms and star formation rates tabulated at a
+set of cosmic times. Sufficiently flexible parametric models capture
+SFHs predicted by simulations with reasonable precision (Simha
+et al. 2014; Diemer et al. 2017) and accommodate episodic bursts
+of star formation or other transient features. But simple models may
+fail to do so entirely (Lower et al. 2020). Another crucial concern of
+the parametric models is that they may produce SFHs that are not
+physically motivated.
+Motivated by the above issues, we use SFHs predicted by galaxy
+formation models to produce physically-motivated colours. The
+main drawback of this approach is that the results become modeldependent. To alleviate this problem, we draw SFHs from two models
+that reproduce a broad range of summary statistics of galaxy populations but follow completely different approaches to simulate galaxies.
+The first is the empirical model universemachine (Behroozi et al.
+2019), which simulates galaxies using a set of scaling relations between galaxy and halo properties. We generate universemachine
+SFHs by running the publicly available version of the code1 on
+merger trees identified in the Bolshoi-Planck simulation with Rockstar and Consistent trees (Behroozi et al. 2013a,b; Klypin et al. 2016;
+Rodríguez-Puebla et al. 2016) up to redshift 𝑧 = 0 and 1. The second is based on the cosmological hydrodynamical simulation IllustrisTNG (Marinacci et al. 2018; Naiman et al. 2018; Nelson et al.
+2018a; Pillepich et al. 2018; Springel et al. 2018), which models
+the joint evolution of dark matter, gas, stars, and supermassive black
+holes by incorporating a comprehensive galaxy formation model
+with radiative gas cooling, star formation, galactic winds, and AGN
+feedback. In particular, we draw IllustrisTNG SFHs from the largest
+hydrodynamical simulation of the suite, TNG300-3 (Nelson et al.
+2018b).
+Due to the non-parametric nature of SFHs drawn from universemachine and IllustrisTNG, it is challenging to select a set
+of SFHs representative of a whole galaxy population. To facilitate
+this process, we label each SFH by the maximum mass ever attained
+by its host halo, 𝑀peak, and the slope of the host halo mass accretion
+history, 𝛽MAH. It is natural to use 𝑀peak because galaxies hosted by
+more massive haloes present larger masses, reach the peak of their
+SFH at higher redshift, and become quenched at earlier times (e.g.,
+Chaves-Montero & Hearin 2020). We use 𝛽MAH because this parameter captures the dependence of galaxy properties on the assembly
+history of its host halo; for example, at fixed halo mass, the galaxies
+with a steeper slope reach the peak of their SFH at higher redshift
+and become quenched at earlier times (Montero-Dorta et al. 2021).
+We also model the impact of three other galaxy properties influencing colours: metallicity, dust attenuation, and nebular emission.
+We use a time-independent parameter 𝑍 to model the stellar and gas
+metallicity, 𝛾𝜏ISM
+𝑉
+and 𝜏
+ISM
+𝑉
+to specify the dust attenuation of light
+coming from stars younger and older than 10 Myr (Charlot & Fall
+2000), respectively, and log10 𝑈𝑆 to set the logarithm of zero-age
+ionization at the Strömgren radius. Therefore, our model presents six
+free parameters: 𝑍 and log10 𝑈𝑆 are defined at 22 and 7 values within
+the ranges 𝑍 ∈ [0.0002, 0.03] and log10 𝑈𝑆 ∈ [−4, −1] respectively,
+𝛾 and 𝜏
+ISM
+𝑉
+are continuous to within the intervals 𝛾 ∈ [1, 4] and
+𝜏
+ISM
+𝑉
+∈ [0, 1.5], and 𝑀peak and 𝛽MAH vary to within the ranges
+1 https://bitbucket.org/pbehroozi/universemachine/
+predicted by universemachine and IllustrisTNG. We note that we
+also use a Chabrier initial mass function (Chabrier 2003) to predict
+colours.
+To produce galaxy colours, we begin by sampling the model parameters according to a Latin hypercube design (McKay et al. 1979)
+defined by the priors specified above. To reduce the impact of shortterm star formation fluctuations on colours, we compute the average
+of the 20 SFHs with closest 𝑀peak and 𝛽MAH to the sampled values.
+Note that the resulting SFHs are more representative of the colours
+of galaxy populations (Chaves-Montero & Hearin 2021). Then, we
+use fsps to generate colours at 50 randomly selected redshifts from
+𝑧 = 0.002 to 1.25 for each combination of model parameters. In this
+manner, we end up producing synthetic colours for∼200 000 different
+galaxies. In Appendix A, we compare the spectral energy distribution
+of some of these galaxies and that of galaxies from observations.
+2.2 Data from observations
+The standard approach to evaluate the quality of photometric redshifts is to use spectroscopic redshift estimates as ground truth,
+which is motivated by the much better precision of spectroscopic
+redshifts relative to photometric redshifts. Nonetheless, the precision
+of spectroscopic redshifts decreases significantly for low signal-tonoise sources; consequently, this technique may lead to catastrophic
+redshift solutions for faint sources. In this section, we describe the
+main properties of the galaxies with secure spectroscopic redshift
+estimates that are used to validate our methodology.
+In order to benchmark syth-z with a broadly representative sample of galaxies with spectroscopic redshifts and broadband photometry, we collate publicly available spectroscopic sources from the
+Sloan Digital Sky Survey (SDSS, York et al. 2000; Eisenstein et al.
+2011; Blanton et al. 2017), the VIMOS Public Extragalactic Redshift
+Survey (VIPERS, Scodeggio et al. 2018), and the DEEP2 Redshift
+Survey (DEEP2, Newman et al. 2013; Matthews et al. 2013). We
+detail the properties of each of the samples below, having tabulated
+the primary statistics in Table 1.
+(i) SDSS: This sample comprises the 1,911,919 galaxies from
+the SDSS database2 presenting the spectroscopic redshifts with precision superior to Δ𝑧spec = 0.003, extinction-corrected 𝑖-band magnitude brighter than 20 mag, 𝑖-band magnitude error smaller than
+0.1 mag, and clean photometry in all bands. For these sources, we
+use extinction-corrected magnitudes from the public database. These
+galaxies present redshifts typically smaller than 𝑧spec = 0.6.
+(ii) VIPERS: We select the 40,718 galaxies from the second
+public data release of the VIPERS survey3 with secure redshifts.
+VIPERS galaxies present redshifts slightly larger than the SDSS
+galaxies, but typically smaller than 𝑧spec = 1.
+(iii) DEEP2: We use the 13,163 galaxies from the fourth data release of DEEP24 with spectroscopic redshifts. These galaxies present
+redshifts covering approximately the same redshift range as VIPERS
+galaxies.
+Some galaxies from the VIPERS and DEEP2 surveys present
+2 SDSS data are available from: http://skyserver.sdss.org/dr15/
+en/tools/search/sql.aspx
+3 VIPERS data are available from: http://vipers.inaf.it/rel-pdr2.
+html
+4 DEEP2 data are available from: http://deep.ps.uci.edu/DR4/home.
+html
+MNRAS 000, 1–14 (2021)
+4 Ramachandra et al.
+Table 1. Properties of the spectroscopic galaxy samples that we use for model
+validation. The columns i95%
+max and 𝑧
+95%
+max indicate the 𝑖-band magnitude and
+redshift of the galaxy in the 95th percentile of each of these properties.
+Survey Number i95%
+max [mag] 𝑧
+95%
+max
+SDSS 1 911 919 19.8 0.64
+VIPERS 40 718 22.5 0.97
+DEEP2 13 163 22.9 0.97
+photometric data taken by the Canada-France-Hawaii Legacy Survey (CFHTLS, Gwyn 2012). This survey’s filter transmission curves
+have slightly different band-passes relative to the SDSS filters. To
+avoid biases arising from such differences, we transform the photometry of these galaxies from the CFHTLS into the SDSS filter
+system using Equations (1-5) from (Matthews et al. 2013). We also
+correct the magnitude of all these galaxies for Galactic extinction.
+3 MODELLING AND FRAMEWORK
+Unlike the majority of ML-based photo-z estimation codes, our
+framework is trained on noiseless, simulated data. The discrepancy
+in training and testing samples requires calibrations and validations
+beyond standard training and hold-out testing routines. In this section, we describe the major components in the syth-z framework that
+aim to address these concerns: experimental design and synthesis of
+training data, construction and training of the probabilistic mapping
+algorithm, and survey-specific systematic offset corrections.
+3.1 Colour distribution of observational and synthetic galaxies
+The architecture of data-driven ML methods, e.g., artificial neural
+networks, is usually agnostic to the underlying physics. Only the
+training data includes the intrinsic information about the input and
+target distributions, and the underlying relationships between them.
+Thus any incorrect modelling or biases in the training data will
+be learned by the network. This is particularly important when the
+training data is created using simulations – the assumptions in the
+synthetic modelling may create intractable biases in the estimations.
+In our work, the mixture density network (MDN) learns the information about mapping between the colours and redshift entirely from
+the training data. Since the broadband colours for training syth-z are
+synthetically generated via the steps prescribed in Section 2.1, the
+validity of synthetic data has to be meticulously checked. Primarily,
+the coverage of synthetic data has to be compared to that of observational samples. In the colour-redshift space, if the distribution
+training set does not significantly overlap with that of the observational data, the resulting extrapolation is highly prone to biases in the
+redshift estimations.
+In Figure 1, we display the distribution of colours and spectroscopic redshifts (𝑢 − 𝑔, 𝑔 − 𝑟, 𝑟 − 𝑖, 𝑖 − 𝑧, 𝑖-band, 𝑧spec) projected
+onto 2D slices. The first, second, and third panels show the colour
+distribution of observed and synthetic data at 0.0 < 𝑧spec < 0.3,
+0.3 < 𝑧spec < 0.7, and 0.7 < 𝑧spec < 1.0, respectively. We find that
+the distribution of SDSS colours spans the same region of the colour
+space as that of synthetic colours for the first redshift bin but not
+for the higher redshift bin of 0.7 < 𝑧spec < 1.0. This is because the
+SDSS low-redshift sample is primarily a magnitude-limited sample,
+while at intermediate and high redshift the survey only observed red
+and bright galaxies. In fact, we can see that the distribution of SDSS
+colours in the second redshift bin agrees with just the distribution of
+colours for the reddest synthetic galaxies.
+In the third redshift bin 0.7 < 𝑧spec < 1.0, we can readily see that
+SDSS galaxies present, on an average, redder colours than DEEP2
+galaxies. The red colours of SDSS galaxies are once again explained
+by the flux limit selection, which at higher redshifts preferentially
+selects luminous red galaxies. DEEP2 selects much fainter galaxies
+(up to 𝑖 ∼ 24), with a particular colour selection that targets galaxies
+with 𝑧 > 0.7, yielding a different colour distribution with a larger
+population of blue galaxies. Furthermore, we can see that the distribution of galaxy colours for observed data is more extended than
+for the case of synthetic data. This is simply because we produce
+noiseless synthetic colours and observed colours suffer from significant photometric uncertainties, especially for faint galaxies. Possible
+systematic errors by training on such noiseless data may require corrections (as explained in Section 3.3) and calibrations (as explained
+in Section 4.1) when adapting to real observations.
+We can also see that synthetic galaxies span the same region of the
+colour-redshift space as observed galaxies, which strongly suggests
+that our methodology produces synthetic colours representative of
+the observed colours of spectroscopic galaxies. This, in conjunction
+with physically motivated information regarding the colour-redshift
+correlation in the training set would enable an ML model to learn
+the associated mapping. Furthermore, given that observed data from
+different surveys do not span the same region of the colour space,
+an ML-model trained on one survey may not be apt for inferring
+redshifts from another. With a training prior different from that of
+testing colour-redshift space, the mapping learned could be inherently biased, and a leading order zero-point correction would not
+sufficiently correct for the discrepancy. On the other hand, synthetic
+data overlaps substantially with all observed data, ensuring that a
+single model trained on the synthetic data may satisfactorily estimate
+photometric redshifts, independently of which survey is used for the
+inference.
+3.2 The probabilistic neural network algorithm
+The mapping of broad-band filter values to photometric redshift is
+complicated due to multiple factors. Primarily, degeneracies arise in
+the redshift prediction due to the presence of multiple clusters in the
+colour space C. This results in non-Gaussian posteriors for photometric redshifts 𝑝(𝑧phot|𝑐 ∈ C), which is typically ignored in 𝜒
+2 optimization schemes in template fitting or regression neural networks.
+In order to capture multi-modal information within the inference
+pipeline, one may explicitly include a hard clustering method (like
+k-means clustering) to separate the whole galaxy sample sub-types
+and then perform regression analysis within individual subtypes. Alternatively, one can also perform soft clustering for determining a
+probability of association of a given datapoint with a specific subtype, and perform regression without separate training models. The
+latter approach is employed in syth-z: specifically, a Gaussian mixture model coupled with a fully connected neural network for redshift
+estimation.
+A Gaussian mixture function (McLachlan & Basford 1988) is a
+linear combination of several Gaussian components, each identified
+by 𝑖 ∈ 1, 2, ..., 𝑚, where 𝑚 is the total number of clusters, as defined
+in Equation (1).
+𝑝(𝑧𝑘 |𝑐𝑘 ) =
+∑︁𝑚
+𝑖=1
+𝜋𝑖(𝑐𝑘 )N (𝑧𝑘 |𝜇𝑖(𝑐𝑘 ), 𝜎𝑖(𝑐𝑘 )) (1)
+For each galaxy with index 𝑘, the PDF of redshift conditioned on
+MNRAS 000, 1–14 (2021)
+Synthetic spectra for redshift estimation: SYTH-Z 5
+0 2 4
+u − g
+0
+1
 2
-, and the average absolute deviation is b. From the linear fits, we obtain the sign of each window slope as positive,
-negative, or flat; we consider a flat (non-changing) slope if α = 0 ± b, as shown by the red dashed lines in Figure 4.
-The algorithm keeps track of the sign of the slope over each sliding window and notes a change in the sign of the
-slope as an inflection point (IP). Scanning over each sliding window, the algorithm tallies and records the number of
-IPs. For example, a typical fast previously unknown transient may have a number of IPs between 0 (straight rising or
-decay behavior) and 3 (e.g. a flare with one IP rising, one IP fading, and one IP flat).
-The aforementioned process is time consuming and CPU-intensive. Since our ultimate goal is to provide real-time
-identification of fast transients from the DWF data stream we implement a full parallelization of our python-based
-algorithm; each target can be run independently and in parallel during the DWF run. This parallelization enables the
-code to run over each DWF source in . 1 minute, on par with the cadence of incoming data points. The efficiency
-Fast Transient Finding Algorithm 9
-of the code is important for real-time identification of transients, especially deployed on multi-core CPUs, like the
-supercomputer at Swinburne University, where the optical data from DWF runs is analyzed.
-3.3. Phenomenological Selection of Number of Inflection Points
-For each light curve we calculate the number of IPs and then we group all objects and light curves with the same
-number of IPs. For this work, we focus on light curves that have four or fewer IPs within the typical DWF light curve
-(∼1 hour).
-• Light curves with zero IPs, but that are monotonically increasing or decreasing could be longer evolving transients:
-Cepheids, RR Lyrae, or SNe, for example.
-• Light curves with one IP might be catching the start of the rise or fall of a transient evolving on minutes to days
-time scales.
-• Light curves with two or three IPs may contain peaks or dips spanning the entire DWF time on the field (typically
-1-4 hours).
-• Four IP light curves could point towards more complex behavior that goes through several phases over the course
-of the DWF observation.
-It is important to note that transient phenomena may be occurring before the DWF run began, or continue after
-data acquisition has stopped. Therefore, a burst like event might only have two or three IPs, as its light curve might
-be shifted towards the beginning or end of a run in such a way that some parts of the curve are not sampled.
-Using this algorithm, the first potential transients can be reported just after the first five minutes of observation
-by DWF; thereafter the number of IPs associated with each light curve will be updated every minute, as the sliding
-window shifts over by one data point. A noted inflection change with a corresponding positive detection in the image
-subtraction pipeline provides good evidence to trigger imaging and spectroscopic follow-up.
-3.4. FTF Algorithm Demonstration
-In Figure 5 we show how the FTF algorithm works on a sample light curve, using a flaring star first detected in
-Webb et al. (2020) as an example. The light curve for this flaring source, DWF102955.559-360035.170, is plotted in
-the left panel of Figure 5. The right panel in Figure 5 shows the slope derived from each sliding window as function
-of time. We can clearly see that the flare in the light curve and the relative inflection points enable the identification
-of a change in brightness beyond the typical brightness. While this information may be used to trigger follow up
-observations, the subsequent data demonstrate that there are more inflection points and therefore the source is not a
-fast transient as classified in Section 3.3. The dashed red lines in the figure represent the same thresholds identified in
-the histograms presented in Figure 4; users can set a different threshold to identify different transients of interest, as
-shown by the blue dashed lines.
-4. RESULTS
-In this section we present the outcome of our FTF algorithm and the implication on 1) detectability of fast transients
-of different natures and the rate of detection of these objects compared to other surveys and 2) the required effort for
-spectroscopic follow-up for secure classification. In summary:
-• On a single night of observation on a single field we obtained on average ∼ 50, 000 real-time light curves, and
-∼ 340, 000 post-processed light curves.
-• Feeding these 50, 000 real-time and 340, 000 post-processed light curves into the FTF algorithm, we detect, on
-average 150 (∼ 3%) and 3, 000 (. 1%) potential fast transients respectively.
-• Checking the science frames of the potential fast transients for artifacts and other non-astronomical sources, we
-obtained on average, 1 statistically significant fast transient per field in the real-time data, and 13 statistically
-significant fast transients per field in the post-processed data.
-• Based on light curve fits 69 sources can be classified as fast transients under our definition in Section 3.1 from
-the fields described in Table 2.
-10 Strausbaugh et al.
-Figure 5. Left: Light curve of a flaring star, DWF102955.559-360035.170, observed in the Antlia field by DWF. This object
-was first discovered using unsupervised learning techniques in Webb et al. (2020). Right: The slope of each sliding window is
-plotted over time. The red dashed line correspond to the b-term derived from the Laplace Distribution, as defined in Equation
-1 and plotted in Figure 4. The blue dashed line represents a more restrictive parameter that can be tuned in the algorithm if
-for example, astronomers are looking specifically for flare stars.
-• In the event of a fast transient identification, FTF would allow a latency time of just 5-15 minutes for multiwavelength and spectroscopic follow-up observations.
-A detailed break-down of the results over each field can be found in Table 3.
-4.1. Results on Real-Time and Post-Run Data
-Once a list of candidates is generated using the FTF algorithm (within the first 5-10 minutes of the run, and then
-every minute thereafter), as shown in Section 3.4, light curves are vetted by our team; for those light curves that
-passed human inspection, image cutouts for the source’s location on the sky were visually inspected to exclude the
-presence of artifacts that survived our processing pipeline (e.g., cosmic rays, bad pixels, bad rows/columns, etc.).
-For the purposes of this paper, a positive detection is defined as one where the source is either a known variable, a
-DWF variable detected by other methods (see for example, Webb et al. 2020), or a newly discovered candidate that
-passes a visual inspection of the images associated with the light curves. To confirm known variables, we checked the
-coordinates of our candidates against known variable source catalogs such as the General Catalog of Variable Stars
-(Samus’ et al. 2017) and the International Variable Star Index (Watson et al. 2017).
-It is important to note that the real-time light curves will only exist for those sources that were candidates identified
-via image subtraction as a part of the Mary pipeline analysis; in contrast, the light curves from the post-run processing
-with the NOAO pipeline encompasses all sources that were detected during the run. The linear fits plotted in the
-subsequent figures (Figures 6-10) are meant to give an idea of the general trends in the lights curves, and are not the
-slopes associated with the sliding windows, as shown in Section 3.4, nor are they necessarily the best fit for the data.
-The light curve of DWF011805.113-751125.458, plotted in the left panel of Figure 6 is a known RR Lyrae source,
-called BG Tuc (Hoffmeister 1963; Geßner 1981). The light curves of DWF011805.113-751125.458 for each night of the
-DWF observing run are plotted in the right panel of Figure 6; this figure shows the variability of the object over long
-time scales.
-The behavior of DWF102920.187-355700.211 on both the night of 180607, plotted in the upper left and panel of
-Figure 7, and 1800608, plotted in the upper right panel of Figure 7, were identified by the FTF algorithm as potential
-transient phenomena. The first night of data shows a source decreasing from g ∼ 17.6 to g ∼ 18.4 in 30 minutes of
-observation. The data from the second night shows a source with a baseline magnitude of g ∼ 20 that dips dramatically,
-twice: once by 2 magnitudes and a second time by 1.5 magnitudes, each occurring in the space of a few minutes. Visual
-inspection of the first night of data revealed no signs of contamination by non-astrophysical sources. The analysis of
-the data from the second night, shown in the bottom panel of Figure 7, reveals that DWF102920.187-355700.211 and
-the dimmer stars in the vicinity all become very faint; clouds passing over this region of the sky would account for the
-apparent dimming of the source during the second night. We believe that DWF102920.187-355700.211 was displaying
-Fast Transient Finding Algorithm 11
-Table 3. FTF Results
-Number of Algorithm Identified Human Filtered
-Field Name
-Light Curves Light Curves Final Results
-4-hour (Run 1) 155,989 758 20
-4-hour (Run 2) 182,486 448 10
-Antlia (Run 1) 350,542 2,001 7
-Antlia (Run 2) 161,511 1,364 7
-FRB010724 839,729 5,512 23
-CDFS Legacy* 84,394 1,37 1
-FRB171019* 17,209 265 1
-Total 1,791,860 15,897 69
-Note—The FTF algorithm identified ≈ 1% of the light curves in the fields
-studied as potential transients, reducing the number of real-time light
-curves that require human inspection by two orders of magnitude. From
-those light curves identified by the algorithm, about 0.5% are identified
-by a human observer as potentially real astrophysical phenomena, after
-rejecting sources with obvious non-astrophysical explanations. Fields with
-an * denote fields where real-time data was analyzed.
-Figure 6. Left: Light curve of DWF011805.113-751125.458 that was detected by the FTF algorithm; its slope labeled, α, is
-plotted in the red dashed line. These coordinates correspond to the known RR Lyrae, BG Tuc. Right: Data from the other
-DWF nights are plotted for DWF011805.113-751125.458, showing the variability of this object over the week-long DWF run.
-The section plotted in the left panel corresponds to the second to last section of the right hand graph.
-some genuine transient phenomena on the first night of observation before reaching a quiescent phase in the second
-and third nights.
-In Figure 8, we present two light curves that showcase when the FTF can identify a fast evolving transient in the
-DWF “real-time” data stream, and how quickly astronomers can trigger other resources. The left panel shows the
-source DWF040623.456-550041.171 around g ∼ 17 before dropping by 0.7 magnitudes over a 10 minute period. For
-a source like this, the FTF algorithm would alert astronomers within the first few data points (within 10 minutes
-in the case) after the light curve deviates from a flat position. The right panel of Figure 8 shows the light curve of
-DWF102613.233-350150.332 rising by about 0.8 magnitudes in 40 minutes, before undergoing a seemingly exponential
-decay over the remainder of the observations. This source would be identified as a potential transient after the first 5
-data points, due to the steep nature of its increasing brightness. Furthermore, the FTF algorithm would identify an
-12 Strausbaugh et al.
-Figure 7. Top Left: The light curve of DWF102920.187-355700.211 is plotted for the night of 180607. There does not appear to
-be contamination from non-astrophysical effects in the image cutouts from this night of data, so we identify this source as real.
-Top Right: The light curves for the other nights for which this source is observed. Overall, the source is declining form g ∼ 17.5
-in the first night before down to an almost constant g ∼ 20 magnitude in the second and third night. There are however dips of
-about 2 magnitudes present during the second night. Bottom: The image cutouts for the second night of data from this source
-are presented. As can be seen in one of the middle rows, the source and those nearby all seem to fade, indicative of clouds that
-may not have been visible to the astronomers on the ground.
-inflection point within 10 minutes of the object’s drop in brightness, notifying astronomers of a change in the behavior
-of this object.
-4.2. Transient Misidentification
-In this section we present a sample of light curves that were identified as possible transients by the FTF algorithm,
-but after further analysis, were determined to be bogus. The most common type of light curve that confounded the
-FTF algorithm were those involving an astronomical source interacting with the edge of one of the 62 science CCDs
-that make up the DECam detector (Honscheid & DePoy 2008), pictured in Figure 1 under the label DES (Dark Energy
-Survey); the number of CCDs increases the chance for edge interactions. As the source moves onto or off of a CCD
-the light curve can show a peak or a dip not unlike that mimicking a fast rising or fading transient. This effect was
-exacerbated by early DWF observational strategies employing dithering routine (e.g., the first run on the 4-hour field
-analyzed in this paper); dithering patterns are no longer favored by DWF, in part for this reason. This issue can be
-remedied by ignoring data collected near the edge of a detector. This information is not always available in cataloged
-data sets, but can be easily identified using software analyzing the dimensions of the science image (i.e. is it square?)
-and by machine learning algorithms.
-Fast Transient Finding Algorithm 13
-Figure 8. Left: The light curve of DWF040623.456-550041.171 is presented. The first 10 data points in the light curve are
-consistent with the flat slope defined in Section 3.1. The source then dims by 0.8 mangitudes in about 10 minutes. After the
-first data point in this decay, the FTF algorithm will note this object as a potential fast transient. Right: The light curve of
-DWF102613.233-350150.332 is presented. The first 5 data points in this light curve would indicate this object as a potential
-fast transient. The light curve then enters into a period of seemingly exponential decay for the remainder of observation. The
-algorithm would detect this inflection change, again alerting astronomers about the potential transient nature of this source. In
-both cases present in this figure, the FTF algorithm can alert astronomers within 5-10 minutes of the transient behavior.
-Figure 9. Left: Light curve of DWF040903.800-554603.567 that was flagged by the FTF algorithm as a potential transient,
-due to the fast 0.1 magnitude drop, and the slower, further 0.1 magnitude decay. Right: Image cutouts centered on the position
-of DWF040903.800-554603.567 on the sky. These image cutouts show the source moving off the edge of the CCD, causing the
-decreasing light curve.
-In Figure 9, we present an example of an astronomical source DWF040903.800-554603.567 appearing to exhibit
-transient behavior. In the left panel of Figure 9, the light curve dims by > 0.1 magnitude in one minute before
-continuing to decay over the next five minutes. Upon visual inspection of the fits images (in the right panel of Figure
-9, it is clear that the telescope shifted slightly, placing the source on the edge of the detector, and afterwards, the
-sources is slowly moving out of frame.
-In Figure 10, we present a light curve that was misidentified as a transient due to edge effects, but for a slightly different reason than that shown in Figure 9. In the left panel of Figure 10, we present the light curve of DWF040748.870-
-541956.717 that appears at a magnitude of g ≈ 19.7 out of a 5σ background upper limit of g < 22.5. The source then
-proceeds to decay by 0.6 magnitudes over the course of about 7 minutes. Upon inspection of the images, shown in the
-right panel of Figure 10, a bright source is shown moving out of frame. We suspect that the cause of the appearance of
-the source at g ≈ 19.7 more than 50 minutes after the observation of the field began is the following: 1) a bright star
-was present in the field at coordinates slightly offset from those of DWF040748.870-541956.717, 2) this bright source
-began to move out of frame, 3) eventually the centroid of the star is out of frame, but light from the star is still being
-14 Strausbaugh et al.
-Figure 10. Left: Light curve of DWF040748.870-541956.717 that was flagged by the FTF algorithm as a potential transient.
-This source seems to appear at g ∼ 19.7 before rapidly fading by ∼0.6 magnitudes in 7 minutes. Right: Image cutouts centered
-on the position of DWF040748.870-541956.717 on the sky. Upon further inspection, it appears that a bright source is on the
-edge of the CCD; as it moves further off the edge, a small section of the star is still visible. This small bit of flux is assigned to
-coordinates still in the field of view of this CCD, and a new source is generated in the catalog. As the source continues to move
-off the CCD, the measured flux decreases.
-detected; the NOAO pipeline then identifies a new source using coordinates in frame 4) as the source continues to
-move out of frame, the brightness of the object continues to decrease.
-5. CONCLUSIONS AND FUTURE WORK
-The Deeper, Wider, Faster program is unique in terms of its depth (g ∼ 23 per image) and its short cadence (∼
-1 minute) when compared to other transient surveys, occupying a parameter space with a distinct lack of coverage
-(e.g., Andreoni et al. 2020b, Figure 6). In addition to its depth and cadence, DWF offers a new way to explore
-transient phenomena due to the simultaneous wide-field multi-wavelength observations performed across the entire
-electromagnetic spectrum. Identification of transient phenomena in transient surveys has so far relied on the imperfect
-science of image subtraction. The rudimentary classification of transient phenomena requires analysis of the light
-curves of these objects, with more refined classifications relying heavily on a spectral analysis of the object.
-In this work, we present the Fast Transient Finding algorithm, capable of identifying transient phenomena both
-independently of image subtraction, and in tandem with an image subtraction algorithm, on the DWF data stream
-light curves. We focused on identifying fast transients (e.g., explosive phenomena) in this paper, but also demonstrate
-how the FTF algorithm can be customized to find other kinds transients and variables.
-This type of algorithm occupies a unique space within the transient detection landscape. Most currently operating optical surveys (e.g., ZTF) do not detect intra-night variability, and as such, miss the opportunity to alert the
-community for possible follow-up on fast evolving transients such as GRB and FRB counterparts.
-We see the work in this paper as the first step towards implementation of real time transient classification. We
-will first identify potential transients using the FTF algorithm. Next we will combine the multi-wavelength data sets
-obtained by the DWF for sources of interest. We will either extract features from this combined multi-frequency data
-set or run a deep learning classification algorithm in real-time (Cucchiara et al. in preparation).
-The FTF algorithm will be incorporated into the DWF pipeline and deployed on the next DWF run, as shown
-in Figure 11. In its first iterations the algorithm will be working off of the light curves generated by the image
-subtractions performed by the Mary pipeline (Andreoni et al. 2017). When a source is first identified as a candidate
-by image subtraction, a light curve will begin to be populated for that source. If the slope of the light curve of that
-source is above some threshold, which we can select manually for specific sources (very high for flare stars or slightly
-lower for slower evolving transients) or automatically using a statistical measure (e.g. Figure 4), then that source will
-be identified as a potential fast transient candidate. Candidates from the image subtraction are provided to human
-observers using interactive visualization tools. We will give priority to sources that are flagged as potential transients
-by the FTF algorithm, as these sources are both image-subtracted candidates and FTF candidates. As more data is
-Fast Transient Finding Algorithm 15
-Figure 11. Current data flow for incorporation of the FTF algorithm into the DWF pipeline. The green arrows represent the
-new data flows described in this paper. Data from DECam are compressed (Vohl et al. 2017) and sent to Australia for analysis.
-The images are processed by the Mary Pipeline (Andreoni et al. 2017) and image subtractions are performed. Light curves of
-sources flagged through image subtraction are fed to the FTF algorithm. The light curves are analyzed and the results are fed
-to the Data Visualization (e.g., Meade et al. 2017), or used directly to trigger follow-up observations.
-generated, sources with more inflection points will drop out of the FTF candidate list. We can trigger followup of
-image subtracted and FTF candidates to classify these sources in real-time (e.g. with detailed spectra).
-ACKNOWLEDGMENTS
-RS and AC are supported by the NSF Grant AST# 1831682.
-REFERENCES
-Acernese, F., Agathos, M., Agatsuma, K., et al. 2015,
-Classical and Quantum Gravity, 32, 024001,
-doi: 10.1088/0264-9381/32/2/024001
-Akeson, R., Armus, L., Bachelet, E., et al. 2019, arXiv
-e-prints, arXiv:1902.05569.
-https://arxiv.org/abs/1902.05569
-Akiyama, S., Wheeler, J. C., Meier, D. L., & Lichtenstadt,
-I. 2003, ApJ, 584, 954, doi: 10.1086/344135
-Alam, S., Ata, M., Bailey, S., et al. 2017, MNRAS, 470,
-2617, doi: 10.1093/mnras/stx721
-Andersen, B. C., Bandura, K. M., Bhardwaj, M., et al.
-2020, Nature, 587, 54, doi: 10.1038/s41586-020-2863-y
-Andreoni, I., & Cooke, J. 2019, in Southern Horizons in
-Time-Domain Astronomy, ed. R. E. Griffin, Vol. 339,
-135–138, doi: 10.1017/S1743921318002399
-Andreoni, I., Jacobs, C., Hegarty, S., et al. 2017, PASA, 34,
-e037, doi: 10.1017/pasa.2017.33
-Andreoni, I., Kool, E. C., Sagues Carracedo, A., et al.
-2020a, arXiv e-prints, arXiv:2008.00008.
-https://arxiv.org/abs/2008.00008
-Andreoni, I., Cooke, J., Webb, S., et al. 2020b, MNRAS,
-491, 5852, doi: 10.1093/mnras/stz3381
-Arcavi, I., Gal-Yam, A., Kasliwal, M. M., et al. 2010, ApJ,
-721, 777, doi: 10.1088/0004-637X/721/1/777
-Arnett, D., & Clayton, D. 1970, Nature, 227, 780,
-doi: 10.1038/227780a0
-Ball, N. M., Brunner, R. J., Myers, A. D., & Tcheng, D.
-2006, The Astrophysical Journal, 650, 497
-Becker, A. 2015, HOTPANTS: High Order Transform of
-PSF ANd Template Subtraction.
-http://ascl.net/1504.004
-Becker, R. H., Fan, X., White, R. L., et al. 2001, AJ, 122,
-2850, doi: 10.1086/324231
-Bellm, E. C., Kulkarni, S. R., Graham, M. J., et al. 2019,
-PASP, 131, 018002, doi: 10.1088/1538-3873/aaecbe
-Bertin, E., & Arnouts, S. 1996, A&AS, 117, 393,
-doi: 10.1051/aas:1996164
-Bertin, E., Mellier, Y., Radovich, M., et al. 2002, in
-Astronomical Society of the Pacific Conference Series,
-Vol. 281, Astronomical Data Analysis Software and
-Systems XI, ed. D. A. Bohlender, D. Durand, & T. H.
-Handley, 228
-Blondin, J. M., Mezzacappa, A., & DeMarino, C. 2003,
-ApJ, 584, 971, doi: 10.1086/345812
-Bloom, J. S., Richards, J. W., Nugent, P. E., et al. 2012,
-PASP, 124, 1175, doi: 10.1086/668468
-Bochenek, C. D., Ravi, V., Belov, K. V., et al. 2020,
-Nature, 587, 59, doi: 10.1038/s41586-020-2872-x
-Burrows, A., Livne, E., Dessart, L., Ott, C. D., & Murphy,
-J. 2007, ApJ, 655, 416, doi: 10.1086/509773
-Cao, Y., Nugent, P. E., & Kasliwal, M. M. 2016, PASP,
-128, 114502, doi: 10.1088/1538-3873/128/969/114502
-Cao, Y., Kasliwal, M. M., Arcavi, I., et al. 2013, ApJL, 775,
-L7, doi: 10.1088/2041-8205/775/1/L7
-16 Strausbaugh et al.
-Cao, Y., Kulkarni, S. R., Howell, D. A., et al. 2015, Nature,
-521, 328, doi: 10.1038/nature14440
-Chou, J., & Nguyen, T. 2018, IEEE Transactions on
-Industrial Informatics, 14, 3132,
-doi: 10.1109/TII.2018.2794389
-Chou, J.-S., & Truong, T. T. H. 2019, Soft Computing, 23,
-3545, doi: 10.1007/s00500-019-03863-1
-Coughlin, M., Andreoni, I., Anand, S., et al. 2020,
-ZTF20acozryr/AT2020yxz: Zwicky Transient Facility
-discovery of a fast optical transient with no associated
-GRB. https://gcn.gsfc.nasa.gov/gcn3/28841.gcn3
-Dark Energy Survey Collaboration, Abbott, T., Abdalla,
-F. B., et al. 2016, MNRAS, 460, 1270,
-doi: 10.1093/mnras/stw641
-de la Fuente Marcos, C., & de la Fuente Marcos, R. 2017,
-Research Notes of the American Astronomical Society, 1,
-5, doi: 10.3847/2515-5172/aa96b4
-Debosscher, J., Sarro, L. M., Aerts, C., et al. 2007, A&A,
-475, 1159, doi: 10.1051/0004-6361:20077638
-Díaz, M. C., Beroiz, M., Peñuela, T., et al. 2016, The
-Astrophysical Journal, 828, L16,
-doi: 10.3847/2041-8205/828/2/l16
-Dietterich, T. G. 2002, in Structural, Syntactic, and
-Statistical Pattern Recognition, ed. T. Caelli, A. Amin,
-R. P. W. Duin, D. de Ridder, & M. Kamel (Berlin,
-Heidelberg: Springer Berlin Heidelberg), 15–30
-Duev, D. A., Mahabal, A., Masci, F. J., et al. 2019,
-Monthly Notices of the Royal Astronomical Society, 489,
-3582, doi: 10.1093/mnras/stz2357
-Fan, X., Narayanan, V. K., Lupton, R. H., et al. 2001, AJ,
-122, 2833, doi: 10.1086/324111
-Feigelson, E. D., & Babu, G. J. 2012, Significance, 9, 22,
-doi: https://doi.org/10.1111/j.1740-9713.2012.00587.x
-Fischer, P., McKay, T. A., Sheldon, E., et al. 2000, AJ, 120,
-1198, doi: 10.1086/301540
-Förster, F., Cabrera-Vives, G., Castillo-Navarrete, E., et al.
-2020, arXiv e-prints, arXiv:2008.03303.
-https://arxiv.org/abs/2008.03303
-Fraser, M., Magee, M., Kotak, R., et al. 2013, ApJL, 779,
-L8, doi: 10.1088/2041-8205/779/1/L8
-Geßner, H. 1981, Veroeffentlichungen der Sternwarte
-Sonneberg, 9, 361
-Goobar, A., Amanullah, R., Kulkarni, S. R., et al. 2017,
-Science, 356, 291, doi: 10.1126/science.aal2729
-Graham, M. J., Kulkarni, S. R., Bellm, E. C., et al. 2019,
-PASP, 131, 078001, doi: 10.1088/1538-3873/ab006c
-Helwan, A., & Uzun Ozsahin, D. 2017, Applied
-Computational Intelligence and Soft Computing, 2017,
-3048181, doi: 10.1155/2017/3048181
-Hinshaw, G., Larson, D., Komatsu, E., et al. 2013, ApJS,
-208, 19, doi: 10.1088/0067-0049/208/2/19
-Hoffmeister, C. 1963, Veroeffentlichungen der Sternwarte
-Sonneberg, 6, 1
-Honscheid, K., & DePoy, D. L. 2008, arXiv e-prints,
-arXiv:0810.3600. https://arxiv.org/abs/0810.3600
-Horesh, A., Kulkarni, S. R., Fox, D. B., et al. 2012, ApJ,
-746, 21, doi: 10.1088/0004-637X/746/1/21
-Hounsell, R., Scolnic, D., Foley, R. J., et al. 2018, ApJ, 867,
-23, doi: 10.3847/1538-4357/aac08b
-Hung, T., Gezari, S., Cenko, S. B., et al. 2018, ApJS, 238,
-15, doi: 10.3847/1538-4365/aad8b1
-IceCube Collaboration. 2005, Nuclear Physics B
-Proceedings Supplements, 143, 367,
-doi: 10.1016/j.nuclphysbps.2005.01.132
-Ivezić, Ž., Kahn, S. M., Tyson, J. A., et al. 2019, ApJ, 873,
-111, doi: 10.3847/1538-4357/ab042c
-Jamal, S., & Bloom, J. S. 2020, ApJS, 250, 30,
-doi: 10.3847/1538-4365/aba8ff
-Kaneda, Y., & Mineno, H. 2016, Expert Systems with
-Applications, 59, 217 ,
-doi: https://doi.org/10.1016/j.eswa.2016.04.012
-Karathanasopoulos, A., Dunis, C., & Khalil, S. 2016,
-Quantitative Finance, 16, 1,
-doi: 10.1080/14697688.2016.1211796
-Kasliwal, M. M., Kulkarni, S. R., Gal-Yam, A., et al. 2010,
-ApJL, 723, L98, doi: 10.1088/2041-8205/723/1/L98
-Kim, D.-W., & Bailer-Jones, C. A. L. 2016, A&A, 587,
-A18, doi: 10.1051/0004-6361/201527188
-Kochanek, C. S., Shappee, B. J., Stanek, K. Z., et al. 2017,
-PASP, 129, 104502, doi: 10.1088/1538-3873/aa80d9
-Kremer, J., Stensbo-Smidt, K., Gieseke, F., Pedersen,
-K. S., & Igel, C. 2017, IEEE Intelligent Systems, 32, 16,
-doi: 10.1109/MIS.2017.40
-Kuzminov, V. V. 2012, European Physical Journal Plus,
-127, 113, doi: 10.1140/epjp/i2012-12113-0
-Laher, R., Masci, F., Groom, S., et al. 2017
-Lasker, B. M., Lattanzi, M. G., McLean, B. J., et al. 2008,
-AJ, 136, 735, doi: 10.1088/0004-6256/136/2/735
-Law, C. J., Gaensler, B. M., Metzger, B. D., Ofek, E. O., &
-Sironi, L. 2018, ApJL, 866, L22,
-doi: 10.3847/2041-8213/aae5f3
-Law, N. M., Kulkarni, S. R., Dekany, R. G., et al. 2009,
-PASP, 121, 1395, doi: 10.1086/648598
-LIGO Scientific Collaboration, Aasi, J., Abbott, B. P.,
-et al. 2015, Classical and Quantum Gravity, 32, 074001,
-doi: 10.1088/0264-9381/32/7/074001
-Lin, L., Zhang, C. F., Wang, P., et al. 2020, Nature, 587,
-63, doi: 10.1038/s41586-020-2839-y
-Fast Transient Finding Algorithm 17
-Liu, D., Deng, W., Fan, Z., et al. 2020, MNRAS, 493, 3825,
-doi: 10.1093/mnras/staa558
-LSST Science Collaboration, Marshall, P., Anguita, T.,
-et al. 2017, arXiv e-prints, arXiv:1708.04058.
-https://arxiv.org/abs/1708.04058
-Magnier, E. A., Schlafly, E., Finkbeiner, D., et al. 2013,
-ApJS, 205, 20, doi: 10.1088/0067-0049/205/2/20
-Masci, F. J., Laher, R. R., Rebbapragada, U. D., et al.
-2017, Publications of the Astronomical Society of the
-Pacific, 129, 1. https://www.jstor.org/stable/26660040
-Meade, B., Fluke, C., Cooke, J., et al. 2017, PASA, 34,
-e023, doi: 10.1017/pasa.2017.15
-Möller, A., Peloton, J., Ishida, E. E. O., et al. 2021,
-MNRAS, 501, 3272, doi: 10.1093/mnras/staa3602
-Narayan, G., Zaidi, T., Soraisam, M., & ANTARES
-Collaboration. 2018, in American Astronomical Society
-Meeting Abstracts, Vol. 231, American Astronomical
-Society Meeting Abstracts #231, 332.08
-Narayan, G., Zaidi, T., Soraisam, M. D., et al. 2018, The
-Astrophysical Journal Supplement Series, 236, 9,
-doi: 10.3847/1538-4365/aab781
-Nicholl, M., Smartt, S. J., Jerkstrand, A., et al. 2013,
-Nature, 502, 346, doi: 10.1038/nature12569
-Nomoto, K. 1982, ApJ, 253, 798, doi: 10.1086/159682
-Ofek, E. O., Rabinak, I., Neill, J. D., et al. 2010, ApJ, 724,
-1396, doi: 10.1088/0004-637X/724/2/1396
-Ofek, E. O., Sullivan, M., Cenko, S. B., et al. 2013, Nature,
-494, 65, doi: 10.1038/nature11877
-Onken, C. A., Wolf, C., Bessell, M. S., et al. 2019,
-Publications of the Astronomical Society of Australia, 36,
-e033, doi: 10.1017/pasa.2019.27
-Patterson, M. T., Bellm, E. C., Rusholme, B., et al. 2019,
-PASP, 131, 018001, doi: 10.1088/1538-3873/aae904
-Perrett, K., Balam, D., Sullivan, M., et al. 2010, AJ, 140,
-518, doi: 10.1088/0004-6256/140/2/518
-Piro, A. L., Chang, P., & Weinberg, N. N. 2010, ApJ, 708,
-598, doi: 10.1088/0004-637X/708/1/598
-Planck Collaboration, Aghanim, N., Akrami, Y., et al.
-2020, A&A, 641, A6, doi: 10.1051/0004-6361/201833910
-Rau, A., Kulkarni, S. R., Law, N. M., et al. 2009, PASP,
-121, 1334, doi: 10.1086/605911
-Rest, A., Stubbs, C., Becker, A. C., et al. 2005, ApJ, 634,
-1103, doi: 10.1086/497060
-Rhoads, J. E. 1997, ApJL, 487, L1, doi: 10.1086/310876
-Richards, J. W., Starr, D. L., Butler, N. R., et al. 2011,
-ApJ, 733, 10, doi: 10.1088/0004-637X/733/1/10
-Ricker, G. R., Winn, J. N., Vanderspek, R., et al. 2015,
-Journal of Astronomical Telescopes, Instruments, and
-Systems, 1, 014003, doi: 10.1117/1.JATIS.1.1.014003
-Riess, A. G., Filippenko, A. V., Challis, P., et al. 1998, AJ,
-116, 1009, doi: 10.1086/300499
-Riess, A. G., Macri, L. M., Hoffmann, S. L., et al. 2016,
-ApJ, 826, 56, doi: 10.3847/0004-637X/826/1/56
-Sagert, I., Fischer, T., Hempel, M., et al. 2009, Phys. Rev.
-Lett., 102, 081101, doi: 10.1103/PhysRevLett.102.081101
-Samus’, N. N., Kazarovets, E. V., Durlevich, O. V.,
-Kireeva, N. N., & Pastukhova, E. N. 2017, Astronomy
-Reports, 61, 80, doi: 10.1134/S1063772917010085
-Selvin, S., Vinayakumar, R., Gopalakrishnan, E. A.,
-Menon, V. K., & Soman, K. P. 2017, in 2017
-International Conference on Advances in Computing,
-Communications and Informatics (ICACCI), 1643–1647,
-doi: 10.1109/ICACCI.2017.8126078
-Singer, L. P., Cenko, S. B., Kasliwal, M. M., et al. 2013,
-ApJL, 776, L34, doi: 10.1088/2041-8205/776/2/L34
-Smith, K. 2019, in The Extragalactic Explosive Universe:
-the New Era of Transient Surveys and Data-Driven
-Discovery, 51, doi: 10.5281/zenodo.3478098
-Spergel, D., Gehrels, N., Baltay, C., et al. 2015, arXiv
-e-prints, arXiv:1503.03757.
-https://arxiv.org/abs/1503.03757
-Svinkin, D., Golenetskii, S., Aptekar, R., et al. 2020, IPN
-triangulation of GRB 201103B (consistent with
-ZTF20acozryr/AT2020yxz).
-https://gcn.gsfc.nasa.gov/gcn3/28844.gcn3
-Swaters, R. A., & Valdes, F. G. 2007, in Astronomical
-Society of the Pacific Conference Series, Vol. 376,
-Astronomical Data Analysis Software and Systems XVI,
-ed. R. A. Shaw, F. Hill, & D. J. Bell, 269
-Valdes, F. G., & Swaters, R. A. 2007, in Astronomical
-Society of the Pacific Conference Series, Vol. 376,
-Astronomical Data Analysis Software and Systems XVI,
-ed. R. A. Shaw, F. Hill, & D. J. Bell, 273
-Vohl, D., Pritchard, T., Andreoni, I., Cooke, J., & Meade,
-B. 2017, PASA, 34, e038, doi: 10.1017/pasa.2017.34
-Wardęga, K., Zadrożny, A., Beroiz, M., Camuccio, R., &
-Díaz, M. C. 2020, arXiv e-prints, arXiv:2009.14614.
-https://arxiv.org/abs/2009.14614
-Watson, C., Henden, A. A., & Price, A. 2017, VizieR
-Online Data Catalog, B/vsx
-Webb, S., Lochner, M., Muthukrishna, D., et al. 2020,
-MNRAS, 498, 3077, doi: 10.1093/mnras/staa2395
-Wolf, R. C., D’Andrea, C. B., Gupta, R. R., et al. 2016,
-The Astrophysical Journal, 821, 115,
-doi: 10.3847/0004-637x/821/2/115
-Zhang, Y., & Zhao, Y. 2015, Data Science Journal, 14, 11,
-doi: 10.5334/dsj-2015-011
-18 Strausbaugh et al.
-Zhang, Z., Barbary, K., Nothaft, F. A., et al. 2015, in 2015
-IEEE International Conference on Big Data (Big Data),
-918–927, doi: 10.1109/BigData.2015.7363840
+g
+−
+r
+0 1 2
+g − r
+0.0
+0.5
+r
+−
+i
+0.0 0.5
+r − i
+0.0
+0.2
+0.4
+0.6
+i
+−
+z
+0.0 0.2 0.4 0.6
+i − z
+15
+20
+25
+mag
+(
+i
+)
+Synthetic SDSS 0.0 < zspec < 0.3
+(a) Comparison of the synthetic and observed (SDSS) colour distributions for galaxies in the redshift range 0.0 < 𝑧 < 0.3.
+0 2 4
+u − g
+0
+1
+2
+g
+−
+r
+0 1 2
+g − r
+0.0
+0.5
+1.0
+1.5
+r
+−
+i
+0.0 0.5 1.0 1.5
+r − i
+0.0
+0.5
+1.0
+i
+−
+z
+0.0 0.5 1.0
+i − z
+17.5
+20.0
+22.5
+mag
+(
+i
+)
+Synthetic SDSS VIPERS 0.3 < zspec < 0.7
+(b) Comparison of the synthetic and observed (SDSS and VIPERS) colour distributions, over the redshift range 0.3 < 𝑧 < 0.7.
+0 2 4
+u − g
+0
+1
+2
+3
+g
+−
+r
+0 1 2 3
+g − r
+0.0
+0.5
+1.0
+1.5
+r
+−
+i
+0.0 0.5 1.0 1.5
+r − i
+0.0
+0.5
+1.0
+1.5
+i
+−
+z
+0.0 0.5 1.0 1.5
+i − z
+18
+20
+22
+24
+mag
+(
+i
+)
+Synthetic SDSS DEEP2 0.7 < zspec < 1.0
+(c) Colour distribution comparison following panel (b), for synthetic and observed (SDSS and DEEP2) colour distributions for galaxies in the redshift
+range 0.7 < 𝑧 < 1.0.
+0 1 2 3 4
+u − g
+0.0
+0.5
+1.0
+1.5
+zspec
+0 1 2
+g − r
+0.0 0.5 1.0 1.5
+r − i
+0 1
+i − z
+16 20 24
+mag(i)
+Synthetic SDSS DEEP2
+(d) Distribution of galaxy colours and i-magnitude with redshift for the synthetic, SDSS and DEEP2 data sets.
+Figure 1. Comparison of synthetic and observational data: Panels show different projections of the joint distributions of colours (panels (a), (b), (c)),
+and of the colours and i-magnitude and redshift (panel (d)).
+input photometry 𝑝(𝑧𝑘 |𝑐𝑘 ) is a combination of Gaussian distributions. This Gaussian mixture is characterized by the means 𝜇𝑖(𝑐𝑘 )
+and standard deviations 𝜎𝑖(𝑐𝑘 ) of the Gaussian components, and
+the mixing probability of association of the datapoint with a specific
+cluster 𝜋𝑖(𝑐𝑘 ) , satisfying Í𝑚
+𝑖=1
+𝜋𝑖(𝑐𝑘 ) = 1. While the number of
+components in the mixture, 𝑚, is generally pre-specified or independently optimized, the rest of the parameters are learned using an
+unsupervised clustering algorithm.
+MNRAS 000, 1–14 (2021)
+6 Ramachandra et al.
+c p(zk| ck) k
+Figure 2. Neural network architecture for the Mixture Density Framework.
+The colour-magnitude inputs are mapped to the Gaussian mixture model
+parameters in order to obtain a conditional density distribution 𝑝(𝑧phot |𝑐).
+3.2.1 Mixture Density Networks
+In order to learn the scalars that parameterise the Gaussian mixture model 𝜇(𝑐𝑘 ), 𝜎(𝑐𝑘 ), 𝜋(𝑐𝑘 ), we implement a Mixture Density
+Network (MDN; Bishop 1994) by combining a conventional neural network with a mixture density model to predict the conditional
+probability in Equation (1) for the redshift 𝑝(𝑧𝑘 |𝑐𝑘 ) for given broad
+band colours 𝑐𝑘 ∈ C. It has to be noted the this training itself is
+supervised, i.e., the target 𝑧spec is provided for every 𝑐𝑘 ∈ C, but the
+clustering itself is inherently unsupervised.
+A crucial improvement in this prediction model is achieved by
+replacing the mean-squared error type of penalty (or a loss function),
+𝑙(Θ) ∝ |{𝑧phot}(Θ) − {𝑧spec}|2
+(equivalent to negative log-likelihood
+for the case of a single-component Gaussian distribution) as a function of network’s model parameters Θ with a more generic negative
+log likelihood function given in Equation (2):
+𝑙(Θ) = − logÖ
+𝑘
+𝑝(𝑧𝑘 |𝑐𝑘 , Θ) = −
+∑︁
+𝑘
+log 𝑝(𝑧𝑘 |𝑐𝑘 , Θ) (2)
+= −
+∑︁
+𝑘
+log∑︁𝑚
+𝑖=1
+𝜋𝑖(𝑐𝑘 , Θ)N (𝑧𝑘 |𝜇𝑖(𝑐𝑘 , Θ), 𝜎𝑖(𝑐𝑘 , Θ)) (3)
+Since the likelihood of the dataset is simply Î
+𝑘 𝑝(𝑧𝑘 |𝑐𝑘 ), the loss
+𝑙(Θ) as a function of network parameters Θ (weights and biases of the
+network) reduces to a convenient summation form whose derivative
+terms are easily obtained during training of the neural network. We
+train the network to maximize the sum of the log-likelihoods of the
+output PDFs given in Equation (2).
+The prescription of minimizing a mean-squared (or similar pointwise) error function lacks a probabilistic view since one does not
+explore the likelihood surface around the minimum. Hence error
+bars on the estimates are typically absent in the outputs of such neural networks. In contrast, the MDN provides an inexpensive approach
+to quantify the epistemic uncertainties in the predictions, as demonstrated further in Section 4.2. Hence MDN is the primary estimation
+component of the syth-z framework.
+3.2.2 Training procedure
+The first step towards training an ML-based prediction model lies in
+curating the data. We first split the synthetic data into training and ‘inset’ validation sets. A fraction (∼10%) of the ∼200,000 synthetic datapoints is used for validation and testing purposes. These ‘hold-out’
+datapoints are randomly chosen, and do not contribute to the training
+of the algorithm. With the remaining datapoints, we also perform a
+re-sampling before training the network. We choose ∼200 redshift
+bins in the range 0.0 < 𝑧 < 1.2 and randomly select 50 galaxies in
+each bin. The resulting re-sampled datapoints are roughly uniform.
+Since the neural networks are generally sensitive to the underlying
+distribution of the training data, such bias-mitigation techniques can
+overcome issues related to imbalanced training schemes.
+Next, we also re-scale both inputs and targets of the neural network
+model. We standardize the broad band input by removing the mean
+and scaling to unit variance. The mean and variance are computed
+across all bands, so that the correlations between the bands are preserved. We then transform the target redshifts by scaling them in the
+range of 0 to 1. Such pre-processing steps are a common requirement for machine learning tasks. However, the specific choices of
+the re-scaling transformations can be made heuristically. We have
+tested between various choices of transformations and settled on the
+above, based on the rate of convergence and accuracy of the resulting
+estimations.
+The mixture density network (explained in Section 3.2.1) in this
+implementation is fundamentally a mapping estimator from galaxy
+colours to redshift. The sample network (Figure 2) is a fully connected dense network with 11 layers with number of neurons per
+layer as: [5(input) → 512 → 1024 → 2048 → 1024 → 512 →
+256 → 128 → 64 → 32 → 1×3]. The last layer [1×3] corresponds
+to (𝜋, 𝜇, 𝜎) for each grid point that parameterise the predictive conditional distribution 𝑝(𝑧phot|𝑐). Each hidden node in the network has
+a nonlinear hyperbolic tangent (or a Rectified Linear Unit) activation
+(Nwankpa et al. 2018).
+The error function in Equation (2) is optimized during the training,
+and the weights w are updated using an Adam optimizer (Kingma &
+Ba 2014). The training procedure of the mixture density network is
+summarized in Algorithm 1.
+Algorithm 1 Training routine for mixture density networks
+1: w ← Initialize network parameters
+2: while not converged do
+3: 𝑥 ← Subset of the complete training data set (a batch)
+4: for 𝑥𝑘 in 𝑥 do
+5: Forward propagation i.e., map the input colours to Gaussian
+mixture model parameters: (𝜋𝑘 , 𝜇𝑘 , 𝜎𝑘 ) ← 𝑐𝑘 ; w
+6: Compute predictive distribution: 𝑝(𝑧𝑘,phot|𝑐𝑘 ) ←
+(𝜋𝑘 , 𝜇𝑘 , 𝜎𝑘 )
+7: end for
+8: Compute negative log-likelihood: E ← − log L
+9: Update network parameters using back-propagation: w ←
+Adam(∇wE, w)
+10: end while
+The hyper-parameters such as the learning rate, decay rate, and
+network parameters are optimized heuristically by monitoring the
+changes in loss (Equation (2) with different epochs. However, one
+may also consider the use of theoretical optimization methods such
+as hyperopt (Bergstra et al. 2013) and Bayesian optimization (Snoek
+et al. 2012) so that the accuracy of the estimation can be improved.
+3.3 Zero-point calibration
+Adjusting the zero-points of the observational colours to obtain better redshift predictions is a common approach in the template-based
+MNRAS 000, 1–14 (2021)
+Synthetic spectra for redshift estimation: SYTH-Z 7
+photo-z literature (e.g. Benítez 2000a; Coe et al. 2006; Hildebrandt
+et al. 2012; Molino et al. 2014; Laigle et al. 2016; Eriksen et al. 2019;
+Alarcon et al. 2021). It attempts to correct relative zero-point errors
+remaining from the zero-point calibration of the data itself, or errors resulting from incorrect point spread function (PSF) modelling
+(Hildebrandt et al. 2012). It will also absorb any leading order systematic offsets between the templates and the data. When the MDN
+is trained using observations, such zero-point errors are naturally
+learned by the model connecting redshift with colours. However,
+since the synthetic data generated to train the network is noiseless,
+and does not emulate any of the effects imprinted by the observation
+process, an overall zero-point mismatch is, in general, to be expected.
+We parameterise the zero-point correction with four colour offsets
+for each survey (one for each colour used as input by the MDN).
+We estimate the zero-point set {𝜆𝑘 ; 𝑘 = 𝑢 − 𝑔, 𝑔 − 𝑖, 𝑖 − 𝑟, 𝑟 − 𝑧}
+from the measured spectroscopic redshifts {𝑧
+𝑗
+spec; 𝑗 = 1 . . . 𝑁𝑔} and
+measured features for a subset of the training sample. The measured features include the measured expected value of the magnitudes
+and colours, {h𝑐ˆ
+𝑗
+𝑘
+i} and their measured root-mean-squared values,
+{𝜎(𝑐ˆ
+𝑗
+𝑘
+)}. Then,
+𝑝({𝜆𝑘 }|{h𝑐ˆ
+𝑗
+𝑘
+i}, {𝜎(𝑐ˆ
+𝑗
+𝑘
+)}, {𝑧
+𝑗
+spec}) =
+Ö
+𝑁𝑔
+𝑗
+𝑝(𝑧
+𝑗
+spec |h𝑐ˆ
+𝑗
+𝑘
+i, 𝜎(𝑐ˆ
+𝑗
+𝑘
+), {𝜆𝑘 })
+× 𝑝({𝜆𝑘 })
+(4)
+where we assume all galaxies to be measured independently from
+each other and note that the zero-points do not explicitly depend on
+the measured features. The prior 𝑝({𝜆𝑘 }) is uniform. The redshift
+probability is given by
+𝑝(𝑧
+𝑗
+spec |h𝑐ˆ
+𝑗
+𝑘
+i, 𝜎(𝑐ˆ
+𝑗
+𝑘
+), {𝜆𝑘 }) =
+∫
+𝑑𝑐𝑘 𝑝(𝑧
+𝑗
+spec |𝑐
+𝑗
+𝑘
+, h𝑐ˆ
+𝑗
+𝑘
+i, 𝜎(𝑐ˆ
+𝑗
+𝑘
+), {𝜆𝑘 })
+× 𝑝(𝑐
+𝑗
+𝑘
+|h𝑐ˆ
+𝑗
+𝑘
+i, 𝜎(𝑐ˆ
+𝑗
+𝑘
+), {𝜆𝑘 })
+=
+∫
+𝑑𝑐𝑘 𝑝(𝑧
+𝑗
+spec |𝑐
+𝑗
+𝑘
+)
+× 𝑝(𝑐
+𝑗
+𝑘
+|h𝑐ˆ
+𝑗
+𝑘
+i, 𝜎(𝑐ˆ
+𝑗
+𝑘
+), {𝜆𝑘 })
+(5)
+where 𝑐𝑘 are the noiseless features from the synthetic templates and
+𝑝(𝑧
+𝑗
+spec |𝑐
+𝑗
+𝑘
+) is given by the MDN, which only depends explicitly
+on the synthetic colours (going from the first to the second line in
+Equation (5)). The probability of observing the synthetic colours is
+proportional to the measurement likelihood of each object, which is
+usually assumed to be a normal distribution given by the measured
+colour and colour errors. In this case, the normal distribution is
+centered at the colours plus the zero-point shift,
+𝑝(𝑐
+𝑗
+𝑘
+|h𝑐ˆ
+𝑗
+𝑘
+i, 𝜎(𝑐ˆ
+𝑗
+𝑘
+), {𝜆𝑘 }) ∝ exp
+©
+­
+­
+«
+−
+
+𝑐
+𝑗
+𝑘
+− (h𝑐ˆ
+𝑗
+𝑘
+i + 𝜆𝑘 )
+2
+2(𝜎(𝑐ˆ
+𝑗
+𝑘
+))2
+ª
+®
+®
+¬
+. (6)
+In Equation (6) we assume that the magnitude and colours are uncorrelated. Also, note that the zero point for the 𝑖-band magnitude is
+fixed at a value of zero (equivalent to assuming a prior distribution
+of a Dirac delta function centred at zero).
+We run an MCMC and keep the zero-point values that maximize
+the likelihood from Equation (4). We calculate Equation (5) by drawing samples of synthetic colours from 𝑝(𝑐
+𝑖
+𝑘
+|𝑐ˆ
+𝑖
+𝑘
+, {𝜆𝑘 }), weighting
+them by their likelihood at the spectroscopic redshift according to
+0.00
+0.25
+0.50
+0.75
+1.00
+p(zphot|c)
+mi = 14.8 mag
+MDN output (before ZP)
+MDN output (after ZP)
+Marginalized over photometric errors
+(before ZP)
+Marginalized over photometric errors
+(after ZP)
+0.0 0.1 0.2 0.3 0.4 0.5 0.6
+zspec
+0.00
+0.25
+0.50
+0.75
+1.00
+p(zphot|c)
+mi = 18.9 mag
+Figure 3. PDFs for a bright, low redshift galaxy (top panel) and a faint galaxy
+(bottom panel) from SDSS. The 𝑖-band magnitudes of the galaxies are 14.8
+mag and 18.9 mag respectively. The dashed lines show the spectroscopic
+redshift of the galaxies. The blue solid lines show the MDN output before
+zero-point (ZP) calibration and the red lines show the post-calibration output.
+The corresponding shaded regions demonstrate the broadening of the photo-z
+PDF due to marginalization over observational errors.
+MDN, and then taking the average. Calculating the integral from
+Equation (5) exactly can be expensive. An alternative method we
+follow here is to approximate Equation (5) by assuming a normal
+distribution, which we evaluate at the spectroscopic redshift value.
+We draw samples from 𝑝(𝑐
+𝑖
+𝑘
+|𝑐ˆ
+𝑖
+𝑘
+, {𝜆𝑘 }) and calculate the mode of
+𝑝(𝑧|𝑐
+𝑖
+𝑘
+) according to MDN. The mean and variance of the approximate normal distribution are the mean and variance of the set of mode
+values. We have found the zero-point MCMC to converge much faster
+with this approximate method than the exact calculation for fainter
+samples of galaxies, for which a larger integration time is needed to
+calculate Equation (5) exactly. Furthermore, since there can be galaxies with large photometric errors, inaccurate spectroscopic redshift,
+or some misclassified stars, we clip the minimum value the likelihood
+of a galaxy can take to prevent these outliers from dominating the
+overall zero-point likelihood.
+4 RESULTS
+With the development and training of this probabilistic framework,
+we now present the validation results. Due to the discrepancy between
+the training data and observational data, we investigate the effect of
+photometric noise and systematic offsets, and compare the sythz performance against baseline algorithms. The validations in this
+section are done against SDSS, VIPERS and DEEP2 galaxies, and
+not with respect to hold-out synthetic data.
+4.1 Effect of calibration
+The output of the MDN trained from noiseless synthetic data is
+generally a narrow conditional density estimate 𝑝(𝑧phot|𝑐). This is
+expected, since the input colours are point values, while the MDN
+is trained on tightly sampled noiseless data (as explained in Section
+3.2.2). Once the MDN training is complete, we perform a zero-point
+calibration, as detailed in Section 3.3. The resulting conditional density estimate is also narrow, the motivation for zero-point calibration
+MNRAS 000, 1–14 (2021)
+8 Ramachandra et al.
+−0.3 −0.2 −0.1 0.0 0.1 0.2 0.3
+(zphot − zspec)/(1 + zspec)
+0
+2
+4
+6
+8
+PDF
+Testing surveys
+SDSS
+VIPERS
+DEEP2
+No zero-point
+optimization
+Zero-point
+optimization
+Figure 4. Effect of zero-point correction: The PDF shows the relative difference between the predicted and true redshifts before and after the zero point
+correction. For each survey, the zero-point optimization (solid lines) improves
+the accuracy compared to the original MDN results (dashed lines).
+is to correct for the systematic offsets arising due to noiseless synthetic training data. Both these PDFs are shown for two SDSS galaxies in Figure 3. The calibration in the colour space results, on average,
+in the PDFs (the red lines in both panels) agreeing better with the
+spectroscopic redshift 𝑧phot from the SDSS catalogue, than the direct
+output of MDN before zero-point calibration (the blue lines).
+Next, we demonstrate the effect of the colour calibration process
+on all three observational surveys of interest. The SDSS, VIPERS,
+and DEEP2 relative differences (𝑧phot − 𝑧spec)/(1 + 𝑧spec) before
+calibration peak away from zero, as shown in Figure 4. With the zeropoint correction, this distribution peaks closer to zero, signifying
+improved accuracy in the estimated redshifts.
+4.2 Uncertainty estimates
+When the MDN measurements are marginalised over the observational measurement error, the 𝑝(𝑧phot|𝑐) is broader. We investigate
+this by running 1000 MDN evaluations per galaxy, where the input
+colours are drawn from Gaussian distributions corresponding to the
+SDSS photometric error (i.e. we use Equation 5). Figure 3 shows
+the broadening of the photo-z PDF due to averaging over the 1000
+conditional density measurements, before (blue shaded region) and
+after (red shaded lines) the zero-point correction.
+Once the systematic offsets are corrected using the zero-point corrections, the pre-marginalized PDF output of the MDN represents
+the epistemic uncertainty and is described via the distribution of the
+weights of the neural network. Epistemic uncertainties are usually
+model dependent, i.e., they can be reduced by an optimal training process or a better statistical model. Due to the tight sampling of training
+data points and near-optimal training of the MDN, the epistemic uncertainty is highly minimized, as demonstrated in Figure 3. Next, the
+PDF obtained by marginalizing over the observational colours (after
+zero-point correction) represents the aleatoric uncertainty, arising
+from the inherent colour variability. The stochasticity in the prediction is limited by the quality of the observational photometry, and
+cannot be improved by a better training scheme or a more flexible
+neural network.
+The two panels in Figure 3 also show the difference between redshift estimates for a bright, low redshift galaxy and a fainter galaxy
+12 13 14 15 16 17 18 19 20 21 22
+mag(i)
+10−2
+10−1
+100
+Width of
+p(z|c)
+Marginalized over
+photometric errors (after ZP)
+SDSS
+VIPERS
+DEEP2
+MDN output
+(before ZP)
+SDSS
+VIPERS
+DEEP2
+Figure 5. Widths of photo-z PDFs at different 𝑖 band magnitude bins. The
+widths are shown for the three observational surveys - SDSS, VIPERS and
+DEEP2 – used for testing. The widths are shown for two types of PDFs. The
+box plots with hatches show the MDN output before zero-point calibration,
+and the solid box plots are for photo-z PDFs marginalized over observational
+errors (with zero-point correction).
+at a higher redshift. Marginalization over the observed photometric
+errors results in a wider broadening for the faint SDSS object in the
+lower panel. In Figure 5, the effect of obtaining less confident predictions with fainter redshifts is demonstrated for all the galaxies in our
+testing sample. For the SDSS, VIPERS and DEEP2 surveys, the width
+of marginalized 𝑝(𝑧phot|𝑐) increases with larger i-band magnitudes.
+In other words, the aleatoric uncertainty of the redshift prediction
+increases with increasing magnitude. On the other hand, the corresponding width of the MDN density estimates is both smaller, and
+roughly consistent across varying brightness of the galaxies. This
+pre-marginalization 𝑝(𝑧phot|𝑐) includes the uncertainty due to the
+training data prior. That is, the width is primarily due to the limitations in the training process, the information loss due to the small
+number of broad bands, and their colour-redshift degeneracies in the
+limited number of bands. However, the MDN output alone does not
+capture the effect of measurement error in the surveys.
+The process of zero-point calibration implemented within the
+syth-z framework (from Section 3.3) involves an assessment of
+model uncertainty using the noisy galaxy samples and a consequent
+updating of the redshift prediction model. This inverse uncertainty
+quantification is often neglected in machine learning regression algorithms; most prediction codes instead quantify the forward uncertainty propagation (i.e., the influence on the outputs from the parametric variability in the input space) by assessing the mean, variance,
+or the distribution of outputs. An alternative to zero point calibration
+is a bias correction, where a discrepancy function can be determined
+based on spectroscopic redshift values for a small number of observational data points. Within the current syth-z framework, we only
+perform the parameter calibration. However, the bias correction may
+be applied independently, or in combination with the calibration.
+Hence, the syth-z framework has a two-fold treatment of the uncertainties. First, it provides an inverse assessment of uncertainty and
+calibration in the input space, to account for the systematic offsets
+between the trained MDN model and true photometric redshift mapping. Second, it includes a forward uncertainty propagation, identifying the sources of both aleatoric and epistemic uncertainties in the
+redshift estimates.
+MNRAS 000, 1–14 (2021)
+Synthetic spectra for redshift estimation: SYTH-Z 9
+4.3 Comparison with observational training
+We now compare the novel photometric redshift estimation technique
+of syth-z against baseline schemes where the training is done purely
+on observational datasets. To ensure uniformity over the comparison
+models, we use a similar scheme for training while using SDSS and
+VIPERS data. That is, both SDSS and VIPERS datasets (explained
+in Section 2.2) are divided into training and testing sets.
+While our method provides a PDF parameterised by Gaussian
+mixtures for prediction of redshift, several popular metrics rely on
+point estimates. In order to get the best redshift point estimate, we
+choose the mean of the Gaussian component with the highest weight.
+This procedure is commonly used to reduce photo-z PDFs to a point
+estimate (see Appendix B of Schmidt et al. 2020). The standard
+deviation corresponding to the highest weighted component is taken
+as the best Gaussian uncertainty estimate.
+For comparisons, we use the same observational test set for all three
+training schemes. Photometric redshift estimates from the three training schemes are shown in Figure 6. The top panel shows the results
+from the synthetic colour-trained syth-z framework, where the estimates for SDSS, DEEP2 and VIPERS show reasonable agreement
+with the spectroscopic redshifts. In comparison, an SDSS-trained
+model in the lower left panel performs well with the test SDSS
+dataset, but the estimations for VIPERS and DEEP2 are significantly
+biased. This bias arises because SDSS galaxies are selected to be
+preferentially red at intermediate and high redshifts, while DEEP2
+and VIPERS contain mostly blue galaxies (Figure 1). A similar trend
+is seen when an ML model is trained with VIPERS (lower right
+panel of Figure 6): the estimation for hold-out VIPERS and DEEP2
+data sets are both unbiased, whereas redshifts are under-estimated
+for SDSS colours.
+Notable differences across different training schemes can be seen
+in the standard deviations of the redshift predictions 𝑝(𝑧𝑘,pred|𝑐𝑘 ),
+depicted by the error bars in Figure 6. The conditional density estimate of the MDN is conditioned on the training prior. In the case
+of synthetic training, the training data is noiseless and densely samples the colour-redshift space. Hence the upper panel of Figure 6
+shows small error bars for predictions for all three noisy observational datasets. This was obtained by using the pre-marginalization
+PDF (after zero-point calibration), hence only the epistemic uncertainties are captured. By sampling the PDFs based on the photometric
+errors in the observational data, the conditional density estimation is
+much broader, as shown in Figure 5. On the other hand, the lower panels show broader error bars, since the training data sparsely sample
+the colour-redshift space. They also capture the photometric error in
+the observations within the training scheme. This is a crucial difference in the uncertainty quantification of synthetic- and observationaltrained models. While with syth-z, we are able to isolate epistemic
+and aleatoric uncertainties simply by pre- and post-marginalization
+stages, it is simply not possible when the training data is noisy. The
+error bars of SDSS- and VIPERS- trained models in Figure 5 include
+epistemic uncertainty (like the pre-marginalized syth-z PDF) and
+a part of aleatoric uncertainty (unlike the pre-marginalized sythz PDF), without a clear interpretation of their contribution to the
+overall uncertainty of the MDN. An additional marginalization over
+photometric errors during the testing phase would provide another
+contribution to aleatoric uncertainty of the SDSS- and VIPERStrained model.
+The aleatoric uncertainty in the redshift predictions depends on
+the internal randomness in the inputs, i.e., the photometric errors.
+This can not be improved for a given survey. However, the epistemic
+uncertainty in the redshift predictions can be improved easily in a 0.0 0.2 0.4 0.6 0.8 1.0
+zspec
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+zphot
+Training: Synthetic
+Testing: SDSS
+Testing: VIPERS
+Testing: DEEP2 (a) Synthetic training (with zero-point correction).
+0.0 0.2 0.4 0.6 0.8 1.0
+zspec
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+zphot
+Training: SDSS
+(b) SDSS training
+0.0 0.2 0.4 0.6 0.8 1.0
+zspec
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+zphot
+Training: VIPERS
+(c) VIPERS training
+Figure 6. Comparison of predicted photometric redshifts and spectroscopic
+redshifts for observed galaxies. The training is performed using synthetic data
+only (top panel), VIPERS (bottom left) and SDSS (bottom right), respectively.
+All the error bars shown in the plots correspond to MDN outputs without
+marginalizing over the photometric errors.
+synthetic-training scheme, plainly by increasing the size of simulated
+SED templates. This is not a viable option in models trained on observational data, where the available galactic spectra are limited. This
+limitation is more pronounced for fainter galaxies at high redshift,
+where the spectroscopic follow-up is prohibitively expensive.
+In addition, a neural network trained on SDSS may yield lessexplainable error bars when tested on a survey with a different error
+model, such as VIPERS. Hence, understanding the uncertainty propagation and interpreting the error bars with estimation techniques
+like neural networks can be relatively more difficult in noisy training
+schemes.
+4.4 Aggregate metrics for performance evaluation
+In order to quantitatively compare the performance of our
+synthetically-trained photometric redshift estimation model sythz with baseline comparison methods using observational training,
+we consider a few commonly-employed metrics. These benchmarks
+MNRAS 000, 1–14 (2021)
+10 Ramachandra et al.
+0.2 0.4 0.6 0.8
+zspec
+0.0
+0.1
+0.2
+0.3
+σNMAD
+(
+zspec
+)
+Training
+Synthetic
+SDSS
+VIPERS
+0.2 0.4 0.6 0.8
+zspec
+0.0
+0.2
+0.4
+0.6
+η
+(
+zspec
+)
+Training
+Synthetic
+SDSS
+VIPERS
+0.2 0.4 0.6 0.8
+PIT
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+N
+Training
+Synthetic
+SDSS
+VIPERS
+0.2 0.4 0.6 0.8
+zspec
+0
+1
+2
+3
+4
+n
+(
+z
+)
+Training
+Synthetic
+SDSS
+VIPERS
+Observed distribution
+Figure 7. Comparisons between 3 different training schemes, i.e., VIPERS-, SDSS- and synthetically-based training. Testing is done on a combined observational
+dataset that is held-off from all 3 training schemes. Metrics used are the normalized median absolute deviation 𝜎NMAD (top left panel), The catastrophic outlier
+fraction 𝜂 (top right panel), Probability integral transform (bottom left panel) and Galaxy redshift distribution 𝑛(𝑧) (bottom right panel). The shaded dash-dotted
+lines in the bottom left panel show the PIT curves for perfect estimations. The shaded region of the bottom right panel shows the Poisson errors in the bin-counts
+of the 𝑛(𝑧) distribution.
+utilize redshift estimates without a marginalization over photometric
+errors.
+(i) Normalized median absolute deviation: As a measure of
+the accuracy of the model, we use the Normalized median absolute
+deviation 𝜎NMAD (Ilbert et al. 2009) to measure photo-z precision.
+𝜎NMAD = 1.48 × Median 
+|𝑧spec − 𝑧phot|
+1 + 𝑧spec 
+(7)
+The scale factor of 1.48 is used for re-interpreting 𝜎NMAD as the
+standard deviation of normally distributed data. The median of the
+relative difference is taken because it is less sensitive to extreme
+values. Here, 𝑧phot is taken as the mean of the highest weighted
+Gaussian mixture component.
+(ii) Catastrophic Outlier fraction: The fraction of galaxies that
+satisfy
+|𝑧phot − 𝑧spec |
+(1 + 𝑧spec)
+> 𝑓cut (8)
+are regarded as catastrophic failures. The Catastrophic Outlier fraction 𝜂 is used to quantify the number of failed photometric redshift
+estimations (defined by 𝑓cut).
+(iii) Probability integral transform: The cumulative distribution
+function (CDF) of each source evaluated at 𝑧spec is defined as the
+Probability integral transform (PIT).
+PIT = CDF[𝑝, 𝑧spec] =
+∫ 𝑧spec
+−∞
+p(𝑧)d𝑧, (9)
+where 𝑧spec is the true redshift of the source 𝑖, and p(𝑧) is the probability distribution function, i.e., the 3-component Gaussian mixture
+model. The integral is computed from −∞ because the p(𝑧) can have
+non-zero values for negative 𝑧 values. The CDF values at the true
+redshift over the redshift predictions indicate the over-dispersion,
+under-dispersion and the biases. The PIT histogram for accurate
+predictions is uniform between 0 and 1, and the overestimated and
+underestimated uncertainties are concave and convex respectively.
+(iv) Galaxy redshift distribution. The overall redshift distribution of the sample, 𝑛(𝑧) provides a cumulative metric for accuracy
+of the photometric redshift estimation. The point redshift estimate
+𝑧phot of the MDN is chosen based on the weights of the individMNRAS 000, 1–14 (2021)
+Synthetic spectra for redshift estimation: SYTH-Z 11
+ual Gaussian components, similar to the redshift estimations used
+in 𝜎NMAD(𝑧spec) and 𝜂(𝑧spec). However, we note one could use a
+more appropriate 𝑛(𝑧) estimation (using approaches similar to Malz
+& Hogg 2020) using the probabilistic estimate 𝑝(𝑧pred|𝑐) for individual galaxies.
+We expect the performance of the photometric redshift estimation
+scheme to change as a function of redshift. Therefore, we explore the
+above metrics in redshift bins, as shown in Figure 7. The redshift dependence of metrics such as 𝜎NMAD or 𝜂(𝑧spec) are more indicative
+of the performance of neural networks, rather than an average over
+all the testing samples.
+The top left panel of Figure 7 shows 𝜎NMAD variation with spectroscopic redshift. The synthetically-trained model value lies consistently under 𝜎NMAD(𝑧spec) < 0.1. On the other hand, the SDSStrained model has lower 𝜎NMAD(𝑧phot) for 𝑧spec < 0.3, but rises over
+𝜎NMAD(𝑧spec) > 0.1 at higher redshifts. Similarly, at low redshifts
+(𝑧spec < 0.25) the VIPERS-trained model has higher 𝜎NMAD(𝑧phot)
+than that of the synthetic model.
+As in the case with 𝜎NMAD(𝑧spec), a point redshift estimate 𝑧phot
+of the MDN is chosen based on the weights of the individual Gaussian components. In our comparisons, the cutoff for the failures is
+chosen to be 𝑓𝑐𝑢𝑡 = 0.15. While the VIPERS-trained model has more
+catastrophic outliers (up to 60%) at 𝑧spec < 0.1, the SDSS-trained
+model has a large number of outliers in the range 0.5 < 𝑧spec < 0.8.
+The synthetically-trained model performs well across the entire range
+of 𝑧spec, with the outlier fraction 𝜂(𝑧spec) being consistently under
+10%.
+In the bottom left panel of Figure 7, we show the PIT curve in the
+absence of the estimation outliers by discarding the PIT < 0.05 and
+PIT > 0.95. Both SDSS- and VIPERS-training show significantly
+more biased, and under-dispersed redshift-estimation PDFs. This is
+seen in the deviation from the PIT curves corresponding to perfect estimations (shown in dash-dotted lines). The synthetic-training yields
+in a PIT curve that is closest to a uniform distribution, showing a
+better-calibrated redshift estimation.
+As a final comparison, the bottom right panel of Figure 7 shows
+a comparison of 𝑛(𝑧) for the three training schemes, along with the
+standard deviation of the galaxy counts per bin. The VIPERS-trained
+photometric redshift distribution deviated from that of the observed
+sample (which is the ‘hold-out’ sample of SDSS and VIPERS galaxies) at low redshifts. Similarly the SDSS-trained sample deviates
+significantly at 𝑧spec > 0.5.
+With these aggregate comparisons, the performance of syth-z is
+shown to be superior to that of the baseline models trained on observational data points. While the metrics are by no means exhaustive,
+they are sufficient to demonstrate the advantages of using realistic
+synthetic data in photo-z modelling. A more complete analysis with
+performance metrics, in the context of future surveys like LSST or
+Euclid, is reserved for later investigations.
+5 DISCUSSIONS AND CONCLUSIONS
+We have presented a hybrid framework for probabilistic photometric
+redshift estimation, syth-z, with 3 notable differences from existing
+photo-z codes:
+• The training set comprises entirely of synthetic photometry
+generated from fsps and star formation histories from realistic galaxy
+formation models (as shown in Section 2.1).
+• A probabilistic network using Gaussian mixture modelling (described in Section 3.2), and marginalization over noisy observational
+photometry isolates the aleatoric and epistemic uncertainties in the
+redshift prediction (explained in Section 4.2).
+• Survey-specific calibration is provided to mitigate the leading
+order offsets between noiseless synthetic photometry and noisy observations (formulated in Section 3.3 and the results shown in Section
+4.1.)
+Development of such a synthetic-data based photometric redshift estimation framework requires meticulous experimental design,
+where both modelling of synthetic SEDs (shown in Figure A1) and
+their colour-redshift distribution (in Figure 1) has to match with the
+observational surveys. Once a surrogate model for mapping photometry to redshifts is trained, systematic offsets in the prediction
+can be corrected (Figure 4) via a calibration technique inspired by
+template-fitting algorithms.
+Utilizing this framework, we have demonstrated, using Figure 7,
+that for a choice of inference method with uncertainty quantification, physical modelling of synthetic data can outperform purely
+observation-based training. This work motivates the development of
+robustness requirements for synthetic forward modelling efforts and
+error propagation modelling in the context of upcoming astronomical
+surveys.
+The spectroscopic observational campaigns are expensive, which
+results in restricted coverage over sky area or over faint objects. As
+a result, such samples are incomplete and prone to selection effects,
+which lead to biased training for ML techniques. On the other hand,
+template-based methods usually rely on simple libraries, as physically realistic galaxy SED models quickly become too computationally costly. In this paper, we provide a bridge between these worlds by
+using a set of realistic synthetic templates based on SFHs from stateof-art hydrodynamical simulations and empirical galaxy formation
+models, together with a probabilistic neural network framework to
+estimate fast galaxy redshifts conditioned on LSST-like photometry.
+Each individual component of syth-z (in Section 3 can be replaced, say, by a more realistic template library, with a better ML
+algorithm, or a higher-order offset mitigation technique. However,
+the principles of designing such a framework – the meticulous experimental design, a physical forward model for synthesizing galaxy
+colours, usage of uncertainty quantifiable ML models, and marginalization of estimates over stochastic measurements of observational
+colours – remain the same.
+Investigation into synthetic galaxy models, simulations and realistic galaxy mock catalogues are crucial for astronomical studies in
+the near future. Stage IV dark energy surveys like Euclid and Roman
+Space Telescope would require about 5000 spectroscopic observations to enable photometric calibrations (Stanford et al. 2021). Training and calibration for surveys like the Rubin Observatory’s LSST
+may require an even higher number (about 30,000) of spectroscopic
+objects over roughly 15 widely separated regions (Newman et al.
+2015b). Larger, more complete samples reaching the faintest objects
+would be required to reduce the scatter in photometric redshift estimates. Our approach of synthetic data creation circumvents the need
+for the highly expensive spectroscopic follow-up surveys needed for
+photo-z calibration. In addition, it also avoids the issue of training
+with existing observational data that are neither representative nor
+complete.
+In addition, quantification of error propagation is increasingly important for future sky surveys that probe faint galaxies with broad
+photometric bands. Degeneracies resulting from the limited number
+of filters results in both biased estimations of redshift, and catastrophic outliers in the predictions. With the Gaussian mixture model
+we have employed in syth-z, followed by the marginalization over
+MNRAS 000, 1–14 (2021)
+12 Ramachandra et al.
+observational errors, we are able to model complex photo-z PDFs,
+two of which are shown in Figure 3. Incorporating the mixture models
+not only allows for modelling arbitrary prediction posteriors that are
+not simple Gaussian distributions but also accounts for degeneracy
+in the colour-redshift space.
+The possible offsets in the predictions of the MDN can be traced
+to the lack of modelling of the observational processes, such as the
+PSF response. This offset is specific to synthetic training models,
+and calibration in the input space is necessary to ensure an unbiased
+redshift estimation via the syth-z framework. Stringent requirement
+of unbiased redshift estimation in weak lensing studies (Ma et al.
+2006) necessitates such an offset-mitigation treatment.
+Finally, the computational expense of photometric redshift estimation is also worth noting. Classical template fitting codes can take
+over 1 second per object. In comparison, MDN prediction takes less
+than 0.02 milliseconds per galaxy with a single NVIDIA V100 Tensor Core GPU. This speed-up is reached because the input colours
+can be passed to the trained network in arbitrarily large batches (only
+limited by the device memory). In the context of LSST and Euclid,
+where photometric data of billions of galaxies are expected, this level
+of robustness is required for most photometric analyses.
+Next, we discuss the limitations of the syth-z technique, which
+are applicable to a broader family of photometric redshift estimation
+codes that rely on synthetic SED templates:
+• One possible shortcoming of our synthetic data creation is that
+the universemachine or IllustrisTNG models may not generate
+SFHs representative enough for all galaxies from the observations.
+To solve this problem, new approaches to model the galaxy-halo connection that brings together the advantages of SFH parametric and
+empirical models (Alarcon et al. 2021, in prep.) are currently being
+investigated. Furthermore, the development of surrogate SPS models
+based on such empirical models to speed up the generation of galaxy
+photometry (Hearin et al. 2021, in prep.) is also underway.
+• Another notable issue with approaches that may use synthetic
+data is that the template library may not be representative of the
+galaxies from the observations. That is, the templates may not be
+compatible with any survey galaxy SED. We believe our approach
+of using ML circumvents this issue by learning the overall mapping, rather than the individual one-on-one matching of galaxies.
+Regardless, the validity of the synthetic templates used in syth-z is
+ensured only up to redshift of 𝑧spec ≈ 1 (see Appendix A). Extensive
+benchmarking of synthetic templates will be necessary to broaden
+the scope of syth-z, where proper scoring rules or other evaluation
+metrics would be required.
+• In addition, one should also ensure that the synthetic-trained ML
+model does not extrapolate in the colour-redshift space of the observational surveys. The black-box nature of over-parameterised statistical models (e.g., deep neural networks) renders the interpretability
+of the mapping exceedingly difficult whilst extrapolating. Within this
+study, we have only applied limiting constraints on our data to ensure
+overlap between synthetic and observed colours. However, agreement of training and testing data distributions in a higher-dimensional
+space needs to be investigated.
+• Finally, our treatment for dealing with photometric errors involves large numbers of draws in the colour space, followed by averaging over PDFs from the MDN. The plain estimations of MDN
+(with zero-point calibration) are much faster, and provide mean redshift predictions with associated epistemic uncertainties, but not the
+effect of observational errors. The effect of aleatoric uncertainty
+becomes increasingly important in fainter galaxies. This trade-off
+between inference speed and accounting for all the prediction errors
+can be challenging while scaling the model to billions of galaxies.
+We are currently exploring models based on these requirements, including adaptability to high-performance computing resources, and
+ML techniques of transfer learning and Bayesian neural networks.
+This work facilitates exploration into multiple research avenues.
+In this work, we have only discussed the synthetic data corresponding to 5 (broad) bands. Detailed analyses with various numbers of
+bands (for example, 5 LSST colours, 40 narrow bands of PAUS,
+56 narrow bands from J-PAS, or 101 SPHEREx channels) are easily
+possible. Investigations of correlations between individual bands and
+their effects on photometric redshift estimation can help in designing
+future surveys. Second, ML inference algorithms can be designed
+specifically for cross-matched catalogues using synthetic data. In
+real observational surveys, obtaining a pristine cross-matched sample depends on sky coverage, resolution, and sensitivity of individual
+surveys. This is prone to multiple cross-matches for single sources
+and mismatches. However, the synthetic SEDs will only have to be
+convolved with filter transmission curves of different telescopes in
+order to get perfectly matched galaxies. Third, synthetic colours also
+enable the possibility of inferring star formation rates, metallicities
+and other galactic parameters. A nonlinear mapping between these
+galactic properties and photometric colours can be machine-learned
+since the synthetic data involves these parameters as inputs. Such
+synthetic forward models are highly valuable if the computational
+expense is reduced considerably. The above analyses are under active development and will be presented in the near future.
+3500 4000 4500 5000 5500 6000 6500 7000
+[Å]
+0.2
+0.4
+0.6
+0.8
+1.0
+F
+NGC_4450
+FSPS, fiducial
+FSPS, MAH
+FSPS, Z
+FSPS, V, o
+3500 4000 4500 5000 5500 6000 6500 7000
+[Å]
+0.5
+1.0
+1.5
+2.0
+2.5
+3.0
+F
+NGC_0855
+FSPS, fiducial
+FSPS, MAH
+FSPS, Z
+FSPS, V, o
+Figure A1. Comparison of observed (blue) and synthetic spectra (orange, green, red, and purple). Left panel: Observed spectra from a quenched galaxy in
+Brown et al. (2014) compared with the closest fitting synthetic spectra (orange) generated from FSPS. The spectra obtained by perturbing the slope of the mass
+accretion history 𝛽MAH, stellar and gas metallicity 𝑍, and the dust attenuation of old stars 𝜏
+ISM
+𝑉
+from those of the best fitting-template are shown in green, red
+and purple respectively. Right panel: Similar spectra as the left panel, but for a star forming galaxy.
+APPENDIX A: THE PRECISION OF FSPS SPECTRA
+In this appendix, we show that the synthetic SEDs produced following
+the methodology described in Section 2.1 are indeed representative
+of SEDs from observed galaxies. Figure A1 shows the comparison
+between synthetic and observed spectra. In the left and right panels,
+blue lines depict the spectra of a randomly selected quenched and
+star-forming nearby galaxy Brown et al. (2014), respectively. Orange
+lines show synthetic spectra that are representative of the spectra of
+the previous galaxies. Even though we selected these spectra based
+on visual inspection, we can readily see that there is a reasonable
+match between observed and synthetic spectra.
+It is important to note that the resolution of synthetic spectra is
+worse than that of observed spectra, which explains the smoothing
+of spectral features like emission and absorption lines. We do not
+produce spectra with a higher resolution because we are only interested in broad-band colours throughout this work, and the result of
+convolving high- and low-resolution spectra with broad-band transmission curves is essentially the same.
+In Figure A1, we also explore the sensitivity of synthetic spectra
+to the parameters of our model. To do so, we perturb one of the
+parameters corresponding to the best-fitting model while holding
+the others fixed to the best-fitting value. We can see that the largest
+deviation between the unperturbed and perturbed spectra arises when
+varying the slope of the host halo mass accretion history, 𝛽MAH,
+which is indicated by a green line. In comparison, the stellar and gas
+metallicity 𝑍, and the attenuation of old stars (parameterised as given
+in Charlot & Fall 2000) present smaller impacts on the spectra.

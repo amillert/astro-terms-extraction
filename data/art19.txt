@@ -1,1752 +1,1372 @@
-DRAFT VERSION SEPTEMBER 28, 2021
-Typeset using LATEX twocolumn style in AASTeX62
-The K2 Galactic Archaeology Program: Overview, target selection and survey properties
-SANJIB SHARMA,
-1, 2 DENNIS STELLO,
-3, 1, 4, 2 JOEL C. ZINN,
-3 AND JOSS BLAND-HAWTHORN1, 2
-1Sydney Institute for Astronomy, School of Physics, The University of Sydney, NSW 2006, Australia
-2ARC Centre of Excellence for All Sky Astrophysics in Three Dimensions (ASTRO-3D)
-3School of Physics, University of New South Wales, Sydney, NSW 2052, Australia
-4Stellar Astrophysics Centre, Department of Physics and Astronomy, Aarhus University, DK-8000 Aarhus C, Denmark
+A first look at the topology of reionization redshifts in models of the Epoch of the Reionization
 ABSTRACT
-K2 was a community-driven NASA mission where all targets were proposed through guest observer programs.
-Among those, the K2 Galactic Archaeology Program (K2GAP) was devoted to measuring asteroseismic signals
-from giant stars to inform studies of the Galaxy, with about 25% of the observed K2 targets being allocated to
-this program. Here, we provide an overview of this program. We discuss in detail the target selection procedure
-and provide a python code that implements the selection function (github.com/sanjibs/k2gap). Additionally,
-we discuss the detection completeness of the asteroseismic parameters νmax and ∆ν. Broadly speaking, the
-targets were selected based on 2MASS color J −Ks > 0.5, with finely tuned adjustments for each campaign.
-Making use of the selection function we compare the observed distribution of asteroseismic masses to theoretical
-predictions. The median asteroseismic mass is higher by about 4% compared to predictions. Additionally, the
-number of seismic detections is on average 14% lower than expected. We provide a selection-function-matched
-mock catalog of stars based on a synthetic model of the Galaxy for the community to be used in subsequent
-analyses of the K2GAP data set (physics.usyd.edu.au/k2gap).
-Keywords: Galaxy: disc – Galaxy: evolution – Galaxy: formation – Galaxy: kinematics and dynamics
-1. INTRODUCTION
-The use of asteroseismology to inform studies of the Milky
-Way were proposed over a decade ago (Miglio et al. 2009),
-when it became possible for the first time to detect oscillations in hundreds, even thousands, of distant stars using
-continuous high-cadence, photometric data from space-based
-missions; particularly from CoRoT and Kepler (e.g. De Ridder et al. 2009; Stello et al. 2013). However, these early
-missions were far from ideal for studying the Galaxy as a
-whole, and indeed were never designed with this in mind
-(Sharma et al. 2016, 2017). The main reasons were the limited sky coverage and the lack of a well-defined target selection function. A well understood selection function is fundamental if we are to make meaningful comparisons between
-observed and synthetic/modeled stellar populations (Sharma
-et al. 2011). Such studies play an important role in making
-robust inferences about the Galactic stellar populations.
-A decade ago, the primary NASA Kepler mission targetted a single field in the Cygnus and Lyra constellations for
-four years. In 2014, the compromised satellite was then
-re-purposed for a new mission to stare for ∼ 80 days at a
-time in different directions along the ecliptic (Figure 1); the
-so-called “K2 mission”. K2 was now able to probe stellar
-populations in many directions, covering much more of the
-Galaxy than achieved in earlier missions. This included the
-halo, the bulge, the thin and thick disks, and at vastly different Galactic radii and heights above and below the plane. To
-take advantage of this opportunity, the K2 Galactic Archaeology Program (K2GAP) was formed around an international
-collaboration with the aim of detecting oscillations in thousands of red giants along the ecliptic.
-The primary goal was to establish robust stellar ages for
-the major Galactic stellar components (Rendle et al. 2019;
-Sharma et al. 2019), and to significantly improve on what was
-possible with ESA’s Gaia and ground-based spectroscopic
-survey data alone (Bland-Hawthorn et al. 2019). This was
-achieved by devising a well-documented, reproducible target selection to eliminate the limitations of previous spacebased seismic observations, and to maximize the synergy
-with Galactic spectroscopic surveys. In total, K2 provided
-18 full-length observing campaigns before the fuel ran out
-and the spacecraft was retired by the end of 2018. The
-K2GAP survey has already published a “proof of concept”
-study (Stello et al. 2015) along with a succession of welltested data products. These are Data Release 1 (DR1) containing seismic results from campaign 1 (C1) (Stello et al.
-2017), Data Release 2 (DR2) containing seismic results for
-C3, C6, and C7 (Zinn et al. 2020), and the final Data Release 3 (DR3) with results from all campaigns in one homogeneous catalog (Zinn et al. 2021). In addition, science
-arXiv:2109.12173v1 [astro-ph.GA] 24 Sep 2021
-2 SHARMA ET AL.
-0 50 100 150 200 250 300 350
-Galactic longitude [degree]
-80
-60
-40
-20
+Context. During the Epoch of Reionization (EoR), the first stars and galaxies appear while creating ionized bubbles that will eventually
+percolate near z ∼ 6. These ionized bubbles and percolation process are nowadays under a lot of scrutiny since observations of the
+neutral hydrogen gas will be carried on in the next decade with for example the Square Kilometre Array (SKA) radio-telescope. In
+the meantime, studies of the EoR are performed on semi-analytical and fully numerical cosmological simulations to investigate for
+instance the topology of the process.
+Aims. We analyse the topology of EoR models through the study of regions that are under the radiative influence of ionization sources.
+Those regions are associated with peak patches of the reionization redshift field, for which we measure their general properties such
+as their number, size, shape and orientation. We aim at gaining insights on the geometry of the reionization process and how it relates
+to the matter distribution for example. We also assess how such measurements can be used to quantify the influence of physical
+parameters on the reionization models or the differences between fully numerical simulations and semi-analytical models.
+Methods. We use the framework of the Morse theory and the persistent homology in the context of the Reionization, which is
+investigated via the DisPerSE algorithm on gas density and redshift of reionization maps. We analyse different Reionization scenarios
+with semi-analytical 21cmFAST and fully numerical EMMA simulations.
+Results. We find that we can distinguish between Reionization models with different sources using simple analyses on the number,
+shape and size distributions of the reionization redshift patches. Meanwhile, for every model (of semi-analytical and fully numerical
+simulations), we statistically show that those bubbles are rather prolate and aligned with the underlying filaments of gas. Moreover, we
+briefly highlight that the percolation process of HII bubbles during the EoR can be followed by studying the reionization redshift fields
+with different persistence thresholds. Finally, we show that fully numerical EMMA simulations can be made consistent with 21cmFAST
+models in this topological framework as long as the source distribution is diffuse enough.
+Key words. Cosmology: large-scale structure of Universe, dark ages, reionization, first stars – Methods: numerical – Galaxies:
+formation, high-redshift
+1. Introduction
+The Epoch of Reionization (EoR) marks the transition of a totally neutral to a fully ionized Universe, with its large scales
+structures composed of filaments, voids and very dense regions.
+During the EoR, the first sources of radiation appear, releasing the photons required to ionize the cosmic gas. Light escaping from those first stars and galaxies creates HII regions (also
+known as HII "bubbles") that eventually percolate at the end of
+Reionization between z = 5.3 − 6 (Kulkarni et al. 2019).
+This Epoch is nowadays under many studies to try to understand for instance which kind of sources drove the EoR or
+how and when the HII bubbles overlap. Analysing the large scale
+topology of the EoR is useful to unravel the properties of the object that drove the Reionization, such as the nature of the driving
+sources of the EoR, their spatial distribution, the timing of their
+appearance or the spectrum of their radiation (see for instance
+Chardin et al. (2017)).
+Complementary to studies using the power spectrum for instance (e.g. Mellema et al. (2006); Dixon et al. (2016); Shaw
+et al. (2020)), many works try to tackle those questions with a
+topological approach of the epoch of Reionization. For example,
+Minkowski functionals (and the derived genus or Euler characteristic) are used to analyse the volume, surface aera and curvature of ionized and neutral regions, giving information on the
+shape of these regions and the percolation process (as in e.g.
+Gleser et al. (2006); Lee et al. (2008); Friedrich et al. (2011);
+Hong et al. (2014); Yoshiura et al. (2017); Chen et al. (2019)).
+Other studies focus on the size distributions of neutral or ionized regions (also respectively called Island Size Distribution or
+ISD and Bubble Size Distribution or BSD) which characterise
+the size of neutral islands or HII bubbles and their percolation
+during the EoR. Examples of methods used in such studies are
+the Friend-Of-Friend algorithm (Iliev et al. 2006; Friedrich et al.
+2011; Lin et al. 2016; Giri et al. 2018, 2019), the Spherical Average Method (Zahn et al. 2007; Friedrich et al. 2011; Lin et al.
+2016; Giri et al. 2018), the Mean-Free-Path method (Mesinger &
+Furlanetto 2007; Lin et al. 2016; Giri et al. 2018, 2019), and the
+granulometry method (Kakiichi et al. 2017). The Betti numbers,
+related to 3D structures of a field (isolated objects, tunnels and
+cavities), are also used to probe the topology of ionized bubbles
+and neutral islands during Reionization (Giri & Mellema 2020).
+The Triangle Correlation Function (TCF) is another tool to extract topological information, such as the radius and the shape of
+ionized and neutral bubbles (Gorce & Pritchard 2019). It relies
+on a 3-points correlation function based on the inverse Fourier
+Article number, page 1 of 13
+arXiv:2111.11910v1 [astro-ph.CO] 23 Nov 2021
+A&A proofs: manuscript no. aanda
+transform of the bispectrum that describes the phase of the signal of interest.
+Upcoming observations from radio interferometers like the
+New Extension in Nançay Upgrading loFAR1
+(NenuFAR, Zarka
+et al. (2012)) and the low frequency component of the Square
+Kilometre Array2
+(SKA-Low, see for instance Mellema et al.
+(2013)) will allow us to map the sky with HI regions through the
+redshifted 21-cm signal emitted during Reionization (Mellema
+et al. 2015). SKA will produce 2D tomographic images of the
+21-cm emission of the EoR at many redshifts. Geometrical studies can therefore focus directly on the 21-cm fields, using for example the 21-cm power spectrum (see Kim et al. (2013); Choudhury & Paranjape (2018); Seiler et al. (2019); Pagano & Liu
+(2020)) or the 21-cm bispectrum (see Hutter et al. (2020)) to
+extract topological information, such as the size distribution of
+ionized bubbles.
+In this study, we also propose to explore the EoR through
+its topology, but using the Discrete Persistent Structure Extractor, also called DisPerSE3
+(Sousbie 2011). This code relies on
+the discrete Morse theory and persistent homology. By computing gradients and critical points of fields, it extracts geometrical
+properties, among which peaks, walls, filaments and voids for a
+3D field. The persistent homology is used in this algorithm to
+only focus on significant features and for instance takes into account the noise in data sets by providing a way to suppress it by
+tuning a persistence level. DisPerSE has been written in order
+to analyse astrophysical structures and especially the large scale
+density structures of the Universe. Since then, many studies have
+extracted and analysed the matter filaments with DisPerSE from
+cosmological simulations (e.g. Singh et al. (2020); GalárragaEspinosa et al. (2020); Katz et al. (2020); Song et al. (2021)),
+observations (e.g. Malavasi et al. (2020); Tanimura et al. (2020))
+or both (e.g. Sousbie et al. (2011)). Persistent homology has also
+been used on phenomenological models of the EoR to study the
+topology of HII regions (Elbers & van de Weygaert 2019).
+In this work, we extracted the filaments of the matter density
+field but also the peak patches of the redshift of reionization field
+or zreion (Battaglia et al. 2013; Deparis et al. 2019) from EoR
+simulations produced by the semi-analytical code 21cmFAST4
+(Murray et al. 2020; Mesinger et al. 2011) and the simulation
+code EMMA (Electromagnétisme et Mécanique sur Maille Adaptative, Aubert et al. (2015)). The zreion field is a measure of the
+redshift at which each point in space has been reionized. It contains therefore spatial and temporal information on the propagation of radiation from sources of reionization in a single field per
+simulation. Using DisPerSE, we apply the Morse theory framework to the 3D field of our different models. As detailed later
+on, maxima (peaks) in zreion correspond to the seeds, the first
+sources, of local reionizations. Peak patches around these seeds
+represent the extent of their time-integrated radiative influence.
+Even though we did not investigate them in the current work,
+walls or filaments in zreion define the regions where percolation
+occurred. We believe that such an approach can complement the
+ones based on the study of HII regions at a single or a sequence
+of redshifts. Possibly, the shape of these zreion patches can give
+us an indication on the way radiation get out of galaxies. Their
+size could inform us on the extent of the radiative influence of
+the different kinds of sources, in relation for example to the large
+absorption trough in the quasar spectra (Becker et al. 2015) or to
+1 https://nenufar.obs-nancay.fr
+2 https://www.skatelescope.org
+3 http://www2.iap.fr/users/sousbie/web/html/indexd41d.html
+4 https://github.com/andreimesinger/21cmFAST
+the understanding of the observed large fluctuations of UV radiation (Chardin et al. 2017). In general, one could expect a different long-range influence by faint/locally sub-dominant sources
+compared to more dominant emitters. Overall, we believe that
+the Morse theory framework as implemented by DisPerSE provides a solid and reproducible mathematical description of the
+zreion geometry, that could be used to characterise and compare
+models of the EoR. In this initial study, we gain first insights on
+the extent of the zreion patches, their shapes and their relative orientation to the underlying gas distribution. We compare different
+EoR models from 21cmFAST and EMMA.
+In this paper, we first describe in Sect. 2 the methodology
+we employ by presenting our simulations, the reionization redshift field, the DisPerSE algorithm and the method we use to extract the orientation and shape of the patches. Afterwards, Sect.
+3 shows our first topological analyses: number of seeds of reionization, shape and size of the reionization patches. Sections 4 and
+5 highlight the differences between simulations with different parameters, as well as studies of the orientation of radiation with
+respects to the underlying density. Section 6 presents a comparison of the topology of the EoR in semi-analytical and cosmological simulations. We finally conclude in Sect. 7. In the whole paper, the cosmology parameters used are (Ωm, Ωb, ΩΛ, h, σ8, ns) =
+(0.31, 0.05, 0.69, 0.68, 0.81, 0.97) as given by Planck Collaboration et al. (2020).
+2. Methodology
+2.1. Simulated data
+At first, we get 3D cosmological simulations from the semianalytical code 21cmFAST (version 3.0.3; Murray et al. (2020);
+Mesinger et al. (2011)). 21cmFAST evolves initial density and
+velocity fields thanks to the first- or second- order perturbation
+theory of Zel’Dovich (1970), and provides associated predictions such as temperature, ionization, 21-cm signal and radiation
+fields.
+In our case, the ionized gas evolves in a 1893
+cMpc3 box at a
+resolution of 1.483
+cMpc3
+(or boxes of 1283
+cMpc3
+/h
+3 with 1283
+cells). Different physical models are studied in this work using
+two parameters of 21cmFAST: the virial temperature Tvir and the
+ionizing efficiency ζ, as defined by Greig & Mesinger (2015):
+– Tvir is the minimal virial temperature for a halo to start the
+star-formation process. It allows to control the gas accretion,
+the cooling and the retainment of supernovae outflows, and it
+is related to the halo mass through Mmin ∝ T
+3/2
+vir . The higher
+the virial temperature, the heavier the halos.
+– ζ is the ionizing efficiency of high-z galaxies. It defines the
+number of photons escaping from galaxies, and higher values
+tend to accelerate the Reionization.
+The parameters of our different models are shown in Table
+1. We separate the models into two sets of simulations: a set
+varying ζ and Tvir, called the Same Reionization History (SRH)
+set, and a set varying only ζ, called the Different Reonization
+History (DRH) set. For the SRH simulations set, virial temperatures have been set first before tuning the ionizing efficiency
+in order to get the same history of reionization. Then, the larger
+Tvir is, the larger ζ is in order to maintain the same history of
+reionization since only the heaviest halos radiate, meaning that
+they are also fewer to release photons. The DRH simulations set
+have been made in order to analyse the impact of different emissivities and thus reionization histories. 101 realisations of each
+model have been made using different seeds in 21cmFAST. The
+ionization histories of Fig. 1 are averaged on all the realisations
+Article number, page 2 of 13
+Emilie Thélie et al.: A first look at the topology of reionization redshifts in models of the Epoch of the Reionization
+Model ζ Tvir [K] (log10(Tvir))
+1 6.5 3.2 × 103
+(3.5)
+2 12 1 × 104
+(4)
+3 30 5 × 104
+(4.69897)
+4 55 1 × 105
+(5)
+5 150 2.5 × 105
+(5.4)
+3 30 5 × 104
+(4.69897)
+3-1 40 5 × 104
+(4.69897)
+3-2 55 5 × 104
+(4.69897)
+3-3 100 5 × 104
+(4.69897)
+3-4 300 5 × 104
+(4.69897)
+Table 1. Parameters of the 21cmFAST simulated models. There are five
+models that change ζ and Tvir that belong with the Same Reionization
+History (SRH) set, and four other models modifying the ζ parameter
+from the fiducial model #3, which form the Different Reionization History (DRH) set. The values of Tvir are also given in logarithm.
+4 6 8 10 12 14 16
+z
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+Ionized volume fraction
+= 6.5 - log10(Tvir) = 3.5
+= 12.0 - log10(Tvir) = 4.0
+= 30 - log10(Tvir) = 4.69897
+= 40 - log10(Tvir) = 4.69897
+= 55 - log10(Tvir) = 4.69897
+= 100 - log10(Tvir) = 4.69897
+= 300 - log10(Tvir) = 4.69897
+= 55.0 - log10(Tvir) = 5.0
+= 150.0 - log10(Tvir) = 5.4
+Fig. 1. Ionized volume fraction of sets of 21cmFAST simulations having
+different models, each one of them averaged on their 101 realisations.
+of each model. Figure 1 shows the ionized volume fraction of all
+models.
+2.2. Reionization redshift maps
+As mentioned in the Introduction, the geometry of ionization is usually investigated via the ionized fraction distribution
+xHII(r,z) at a given redshift z or with a sequence of redshifts,
+where r stands for the 3D position. Here, we rather focus on the
+reionization redshift field zreion. It is obtained by saving for each
+position the redshift at which the gas is considered to be ionized, that is when the ionization fraction gets higher than a given
+threshold which is set at 50%5
+, as follows:
+zreion(r) = z(r, xHII = 0.5). (1)
+It incorporates spatial and temporal information on the propagation of radiation during the Epoch of Reionization in a single
+field (Battaglia et al. 2013; Deparis et al. 2019; Trac et al. 2021)
+and can be seen as a reciprocal of or dual to the xHII field.
+5 A few cells are not reionized at the end of the simulations (z = 5.5).
+The reionization redshift of those cells is manually set to 5.5 in the zreion
+map.
+0 20 40 60 80 100 120
+x
 0
 20
 40
 60
 80
-Galactic latitude [degree]
-(a)
-C0
-C1
-C2
-C3
-C4
-C5
-C6
-C7
-C8
-C9
-C10
-C11
-C12
-C13
-C14
-C15
-C16
-C17
-C18
-C19
-Kepler
-0 50 100 150 200 250 300 350
-Right Ascension [degree]
-40
-30
+100
+120
+y
+= 30 - log10(Tvir) = 4.69897
+slice z=64 6
+8
+10
+12
+14
+16
+18
+zreion
+Fig. 2. 2D slice at depth z = 64 of the reionization redshift field extracted from the 21cmFAST simulation (model ζ = 30 and Tvir = 5×104
+K).
+Figure 2 shows an example of a reionization redshift map extracted from a 21cmFAST simulation. The bluest regions correspond to the places where the gas was reionized the first and can
+be interpreted as the local seeds of the local reionization process.
+Ionization fronts propagated around those zreion peaks towards
+the reddest regions which have reionized later on, forming connected regions of varying shapes and extent: these regions represent the local radiative influence of these local seeds, integrated
+over time.
+2.3. DisPerSE
+DisPerSE relies on the Morse theory in order to analyse the
+topology of manifolds through the study of differential functions.
+This code searches for critical points in a field, such as maxima,
+minima and saddle points. DisPerSE also looks for the integral
+lines (or field lines) of the field: they are the tangent curves to
+the gradient in every point, and always have critical points as
+origin and destination. As those lines cover all space, one can
+produce a tessellation of the space, creating regions called ascending or descending manifolds. Finally, the set of all ascending/descending manifolds (also known as peak or void patches)
+is called the Morse complex of a field.
+Within DisPerSE, one can tune the so-called "persistence"
+to control the significance of the topological features found in
+fields (see Sousbie (2011)). It can be seen as a significance
+threshold that separates two critical points, and the local critical
+points of the field which are not significant enough are ignored.
+It allows to control the smoothness of the resulting topological
+features and can be used to get rid of the noise in the input data.
+Figure 3 illustrates the impact of applying a persistence threshold on a 1D field (left column) on which a persistence threshold
+is applied (right column). Let’s consider a pair of critical points:
+a minimum (in blue) and a maximum (in red). The distance between the value of the field at those points (green arrows) is compared to the value of the chosen persistence threshold (distance
+between the two purple dashed lines): if it is larger than the persistence, those extrema are considered when detecting and assigning points to patches; but if it is smaller, they are discarded,
+as if they were filtered out from the field. In this case the field
+becomes topologically "smoother".
+Article number, page 3 of 13
+A&A proofs: manuscript no. aanda
+persistence
+Fig. 3. Illustration of the persistence parameter of the DisPerSE algorithm. It shows a 1D function, with red dots as maxima and blue dots as
+minima. The left column is the actual function on which the persistence
+threshold is applied, while on the right one, there is the result after applying this threshold. The length between the purple dashed lines represents the persistence threshold in that case. The green arrows represent
+the smoothing of the curve when eliminating the corresponding critical
+points. This illustration is inspired by Sousbie (2011).
+Before using DisPerSE, the gas density δ(r) and the reionization redshift zreion(r) are first converted into dimensionless 3D
+fields by applying the following transformation on them:
+δa =
+δ − δ
+σδ
+, (2)
+zreion,a =
+zreion − zreion
+σzreion
+, (3)
+where δ and zreion are the mean of each field and σδ and σzreion
+are their standard deviation. These transformations allow us to
+express the persistence parameter in term of the deviation of a
+field to its mean value, letting us know at how many σ the fields
+will be smoothed from a topological point of view. Moreover,
+the fields are also filtered with a Gaussian kernel (with a standard
+deviation of 1 cell for each field) in order to avoid the presence
+of large patches of constant field values that prevent DisPerSE
+to run properly.
+In our study, we first apply the DisPerSE algorithm with a
+persistence level of 0.5 − σ (Sousbie et al. 2011; Codis et al.
+2018; Galárraga-Espinosa et al. 2020; Cohn 2021) on the 3D
+reionization redshift field of our simulations in order to get the
+zreion patches associated with the zreion maxima6
+. They correspond to the regions that are topologically associated to a given
+zreion maximum, which gather all the cells of the simulations
+that have a positive gradient toward their maximum. Those maxima are the first places to reionize: they are the seeds of local
+reionizations. Again, these patches are different from the "ionized bubbles" usually mentioned in the literature (see e.g. Chen
+et al. (2019); Gorce & Pritchard (2019); Giri et al. (2019); Giri
+& Mellema (2020)), that are regions where the hydrogen gas is
+ionized at a given time. The cells within the patches discussed
+here are connected through time via the topology of zreion, providing another insight on the propagation of ionization fronts
+and on the extent of the influence of the reionization seeds. Figure 4 shows reionization redshift maps superimposed to the contours of their segmentation obtained with DisPerSE. One can
+see that the patches are naturally centred around the maxima,
+not necessarily spherical, and have different kinds of sizes and
+shapes (keeping in mind that 3D effects can be hidden on these
+2D maps) depending on the local specificities of the production
+and absorption of radiation.
+6
+In practice, DisPerSE compute the ascending 3-manifolds of the
+field using the integral lines that are related to the maxima of the 3D
+field (see Sousbie (2011) for more details).
+We are also interested in the filaments of the gas density
+structures present in our models. With DisPerSE, they are detected as the set of points/cells in the density field belonging to
+arcs that have saddle points as origin and extrema as destination.
+We apply this selection to the gas density fields in our simulations using a 0.5 − σ persistence level. Figure 5 is an example of
+a density map from a 21cmFAST simulation superimposed to the
+filaments detected with DisPerSE. The map is obtained from an
+average of several slices for a better visualisation and clearly the
+filaments follow the distribution of the gas in the box.
+2.4. The inertial tensor, a tool to get the orientation of an
+object
+Our study will assess the shape and size of the reionization
+patches, as well as their orientation with respect to the gas filaments. We use inertial tensors, as defined by Tormen (1997):
+Ii, j =
+X
+k
+ωk · (xk,i − xre f,i) · (xk, j − xre f, j). (4)
+Here, k scans all of the cells within the patches, i, j ∈ {1, 2, 3} refer to the Cartesian components of the cells position x and ω is a
+weight. xre f is a point of reference: in our case, it is the geometrical centre of each patch. The eigenvectors of the tensor provide
+the 3D directions of the extension of the patches and the eingenvalues the typical extent of the cells along these directions. The
+eigenvector with the largest eigenvalue represents therefore the
+main axis of a given patch. The same procedure can be applied
+to the cells belonging to a given gas filament, in order to extract
+its main orientation.
+For zreion patches, we use ωk = 1, as we are only interested in
+the geometrical shape, and their main axis represents the direction favoured by radiation after having been emitted by the local
+seed. Presumably, it corresponds to the path of least resistance
+for radiation or is indicative of the geometry of light production
+as ionization fronts propagated. For gas filaments, since we are
+interested in their orientation relatively to the reionization patch
+they are located in, we set ωk to the cell density and restrict ourselves to cells that are within that reionization patch.
+3. First topological insights
+3.1. Number of reionization patches
+On Fig. 6, one can see the number of reionization patches in every model (accumulating all realisations). It should be noted that
+the parameters evolving from one simulation to the other, Tvir
+and ζ, only have an impact on the radiation processes whereas
+the density maps are not modified between the different (Tvir, ζ)
+models, and for instance the filaments are necessarily the same.
+One can see that the number of reionization patches (or reionization seeds) decreases with increasing Tvir (and then ζ, see the top
+panel of Fig. 6 representing the SRH set): with larger Tvir, there
+are less emitting halos as it favours the massive ones (which also
+produce more photons to maintain a reionization with the same
+history). Now, for the DRH simulations set (i.e. with the same
+emitting halos but different ionizing efficiencies), the number
+of reionization patches as a function of the ionizing efficiency
+parameter presents two regimes. We would have expected the
+number of reionization patches to only decrease with increasing
+ζ: when the sources emit more radiation, the first regions expand rapidly, preventing the smaller and later-formed halos to
+create their own patches. The latter sources are then ionized by
+Article number, page 4 of 13
+Emilie Thélie et al.: A first look at the topology of reionization redshifts in models of the Epoch of the Reionization
+6
+8
+10
+12
+14
+16
+18
+zreion
+0 20 40 60 80 100 120
+x
+0
 20
+40
+60
+80
+100
+120
+y
+= 30 - log10(Tvir) = 4.69897
+slice z=64
+866 regions in the whole box
+0 20 40 60 80 100 120
+x
+0
+20
+40
+60
+80
+100
+120
+y
+= 55 - log10(Tvir) = 4.69897
+slice z=64
+1026 regions in the whole box
+0 20 40 60 80 100 120
+x
+0
+20
+40
+60
+80
+100
+120
+y
+= 300 - log10(Tvir) = 4.69897
+slice z=64
+955 regions in the whole box
+Fig. 4. 2D slices of zreion fields extracted from a realisation of 21cmFAST simulations. The reionization redshifts are superimposed to the contours
+(in black) of the patches from the segmentation obtained with DisPerSE (with a persistence level of 0.5 − σ). The three panels represent three
+models (of the DRH simulations set) with different ζ value: models #3 (ζ = 30), #3-2 (ζ = 55) and #3-4 (ζ = 300) from left to right.
+0 20 40 60 80 100 120
+x
+0
+20
+40
+60
+80
+100
+120
+y
+= 30 - log10(Tvir) = 4.69897
+slice z=64
+0.5
+0.0
+0.5
+1.0
+1.5
+2.0
+Fig. 5. 2D slice of the density field extracted from a 21cmFAST simulation (model ζ = 30 and Tvir = 5 × 104 K). The density is superimposed
+to the filaments (in black) obtained with DisPerSE (with a persistence
+level of 0.5 − σ). This map is made from an average of many slices to
+better visualise the filaments.
+external emitters, and belong to the patches of these earlier external "reionizers". For instance, this behaviour can be seen in
+the purple boxed patch in the middle and right panels of Fig. 4.
+It shows reionization redshift fields for ζ values of 55 and 300
+superimposed to their DisPerSE segmentations. As ζ increases,
+four small patches merge as bright early emitters expand their
+influence more efficiently and late emitters are externally reionized. However, the number of patches increases as ζ increases
+from 30 to 55. We checked that this behaviour is an artefact of the
+way the DisPerSE segmentations are produced in this study. The
+zreion field is smoothed before being processed by DisPerSE, filtering out small patches of low emitters with weak gradients.
+As ζ increases, the extent and the gradients are enhanced within
+such patches and the latter are not suppressed by the Gaussian
+smoothing and the persistence filter. This effect is illustrated in
+the left and middle panels of Fig. 4. Only two patches are detected within the purple box at low ζ, while four patches can be
+seen as this parameter is increased to moderately larger values.
+The number of patches is related to the first Betti number β0
+of an ionization field as it represents the number of sources of
+= 6.5
+log10(Tvir) = 3.5
+= 12.0
+log10(Tvir) = 4.0
+= 30
+log10(Tvir) = 4.69897
+= 55.0
+log10(Tvir) = 5.0
+= 150.0
+log10(Tvir) = 5.4
+0
+20000
+40000
+60000
+80000
+100000
+120000
+Nregions
+9.88E+04
+9.18E+04
+8.11E+04
+7.24E+04
+5.17E+04
+= 30
+log10(Tvir) = 4.69897
+= 40
+log10(Tvir) = 4.69897
+= 55
+log10(Tvir) = 4.69897
+= 100
+log10(Tvir) = 4.69897
+= 300
+log10(Tvir) = 4.69897
+0
+20000
+40000
+60000
+80000
+100000
+120000
+Nregions
+8.11E+04
+9.90E+04 1.02E+05 9.91E+04
+9.41E+04 Fig. 6. Number of patches detected with DisPerSE (with a persistence
+level of 0.5 − σ) for every model mentioned in Table 1. The top panel
+represents the models of the SRH set while the bottom panel shows the
+models of the DRH set. For each model, one adds the patches numbers
+of every realisation.
+ionization (Giri & Mellema 2020). Giri & Mellema (2020) compute the β0 number of their xHII ionization field throughout the
+Reionization process for models that vary only the ionizing efficiency (see their FN1 and FN2 models and the top left panel
+of their Fig. 6 where they accumulate the number of sources as
+xHII grows). Those models can be compared to our DRH set
+models for which we have histories of reionization (for the lowest ζ models) similar to theirs. They conclude that the β0 numbers of these two models are approximately the same, but with
+slightly less sources, for the model with the highest ζ. Meanwhile, we conclude that reionization patches appear sooner (see
+Article number, page 5 of 13
+A&A proofs: manuscript no. aanda
+Fig. 1) and their total number throughout the reionization history
+is lower for the highest ζ models, (see Fig. 6) which is consistent
+with the results of Giri & Mellema (2020).
+3.2. Shapes of the reionization patches
+With the eigenvalues given by the inertial tensors, one can compute a number quantifying the geometrical shape of the patches.
+Tormen (1997) called it the triaxiality parameter and defined it
+as follows:
+T =
+λ
+2
+3
+− λ
+2
+2
+λ
+2
+3
+− λ
+2
+1
+. (5)
+The λi (with i ∈ {1, 2, 3}) are the eigenvalues of the inertial tensors with λ1 ≤ λ2 ≤ λ3. When 0 ≤ T ≤
+1
+3
+, the object is oblate: it
+has two large dimensions and one small, like a flattened sphere.
+When 1
+3
+≤ T ≤
+2
+3
+, the object is "triaxial". When 2
+3
+≤ T ≤ 1, the
+object is prolate: it has one large dimension and two small ones,
+like a rugby ball. The top panel of Fig. 7 shows the probability
+distribution functions of the triaxiality parameters computed for
+the reionization patches of each realisation of every model. They
+all return a similar distribution with a majority of prolate patches
+and a minority of oblate ones. The normalisation of these distributions with the fiducial model (bottom panel) reveals small
+differences between the SRH models though: the more Tvir and
+ζ increase, the less there are prolate patches.
+These prolate or "cigar" shapes of the reionization patches is
+reminiscent of the "Ionized Fibres" stage as it is called in Chen
+et al. (2019). Using Minkowski Functionals they could separate
+in five stages the process of Reionization: an "Ionized Bubble"
+stage where the first isolated ionized bubbles appear, an "Ionized Fibres" stage where bubbles start to connect to each other
+forming a large fibre structure, a "Sponge" stage with intertwined
+ionized and neutral regions, and "Neutral Fibre" and "Neutral Islands" stages, which are the neutral counterpart of the two first
+stages. In our segmentations, patches seem to have kept a memory of the fibre shape of the second stage of Chen et al. (2019).
+3.3. Size distribution of the reionization patches
+We compute the probability distribution function of the volume
+of the reionization patches. Figure 8 shows those PDFs for the
+two sets of simulations. One can notice that patches with intermediate volumes dominate the simulation box. There is indeed a
+limit on the largest volume due to the finite size of the box and on
+the smallest volumes because of the resolution. Comparing the
+different models of the SRH set, the largest virial temperatures
+favour the ionization by the more massive halos that are stronger
+emitters: it leads to larger but fewer reionization patches. A similar trend is measured for the DRH set, when ζ becomes large,
+with fewer and more prominent patches. From our size distributions, one can extract a typical "radius" of patches of ∼ 10
+cMpc/h, consistent for instance with the radii found by Gorce &
+Pritchard (2019) with their Triangle Correlation Function.
+The size distribution of patches returns a general information of the maximal radius HII regions can reach before percolation during the whole reionization process. It thus provides insights about the required size for cosmological simulations of the
+EoR to use the framework described in this work. For example,
+our PDFs of the patches volumes indicate that our boxes (128
+cMpc/h) do not limit typical-sized patches (10 cMpc/h), however
+it is not clear yet what kind of cut-off is applied to these PDFs in
+the regime of large reionization patches. It is for instance known
+0.0 0.2 0.4 0.6 0.8 1.0
+Treg
+10
+2
+10
+1
 10
 0
+d
+Nregions / d
+Treg
+oblate triaxial prolate
+= 6.5 - log10(Tvir) = 3.5
+= 12.0 - log10(Tvir) = 4.0
+= 30 - log10(Tvir) = 4.69897
+= 40 - log10(Tvir) = 4.69897
+= 55 - log10(Tvir) = 4.69897
+= 100 - log10(Tvir) = 4.69897
+= 300 - log10(Tvir) = 4.69897
+= 55.0 - log10(Tvir) = 5.0
+= 150.0 - log10(Tvir) = 5.4
+0.0 0.2 0.4 0.6 0.8 1.0
+Treg
+0.8
+0.9
+1.0
+1.1
+1.2
+d(Nregions/N1model) / d
+Treg
+oblate triaxial prolate
+= 6.5 - log10(Tvir) = 3.5
+= 12.0 - log10(Tvir) = 4.0
+= 30 - log10(Tvir) = 4.69897
+= 40 - log10(Tvir) = 4.69897
+= 55 - log10(Tvir) = 4.69897
+= 100 - log10(Tvir) = 4.69897
+= 300 - log10(Tvir) = 4.69897
+= 55.0 - log10(Tvir) = 5.0
+= 150.0 - log10(Tvir) = 5.4
+Fig. 7. Probability distribution functions of the triaxiality parameter of
+the reionization patches of every model (top panel). The bottom pannel
+represents the same PDFs but each one of them is divided by one particular model (the one with ζ = 30 and log10(Tvir) = 4.69897). On the
+two panels, all the patches of each realisation for one specific model are
+accumulated.
+that many features in the 21-cm signal only converges at larger
+scales (200 Mpc/h at least, Iliev et al. (2014)) and further investigations will be conducted later on to see how it translates to our
+reionization patches.
+4. Orientation of the reionization patches with
+respect to the gas filaments
+This section deals with the orientation of the reionization patches
+with respect to matter. The directions of the main axis of the gas
+filaments and the patches they are located in are compared using
+the eigenvectors of their inertial tensors, computed as mentioned
+in Sect. 2.4. To do so, the cosine of the angle between those
+directions is computed as follows:
+cos(hzreion, δi) = cos(hΨzreion,3, Ψδ,3i), (6)
+=
+Ψzreion,3 · Ψδ,3
+||Ψzreion,3||||Ψδ,3||
+, (7)
+Ψzreion,3 and Ψδ,3 are the eigenvectors corresponding to the largest
+eigenvalue of the zreion patches and the filaments respectively.
+Article number, page 6 of 13
+Emilie Thélie et al.: A first look at the topology of reionization redshifts in models of the Epoch of the Reionization
 10
-20
-30
-40
-Declination [degree]
-(b)
-C0 C1
-C2
-C3
-C4 C5
-C6
-C7
-C8
-C9
-C10
-C11
-C12
-C13
-C14
-C15
-C16
-C17
-C18
-C19
-Figure 1. Footprint of the different K2 campaigns in Galactic and equatorial coordinates. Campaigns C0, C9, C18, and C19, are not suitable
-for selection-function-based studies and are shown in green. The first three do not follow a well defined color-magnitude selection while C19
-has very few seismic detections.
-results were published by Rendle et al. (2019), Sharma et al.
-(2019, 2020a) and Zinn et al. (2021).
-The overarching vision for the K2GAP seismic data was
-always that it should be combined with complementary data
-from the many other stellar surveys that emerged in the
-same decade. In recognition of K2GAP’s potential, several large ground-based, spectroscopic surveys have targetted
-K2GAP fields. The surveys with the largest K2GAP overlap
-are APOGEE, K2-HERMES, and LAMOST. As we show,
-this synergy has proved to be very effective in determining
-improved stellar ages for thousands of stars, an important
-goal for Galactic archaeology (Freeman & Bland-Hawthorn
-2002).
-In this paper we report the target selection for each K2
-campaign in detail. We discuss detection completeness of
-the asteroseismic parameters νmax and ∆ν for the oscillating
-K2GAP TARGET SELECTION 3
-0.0 0.5 1.0
-J Ks
-6
-3
-0
-3
-6
-M
-Ks
-(a)
-334621 stars
-0.0 0.5 1.0
-J Ks
-(b)
-with max
-30791 stars
-10
+2 10
+3 10
 4 10
 5
-Figure 2. (a) Color and absolute magnitude distribution of all stars
-observed by K2 in 30 minute cadence that have a Gaia EDR3 parallax. The absolute magnitude is estimated using Gaia EDR3 parallax. The vertical line J −Ks = 0.5 marks the K2GAP color selection. The number of stars in each bin is indicated by the color bar.
-(b) The subset of stars with asteroseismic detection of νmax. Most
-of the stars with νmax detections have J −Ks > 0.5. Stars with νmax
-detected and MKs > 1 have either incorrect νmax or parallax.
-9 10 11 12 13 14 15 16
-VJK
-0.0
-0.2
-0.4
-0.6
-0.8
-1.0
-Giant Fraction
-(J Ks > 0.5), Giants: 3.7 < MKs < 1.0
-0
-10
-20
-30
-40
-|b| degree
-Figure 3. The fraction of stars proposed by K2GAP that are giants
-as a function of apparent magnitude VJK for different K2 campaigns.
-The stars satisfy the selection function given in Table 1. Giants were
-identified based on their absolute magnitude being −3.7 < MKs < 1.
-MKs was estimated using the Gaia parallaxes.
-giants. We make a detailed comparison of the observed distribution of stars in νmax, VJK, and κM with that of selectionmatched mock catalogs. Finally, we discuss the implications
-of our results for asteroseismic relations and Galactic archaeology.
-2. METHOD
-2.1. Primary target selection strategy
-Our target selection strategy was designed to be easily reproducible, which aids the study of ensembles rather than
-individual stars. This is especially important for Galactic archaeology where we need to fit Galactic models to the observational data by taking the target selection into account
-(Sharma et al. 2014), but is also useful for exoplanet population studies.
-A necessary first step for selecting targets is to have an
-input catalog that is well understood, has reliable photometry and covers all regions of the sky that we are interested
-in. With this in mind, we adopt the 2MASS all-sky catalog because of its robust photometry and completeness in the
-magnitude range we are targeting (9 < VJK < 16). A color
-limit of (J − Ks) > 0.5 was adopted throughout the survey.
-This was designed to focus on red giants; our primary asteroseismic targets. It can be seen in Figure 2 that most of the
-stars for which we can detect oscillations have (J −Ks) > 0.5
-and MKs < 1. Stars with (J −Ks) < 0.5 are typically dwarfs
-(MKs > 1) that have oscillation frequencies that are too large
-to be detected by the 30-minute cadence of K2. A color
-limit of (J − Ks) > 0.5 excludes some giants, such as the
-blue extension of the red clump stars (the so-called horizontal
-branch), which is predominantly metal-poor and are rare.
-Although reduced proper motions have been used to separate dwarfs from giants in the past, we avoided it for multiple
-reasons. First, it introduces a kinematic bias, which is undesirable for Galactic archaeology. Secondly, the pre-Gaia
-proper motions available (UCAC) at the time of the K2GAP
-selection, had significant uncertainties. Finally, the dwarfs
-that we were not interested in were desirable for exoplanet
-studies; and a simple selection function would also benefit
-those. In summary, the simplest color based selection criteria
-was found to be the best suited for both Galactic archaeology
-and exoplanet population studies.
-In addition to color, stars were restricted in apparent magnitude (brightness) between a lower and upper limit. The
-lower (bright) limit was chosen to avoid overly saturated
-stars, while the upper (faint) limit was chosen to avoid observing ensembles with a low yield of oscillating giants. For
-the first 3 campaigns (C1, C2, and C3) we used the 2MASS
-H magnitude to select in brightness. However, for the later
-campaigns, we adopted
-VJK = Ks+2.0(J −Ks+0.14)+0.382 exp[(J −Ks−0.2)/0.50],
-(1)
-which is an approximation of V band magnitude measured
-from 2MASS J and K bands. As shown in Sharma et al.
-(2018), the formula is accurate to 0.05 dex for stars in 4500 <
-Teff/K < 6500. We adopted VJK for the later campaigns because K2 collects data in K p band, which is significantly
-bluer than H band. Additionally, spectroscopic surveys like
-K2-HERMES (Sharma et al. 2018) and LAMOST that were
-following up the K2 targets, observe in the V band.
-A bright magnitude limit of VJK > 9 (H > 7 for C1, C2,
-and C3) was adopted. However, the faint limit was different
-4 SHARMA ET AL.
-167.5 170.0 172.5 175.0 177.5 180.0
-RA (deg)
-6
-4
-2
-0
-2
-4
-6
-8
-Dec (deg)
-C1
-0
-1
-2
+Vregion [h
+3 Mpc
 3
-4
-5
-6
-7
-8
-9
+]
+10
+14
+10
+13
+10
+12
 10
 11
-12
-13
-14
-15
-16
-17
-18
-1 deg radius broken ccd ccd
-Figure 4. Field of view of a typical K2 campaign. Shown here is
-campaign C1. The solid lines outline the 42 CCDs arranged in 21
-modules. The broken modules are shown in red. The green circle
-shows the 1 degree radius field of view of the HERMES spectrograph. Note, the module numbers defined by us is similar but not
-the same as the official module numbers; our numbering starts from
-0 and we exclude the four corner modules(1, 5, 21 and 25) and the
-two broken modules (3 and 7).
-for each campaign, with the typical limit being VJK = 15. The
-limit for each campaign was determined by weighing the potential scientific return versus the drop in yield of oscillating
-giants when going towards fainter magnitudes. The drop in
-yield of oscillating giants when going fainter is due to a couple of reasons. First, in the Galaxy the overall fraction of stars
-that are giants for a given apparent magnitude drops as we go
-to fainter magnitudes. This is shown in Figure 3. Secondly,
-fainter stars have lower signal-to-noise ratio, which hinders
-our ability to detect the oscillations. Based on simulations
-the incompleteness for the K2 observations was predicted to
-set in at around VJK = 14; see Section 3.2.1 for more details.
-This prompted us to not propose targets in general that were
-too faint.
-2.2. Field of view
-For certain studies it is important to know the completeness of the observed sample as well as the foot print of the
-field of view. The field of view of K2 is 115.64 square degrees comprising a mosaic of 21 CCD modules each made
-up of two 1024x2200 pixel CCDs (3.98 arcsec pixel scale)
-with slight gaps between the two CCDs and between the 21
-modules (see Figure 4). Although the actual area of a module
-is 5.507 square degrees, the proposed stars were confined to
-5.482 square degrees, most likely due to a CCD-edge buffer
-of a few pixels introduced by the python package K2Fov
-(Mullally et al. 2016)
-1
-, which we used to select the targets.
-For certain campaigns with high target density, we proposed
-stars in 1 degree circles located at the center of selected CCD
-modules, to make the spectroscopic followup easier (see Figure 5). Such a circle has a photosensitive area of 2.961 square
-degrees (94.251% of the circle’s area), which for this given
-size is a maximum possible photosensitive area among all
-circle placements.
-2.3. Catalog of targets
-We provide a master catalog of all targets observed by K2
-in the file k2_observed_targets.fits 2
-. To construct the catalog we start with a list of epic_ids of observed targets from the Kepler science website 3
-. It also contains campaign names campaign, which we convert to an
-integer cno. This list includes all targets selected by any of
-the K2 programs, not just those proposed by the K2GAP. We
-first cross matched it to the epic catalog based on epic_id
-and added columns from it. To supplement the photometric
-information from 2MASS, we did our own cross match with
-2MASS instead of relying on the information provided by
-the EPIC catalog (Huber et al. 2016). This was because the
-EPIC catalog was missing entries for about 13,000 targets, in
-spite of targets being stars (epic_id > 201000000). Moreover, the 2MASS columns mflg and prox were incorrect
-for the majority of the stars in the EPIC. These flags, among
-others, were used in K2GAP to select stars with good quality
-photometry (Table 2). The catalog contains 588,991 targets.
-For the rest of the paper we exclusively focus on the 432,830
-targets that have epic_id > 201000000; the rest being
-non-stellar targets like asteroids, planets, moons and so on.
-To the base catalog we have added two additional columns
-that provide information about the K2GAP (flag_ga and
-flag_sf). Targets that are on the K2GAP target list have
-flag_ga=1 of which there are 132,197 in total. This
-amounts to 30.5% of all the observed K2 targets. These
-stars also include the ‘serendipitous’ ones selected by other
-programs that are in the K2GAP target list. We remove the
-serendipitous targets to create a K2GAP-chosen sample (referred to as K2GAP complete), following a procedure that
-is described in Section 2.5. A majority of the K2GAP complete targets follow a strict color magnitude selection function (101419), and these can be identified with flag_sf=1.
-1 K2Fov is a python module provided by the K2 mission team to identify
-if a target is within the field of view (https://github.com/KeplerGO/K2fov)
-2 http://www.physics.usyd.edu.au/k2gap/download/k2_observed_targets.
-fits
-3 http://keplergo.github.io/KeplerScienceWebsite/
-K2GAP TARGET SELECTION 5
-Table 1. The selection function of K2GAP targets for each campaign. The first column is campaign number while the color-magnitude
-selection is given in the last column (eighth). Columns two to seven list the number of stars for a given data set, with the set to the right being a
-subset of the set to its left. The second column lists stars observed by K2 (epic_id > 201000000). The third column lists stars observed
-by K2 that are in the K2GAP target list (flag_ga = 1). The fourth column lists stars that are K2GAP complete, meaning it excludes
-serendipitous observations of K2GAP targets from other programs. The fifth column lists stars that satisfy a strict color-magnitude selection
-function, which is given in the eighth column. The sixth column lists the completeness fraction of stars in the fifth column. The seventh column
-lists stars for which we have a νmax measurement in the range 10 to 270 µHz. Finally, the eighth column is the selection function. All stars
-effectively have J < 15 due to 2MASS quality cuts.
-C K2 GAP GAP GAP fcomp νmax Selection function (SF)
-Obs Obs Com SF SF SF (J < 15)&
-0 7748 452 0 0 0.000 0
-1 21646 8630 8409 8398 0.983 1151 ((J −Ks) ≥ 0.5)&(7 ≤ H < 12.927)
-2 13401 5138 3924 3465 0.904 1140 ((J −Ks) ≥ 0.5)&(7 ≤ H < 11.5)&(c ∈ {17,12,6,14,10})
-3 16375 3904 3450 3407 0.800 1069 ((J −Ks) ≥ 0.5)&(7 ≤ H)&[(H < 12.0)&(c ≥ 0)]
-4 15853 6357 4938 4937 0.993 1931 ((J −Ks) ≥ 0.5)&(9 ≤ VJK < 13.447)
-5 25137 9829 9829 9820 0.991 2666 ((J −Ks) ≥ 0.5)&(9 ≤ VJK < 15.0)
-6 28289 8313 8311 8303 0.995 2193 ((J −Ks) ≥ 0.5)&(9 ≤ VJK < 15.0)
-7 13483 4362 4085 4085 0.996 1678 ((J −Ks) ≥ 0.5)&[(14.276 ≤ VJK < 14.5)&(c = 14) ||
-(9 ≤ VJK < 14.5)&(c ∈ {6,17})]
-8 24187 6186 5383 4392 0.995 954 ((J −Ks) ≥ 0.5)&[(9 ≤ VJK < 14.5) || (J −Ks) < 0.7)&(14.5 < VJK < 14.58)]
-9 1751 0 0 0 0.000 0
-10 28345 8947 8559 7382 0.995 1196 ((J −Ks) ≥ 0.5)&[(9 ≤ VJK < 14.5) || (J −Ks) < 0.7)&(14.5 < VJK < 15.577)]
-11 14209 4344 3403 2701 0.986 449 ((J −Ks) ≥ 0.5)&(9 ≤ VJK)&[(VJK < 15.0)&(c = 3) || (VJK < 14.5)&(c = 2) ||
-(VJK < 14.175)&(c = 8)]
-12 29221 14013 14013 13019 0.967 1167 ((J −Ks) ≥ 0.5)&(9 ≤ VJK < 16.0)
-13 21434 5973 4686 4381 0.982 1597 ((J −Ks) ≥ 0.5)&(9 ≤ VJK)&[(VJK < 15.0)&(c = 3) || (VJK < 14.5)&(c = 8) ||
-(VJK < 14.0)&(c ∈ {0,4,7,9,12,13}) || (VJK < 12.82)&(c = 14)]
-14 29897 7134 5965 5587 0.980 1063 ((J −Ks) ≥ 0.5)&(9 ≤ VJK < 15.0) ||
-15 23278 7625 7000 5820 0.987 2254 ((J −Ks) ≥ 0.5)&(9 ≤ VJK)&[(VJK < 15.5)&(c = 3) || (VJK < 15.0)&(c = 8)
-(VJK < 14.5)&(c ∈ {2,4,7,9,12,13,14}) || (VJK < 13.838)&(c = 5)]
-16 29888 10672 9581 7798 0.976 1805 ((J −Ks) ≥ 0.5)&(9 ≤ VJK < 15.0) ||
-17 34398 7124 3003 2042 0.980 672 ((J −Ks) ≥ 0.5)&(9 ≤ VJK)&[(VJK < 16.0)&(c ∈ {3,8}) ||
-(VJK < 12.414)&(c ∈ { / 3,8})]
-18 20427 3164 4 0 0.000 0
-19 33863 10030 6248 5882 0.977 0 ((J −Ks) ≥ 0.5)&(9 ≤ VJK < 14.8)
-All 432830 132197 110791 101419 0.974 22985
-NOTE—The circular pointing identifier c is shown in Figure 4. For campaign numbers greater than or equal to 10, the CCD module corresponding to c = 1 is broken.
-Table 2. 2MASS quality selection criteria
-fFlag K2GAP K2-HERMES Description
-criterion criterion
-Qflag ≤ ’BBB’ = ’AAA’ J,H,K photometric quality
-Bflag = ’111’ = ’111’ blend flag
-Cflag = ’000’ = ’000’ contamination flag
-Xflag = 0 = 0 Ext source
-Aflag = 0 = 0 solar system object
-prox > 6 arcsec > 6 arcsec distance to nearest star
-2.4. Peculiarities of certain campaigns
-Due to a late change in roll angle for C3, the actual field
-of view was slightly shifted compared to the one provided
-by the K2Fov software before observations. This meant that
-some of the proposed targets were unobservable. Later, the
-permanent failure of one of the CCD modules (marked as 1
-in Figure 5) occurring during C10 observations (after C11,
-C12, and C13 target selection had been locked in) resulted in
-selected stars falling on that module being only partly or not
-at all observed for the affected campaigns.
-Campaigns C0, C9, C18, and C19 were all unique and they
-had very little seismic detections. C0 was conducted as a fulllength engineering test to prove the viability of the K2 mis-
-6 SHARMA ET AL.
-Figure 5. Distribution of K2GAP stars observed by K2 in campaigns where stars were selected to lie in one degree radius circles. Each
-campaign has 19 one degree circles, numbered 0 to 18, located at the centers of each CCD module (excluding the two broken CCD modules).
-Table 3. Priority order of selecting targets
-Order Description Criterion Used in campaigns
-0 APOGEE ((J −Ks) ≥ 0.5)&(logg < 3.8) [1-19]
-1 RAVE ((J −Ks) ≥ 0.5)&(logg < 3.8) [1-19]
-2 GAIA-ESO ((J −Ks) ≥ 0.5)&(1.8 < logg < 3.8) [2, 12]
-3 MISC miscellaneous special targets. [3, 6, 7, 11, 17]
-4 SEGUE (0.5 < (g − r) < 1.3)&(0 < logg < 3.5)&(14 < r < 19)&(snr > 15)&(flag=’nnnnn’) [8, 10, 12, 14, 16, 17, 18, 19]
-5 K2 νmax Stars having νmax measurements from previous K2 campaigns. [17, 18, 19]
-10 2MASS primary (J −Ks) ≥ 0.5 [1-19]
-11 SDSS l-color (0.5 ≤ (g − r) < 0.7)&(16 < r ≤ 17)&(lcolor > 0.1) [8, 10, 12]
-12 SDSS µreduced (0.5 ≤ (g − r) < 0.7)&(16 < r ≤ 17)&(µreduced < 5) [8, 10, 12]
-13 2MASS µreduced ((J −Ks) ≥ 0.5)&(14.5 ≤ VJK < 16.0)&(µreduced < 5) [12, 14, 16]
-14 2MASS secondary (0.5 ≤ (J −Ks) < 0.7)&(14.5 ≤ VJK < 16.5) [8, 10]
-10+k 2MASS in circles c = clist[k] [2, 7, 11, 13, 15, 17]
-sion and to fine tune the observational setup, such as pointing and choice of aperture size. C9 was dedicated for gravitational microlensing studies, hence no community targets
-sought. C18 and C19 had light curves of shorter duration.
-C18 observations were terminated after 50 days due to low
-fuel. About 3000 K2GAP targets were observed but all of
-them were found to be serendipitous selections, hence, their
-selection function is not known. C19 observations only lasted
-K2GAP TARGET SELECTION 7
-0.00
-0.25
-0.50
-0.75
-1.00
-Fraction observed
-(a)
-C1
-C2
-C3
-C4
-0.00
-0.25
-0.50
-0.75
-1.00
-Fraction observed
-(b)
-C5
-C6
-C7
-C8
-C9
-0.00
-0.25
-0.50
-0.75
-1.00
-Fraction observed
-(c)
-C10
-C11
-C12
-C13
-C14
-0 2500 5000 7500 10000 12500 15000 17500 20000
-row no
-0.00
-0.25
-0.50
-0.75
-1.00
-Fraction observed
-(d)
-C15
-C16
-C17
-C18
-C19
-Figure 6. Fraction of stars observed by K2 as a function of row no
-in the list of targets proposed by K2GAP. The sharp fall in fraction
-marks the row number up to which the sample is complete. For
-most campaigns, the completeness is typically high, greater than
-0.97. C3 and C12 have slightly lower completeness, 0.85 and 0.91
-respectively. For C3 the completeness is low due to roll angle error,
-while for C12 it is due to extra targets proposed in the broken CCD
-module. C13 also has slightly lower completeness due to extra targets proposed in the broken CCD module. C17 shows a two-step
-fall in the fraction, the cause of which is not clear.
-30 days before the spacecraft ran out of fuel. This campaign
-also suffered from erratic pointing.
-2.5. Proposed targets
-We now describe the procedure adopted for creating the
-proposed target list. Separate target lists were created for
-each campaign. In general, stars were selected to have good
-quality photometry as defined in Table 2. Targets in each
-list were sorted based on priority. A list of various priority
-classes and their order is given in Table 3.
-Classes with order less than 10, were for stars known to
-be giants from either spectroscopy or asteroseismology or
-were special targets. We included stars with existing spectroscopy from surveys such as APOGEE, RAVE, GAIA-ESO
-and SEGUE. From previous experience with Kepler, it was
-known that seismic detections were possible for 1.9 < logg <
-3.5. Given spectrocopic logg have uncertainties of the order
-of 0.1 dex, a criterion of logg < 3.8 was adopted for the spectroscopic sample. A lower limit on logg was not adopted as
-there are very few stars with logg < 1.9.
-Classes with order number greater than or equal to 10, were
-for stars selected based on photometry and they make up
-most of the proposed sample. The class with order number
-10 was used in all campaigns and provided the bulk of the
-K2GAP targets. Stars were selected simply based on color
-and magnitude and were priority sorted by magnitude. The
-class with order number 11 makes use of color
-lcolor = −0.436uSDSS + 1.129gSDSS − 0.119rSDSS − 0.574iSDSS +
-0.1984, (2)
-defined in term of u,g,r and i band SDSS magnitude. The
-classes with order numbers 12 and 13, additionally made use
-of reduced proper motion
-µreduced = 5log
-
-
-q
-µ
-2
-RA +µ
-2
-Dec
-arcsec
-
-+ rSDSS, (3)
-defined in term of proper motion µRA and µDec and r band
-SDSS magnitude.
-In general, stars were proposed over the entire field of
-view (see Section 2.2). However, for certain dense-field campaigns that look into the plane of the Galactic disc, stars were
-proposed in one degree circles located at the center of CCD
-modules. This was done to make the spectroscopic followup
-easier.
-The final target list uploaded to the spacecraft for observation was prepared by NASA and it contained targets from
-different proposals. Hence, some of our proposed targets
-were serendipitous selections; their selection was based on
-other proposals and they just happened to also be on our target list. The serendipitous targets therefore do not follow our
-proposed priority order. Guided by Figure 6 we devised the
-procedure to exclude these targets. Figure 6 shows the average fraction of stars selected from our list as a function of
-our list row number. We see that the fraction is high and almost constant for small row numbers, but it abruptly falls to
-a low value and remains low for the rest of the list. The sharp
-fall in fraction marks the special row number up to which
-the sample selection is complete but beyond which there are
-serendipitous targets. Identifying the special row number up
-to which the sample selection is complete is a change point
-8 SHARMA ET AL.
-0 2 4 6 8 10 12 14
-R [kpc]
-4
-2
-0
-2
-4
-z [kpc]
-(a)
-0 2 4 6 8 10 12 14
-[kpc]
-0.0
-0.2
-0.4
-0.6
-0.8
-1.0
-p
-(b)
-R
-|z|
-4 2 0 2 4
-xhelio [kpc]
-4
-2
-0
-2
-4
-yhelio [kpc]
-(c)
-0 2 4 6 8 10 12 14
-[kpc]
-0.0
-0.2
-0.4
-0.6
-0.8
-1.0
-p
-(d)
+10
+10
 d
-|z|
-10
-2
-10
+Nregions/d
+Vregion [V
 1
-10
-0
-10
-2
-10
-1
-10
-0
-Figure 7. The spatial distribution of oscillating giants using parallax information from Gaia. Panels (a) and (b) show the distribution in
-Galactocentric cylindrical coordinates R and z. Away from the plane the radial coverage in R extends all the way from 2 kpc to 14 kpc.
-However, close to the plane the radial extent is quite limited. Panels (c) and (d) show the distribution in heliocentric Cartesian coordinates xhelio
-and yhelio and distance d.
-detection problem. We propose a novel algorithm for quantifying this. The change point is given by
-argmax X
-i
-k=1
-Si − i fc
-!
-, (4)
-where Si
-is a binary state variable, which is 1 if the i-th star
-is selected but otherwise 0. The procedure identifies the row
-number where the completeness f changes from greater than
-fc to less than fc. Here, fc is a free tunable parameter and
-we set it to 0.8. The actual change point is not too sensitive
-to the exact choice of fc. Using the above procedure, a total of 110791 were found to be free of serendipitous targets,
-which we refer to as our K2GAP complete sample. From this
-sample we identify the 101420 stars that are color magnitude
-complete following the selection function listed in Table 1.
-2.6. Asteroseismic parameters of giants
-In this paper we use two seismic quantities: the frequency
-of maximum oscillation power, νmax, and the frequency separation between overtone oscillation modes, ∆ν. The values
-we use were the so-called SYD results that are also adopted
-by Reyes et al. (submitted) and the K2GAP DR3 catalog
-(Zinn et al. 2021). We used the associate detection probabilities pνmax
-, based on Hon et al. (2018b) and p∆ν, based
-on Reyes et al submitted). A target with p∆ν < 0.5 was assumed to have an invalid ∆ν. A target with both pνmax < 0.5
-and p∆ν < 0.5 was assumed to have an invalid νmax. After applying these definitions, a total of 30923 targets had a
-valid νmax and of these, a total of 20708 targets had a valid
-∆ν. Note, some stars were observed in multiple campaigns,
-which means there can be multiple targets (and hence results) that correspond to the same star. To be consistent with
-Sharma et al. (2016), we use the SYD results from Stello
-et al. (2013) when comparing with Kepler, which had a total
-of 12919 targets with valid νmax and ∆ν.
-3. RESULTS
-3.1. Spatial distribution of oscillating giants
-One of the main advantages of the K2 mission over the
-Kepler mission is its wider coverage of the Galaxy. This
-can be seen in Figure 7, which shows the spatial distribution of oscillating giants in the Galaxy. The K2 giants span a
-wide region in the (R,z) plane, while Kepler giants were con-
-K2GAP TARGET SELECTION 9
-5 4 3 2 1 0 1 2
-MKs
-0.0
-0.2
-0.4
-0.6
-0.8
-1.0
-1.2
-m
-a
-x
-d
-e
-t
-e
+box h
+3 M
+p
 c
-tio
-n
-p
-r
-o
-b
-a
-bilit
-y
-K2 10 < VJK < 13
-Kepler
-Figure 8. The probability of detecting νmax as function of absolute
-magnitude MKs. The probability is measured as the ratio of stars
-with νmax detections to the number of stars observed in each bin of
-MKs. The average probability in the range −2.5 < MKs < 0 is 0.86
-for K2 and 0.89 for Kepler.
-10
-1 10
+3
+]
+= 6.5 - log10(Tvir) = 3.5
+= 12.0 - log10(Tvir) = 4.0
+= 30 - log10(Tvir) = 4.69897
+= 40 - log10(Tvir) = 4.69897
+= 55 - log10(Tvir) = 4.69897
+= 100 - log10(Tvir) = 4.69897
+= 300 - log10(Tvir) = 4.69897
+= 55.0 - log10(Tvir) = 5.0
+= 150.0 - log10(Tvir) = 5.4
+Fig. 8. Probability distribution functions of the volume of segmentations
+patches for each physical model mentioned in Table 1. Here, all the
+patches of each realisation for one specific model are accumulated.
+4.1. Emitting halos with different mass range and ionizing
+efficiency (SRH set)
+We first look at the probability distribution functions of the
+patch-filament alignment for every model of the SRH set, which
+are shown on Fig. 9. For each model, the cosines of all of their
+patches are accumulated in order to improve the statistics of
+the result. The top panel shows that the majority of reionization patches are rather aligned with their gas filament. Besides,
+there does not seem to be any great difference between the different models of this set. The bottom panel, showing PDFs normalised to the ζ = 30 and Tvir = 5 × 104 K fiducial model, lets
+us see the slight variations between the five models. The models
+are well ordered in the cos(hzreion, δi) ∼ 1 regime: simulations
+with the smaller emitting halos have more patches aligned with
+the density. Conversely, models with strong emitters have more
+frequently perpendicular configurations between matter and radiation, albeit still dominated by aligned situations. The gray
+curve in the top panel corresponds to the model with ζ = 30
+and Tvir = 5 × 104 K, for which each filament has been rotated
+with a randomly chosen angle for safety checks. In that case, filaments have now random orientations, which means that their
+orientation compared to the radiations are also random. Indeed,
+one can see that the PDF of this test is rather flat, depicting the
+expected random behaviour.
+We now know that the majority of reionization patches are
+aligned with their filament. In Sect. 2.4, we have shown that
+the majority of reionization patches have a prolate shape. So,
+is there any correlation between those behaviours? Figure 10 is
+a 2D distribution of the triaxiality parameter versus the cosine
+of angles between the radiations and filaments for the fiducial
+model (ζ = 30 and log10(Tvir) = 4.69897). One can see that there
+is indeed a correlation between the shape and the orientation of
+zreion patches: they are generally prolate and aligned with the filaments. Note that this distribution is very similar for every other
+model (which are not shown here). Therefore, in our simulations
+there is a clear regime of prolate-aligned reionization patches
+(see the top-right region with T ≥
 2
-max [ Hz]
+3
+and cos(hzreion, δi) ≥ 0.5 of
+the T vs. cos(hzreion, δi) space, where there is 46.6% of the total
+number of patches). There are also other types of patches, even if
+there are rarer. For example, the opposite of the prolate-aligned
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
+1.0
+1.5
+2.0
+2.5
+3.0
+d(Nregions/N) / d
+c
+o
+s( zreion, )
+= 6.5 - log10(Tvir) = 3.5
+= 12.0 - log10(Tvir) = 4.0
+= 30 - log10(Tvir) = 4.69897
+= 55.0 - log10(Tvir) = 5.0
+= 150.0 - log10(Tvir) = 5.4
+= 30 - log10(Tvir) = 4.69897 with fil rotation
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
+0.85
+0.90
+0.95
+1.00
+1.05
+1.10
+1.15
+d(Nregions/N1model) / d
+c
+o
+s( zreion, )
+= 6.5 - log10(Tvir) = 3.5
+= 12.0 - log10(Tvir) = 4.0
+= 30 - log10(Tvir) = 4.69897
+= 55.0 - log10(Tvir) = 5.0
+= 150.0 - log10(Tvir) = 5.4
+Fig. 9. On the top panel, there are the probability distribution functions
+of the cosine of the angle between the reionization patches and their corresponding filaments (as explained in Sect. 2.4). On the bottom panel,
+the same PDFs are shown but they are divided by the one of the model
+with ζ = 30 and log10(Tvir) = 4.69897. Each model varying ζ and Tvir
+at the same time are represented here, accumulating all patches of their
+101 realisations on both panels. Besides, on the top panel, the model
+with ζ = 30 and log10(Tvir) = 4.69897 is also represented (in gray) with
+a rotation of filaments in order to have a comparison with total randomness.
+patches are the oblate-perpendicular patches to the filaments (see
+the bottom-left region with T ≤
+1
+3
+and cos(hzreion, δi) ≤ 0.5 of
+the T vs. cos(hzreion, δi) space): there are only a few of them
+(2.36%) and they are in fact patches with "butterfly" shapes. Figure 11 shows those two kinds of patches: the pink cells belong
+with the filament and the rainbow-colored ones belong with the
+reionization patches. On the top panel, there is an example of
+a prolate-aligned region, where one can clearly see its prolate
+shape and that the reionization patch follows well the direction of
+the filament. On the bottom panel, the patch looks like a butterfly
+thanks to the two "wings" surrounding the filament: it is easier
+for the radiation to escape perpendicularly to the filament, as
+these directions are less dense. Another interesting feature with
+that "butterfly" patch is that one can clearly see that regions close
+to the filaments have been reionized earlier, while the reionization redshift decreases as the distance to the filaments increases.
+The same behaviour is observed on the prolate-aligned region
+Article number, page 7 of 13
+A&A proofs: manuscript no. aanda
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
 0.0
 0.2
 0.4
 0.6
 0.8
 1.0
-1.2
-N
-/
-N
-max
+T
+oblate
+triaxial
+prolate
+= 30 - log10(Tvir) = 4.69897
+0.000
+0.001
+0.002
+0.003
+0.004
+0.005
+0.006
+0.007
+lo
+g(Nregions/Ntot)
+Fig. 10. 2D histogram representing the logarithm of the ratio of the
+number of patches to the total number of patches of the simulation in
+bins of triaxiality parameter and cosine of the angle between reionization patches and filaments for the fiducial model (the one with ζ = 30
+and log10(Tvir) = 4.69897). The white full lines are the isocontours of
+the histogram. The coloured cells of this histogram correspond to nonzero values, and the white cells to zero values.
+of the top panel but in a less impressive manner. With these examples, one can clearly see that the sources are located within
+the filaments or very close to them and it leads to an inside-out
+scenario of the Reionization.
+Regarding the difference between "fiber-like" and "butterfly" shapes, we believe that it originates from the population of
+sources within a given patch. Fiber-like regions could include
+a collection of radiation sources "beaded" along the filaments,
+with similar properties in terms of ignition time, emissivity and
+environment: in such situations, the source, located at the reionization peak of a given patch (i.e. the patch seed) is not exceptional compared to close-by sources within the same region. The
+differences in reionization times values and gradients created by
+these sources are not sufficient to let DisPerSE segments a region into small individual reionization patches and it rather produces extended patches along filaments. On the other hand, butterfly patches could be the mark of a patch dominated by its
+seed source (because it is isolated and/or brighter than other local emitters), that singlehandedly drives the propagation of ionization fronts from the very beginning, preferentially along the
+path of least resistance, perpendicularly to filaments. But clearly,
+the latter geometry is sub-dominant in our models, a trend that
+can be accentuated by the late reionization scenario of the SRH
+dataset (compared to e.g the DRH models): at late times a greater
+number of locations are susceptible to host sources and patches
+are rarely dominated by a single source. It should be noted that
+an increase in both Tvir and ζ can boost the propagation of ionization fronts, cancelling local small variations of reionization times
+and gradients around sources along filaments. It would lead to
+larger coherent patches and we therefore expect a decrease in the
+number of fibre-like regions in such cases, as measured indeed
+in the SRH set.
+4.2. Different Reionization histories
+We now focus on the simulations of the DRH set (those varying only ζ for the fiducial Tvir). Changing ζ allows us to study
+Fig. 11. Examples of reionization patches and their corresponding filament extracted from the segmentations of our simulations: on the top
+panel, there is a prolate-aligned region, and on the bottom panel, there
+is an oblate-perpendicular or "butterfly" region. In shades of pink, one
+can see filaments, and in rainbow colors, the zreion region. The redder
+the region is, the earlier it has reionized. On the contrary, the bluer it is,
+the later it has reionized.
+the impact of different histories of Reionization and different halos ionizing efficiencies. Figure 12 shows the PDFs of the cosine of the angle between their reionization patches and their
+filaments. At first sight (top panel of this Figure), there is no
+significant differences between the five models, always having a
+majority of aligned patches with their filaments. Looking at ratios of PDFs with the fiducial model, a weak trend can be noted:
+the higher ζ, the less the patches are aligned to the filaments and
+there is a slight increase in the number of perpendicular "butterfly" patches. It would be consistent with the above hypothesis
+regarding the origins of the different geometries: DRH models
+with large ζ (while keeping Tvir constant) attribute strong emissivities to the first and rare sources that seed the patches, and
+let them extend their radiative influence perpendicularly to the
+filaments at early times.
+5. The impact of the persistence parameter
+In the previously mentioned results, all the segmentations of the
+density and the reionization redshift fields have been obtained
+using DisPerSE with a fixed value of the persistence threshold. In this section, we propose a brief comparison of the major results shown earlier but with different persistence values.
+This comparison is only done on the fiducial 21cmFAST model
+(ζ = 30 and Tvir = 5 × 104 K) for the sake of brevity, but it is
+Article number, page 8 of 13
+Emilie Thélie et al.: A first look at the topology of reionization redshifts in models of the Epoch of the Reionization
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
+1.0
+1.5
+2.0
+2.5
+3.0
+d(Nregions/N) / d
+c
+o
+s( zreion, )
+= 30 - log10(Tvir) = 4.69897
+= 40 - log10(Tvir) = 4.69897
+= 55 - log10(Tvir) = 4.69897
+= 100 - log10(Tvir) = 4.69897
+= 300 - log10(Tvir) = 4.69897
+= 30 - log10(Tvir) = 4.69897
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
+0.85
+0.90
+0.95
+1.00
+1.05
+1.10
+1.15
+1.20
+d(Nregions/N1model) / d
+c
+o
+s( zreion, )
+= 30 - log10(Tvir) = 4.69897
+= 40 - log10(Tvir) = 4.69897
+= 55 - log10(Tvir) = 4.69897
+= 100 - log10(Tvir) = 4.69897
+= 300 - log10(Tvir) = 4.69897
+Fig. 12. On the top panel, there are the probability distribution functions of the cosine of the angle between the reionization patches and
+their corresponding filaments (as explained in Sect. 2.4). On the bottom
+panel, the same PDFs are shown but they are divided by the one of the
+model with ζ = 30 and log10(Tvir) = 4.69897. Each model varying only
+ζ are represented here, accumulating all patches of their 101 realisations
+on both panels. Besides, on the top panel, the model with ζ = 30 and
+log10(Tvir) = 4.69897 is also represented (in gray) with a rotation of
+filaments in order to have a comparison with total randomness.
+very likely that the conclusions remain the same for every other
+model.
+The segmentations of the density and redshift of reionization
+fields (of the fiducial 21cmFAST model) are therefore computed
+with DisPerSE using four other persistence values, which are
+0.625−σ, 0.75−σ, 0.875−σ and 1−σ. Figure 13 shows the accumulated numbers of reionization patches found in those fields
+for every one of the 101 realisations. One can see that the larger
+the persistence, the less there are patches as expected since critical points are more easily merged. It means that in the resulting segmentations with those larger persistences, there is a
+lower number of critical points, explaining the lower number of
+patches. This behaviour directly impacts the volume of the reionization patches for which the probability distribution functions
+are shown on Fig. 15. The correlation of the number of patches
+and their volume is clearly visible here: the larger the persistence
+0.5
+0.625
+0.75
+0.875
+1
+Persistence for simulations with = 30 and log10(Tvir) = 4.69897
 0
+20000
+40000
+60000
+80000
+100000
+120000
+Nregions
+8.11E+04
+6.29E+04
+4.95E+04
+3.92E+04
+3.12E+04
+Fig. 13. Number of patches in the fiducial model (ζ = 30 and Tvir =
+5 × 104 K) that are detected using DisPerSE with different persistence
+levels. For each one of them, one adds the patches numbers of every
+realisation.
+is, the larger the volume of patches is and the fewer the patches
+should be since the total volume is conserved.
+It should be noted that persistence is related to percolation.
+For instance, on the 1D representation of the persistence of Fig.
+3, we see that, after applying a persistence threshold, the leftmost maximum (reionization seed in our case) "disappears" and
+will be associated to the other one. Small persistence applied
+on the reionization redshift maps allow less prominent and more
+numerous patches to be taken into account in the final segmentations. Conversely, large persistence values favour the merging of
+patches by DisPerSE, as sketched in Fig. 14. The persistence applied on the reionization redshift maps can thus be seen as a relative measure of the different timings of creation of two patches
+and it can therefore follow the percolation process. We could in
+principle retrieve the relative progression of the fusion of ionized bubbles (regardless of the time), giving us a complementary
+view of the time progression of the percolation that is the subject of many studies in the literature (see e.g. Chen et al. (2019);
+Giri et al. (2019); Gorce & Pritchard (2019); Giri & Mellema
+(2020)). Indeed, Elbers & van de Weygaert (2019) point out that
+the persistence can follow the lifetime of a topological feature
+and then the creation and evolution of structures, that is the percolation process. They have shown with simple models that they
+can follow the stages of Reionization and know in which stage
+the bubbles are by coupling the persistence homology with the
+Betti numbers.
+Now, computing the triaxiality parameter for every new persistence, one can plot the PDFs shown on the top panel of Fig.
+16. Generally, all the segmentations with the different persistences have the same behaviour: a majority of prolate reionization patches. But looking at the detailed ratios with the 0.5−σ
+curves (bottom panel of the same Figure), one can distinguish a
+trend with increasing persistences: the larger the persistence, the
+more there are prolate patches. The percolation process therefore
+favours the merging of patches along filaments and promotes
+prolate-aligned configurations, with "beaded" patches along filaments, as sketched again in Fig. 14. Again, our study of the
+persistence is reminiscent of the process detailed by Chen et al.
+(2019) where small ionized bubbles grow during their "Ionized
+Bubble" stage and merge to form the bigger and fibre-like regions during the "Ionized Fibre" stage. Changing the persistence
+parameter allows us to retrieve a similar behaviour in our segmentations.
+Nevertheless, our segmentations appear to be robust to the
+changes in persistence, and the main conclusions that have
+Article number, page 9 of 13
+A&A proofs: manuscript no. aanda
+filament filament filament
+Regions of
+influence
+Regions of
+influence
+Region of
+influence
+Ionization
+sources
+Increasing the
+persistence
+Increasing the
+persistence
+Fig. 14. 2D illustration of the percolation process using the persistences. A matter filament is represented in blue with many ionization
+seeds (in red) within it. Those seeds create their patch of radiative influence (shown in orange), and when the persistence increases (from left
+to right), smaller patches merge to form bigger ones.
+10
+2 10
+3 10
+4
+Vregion [h
+3 Mpc
+3
+]
+10
+14
+10
+13
+10
+12
+10
+11
+10
+10
+d
+Nregions/d
+Vregion [V
+1
+box h
+3 M
+p
+c
+3
+]
+= 30 - log10(Tvir) = 4.69897 - p=0.5
+= 30 - log10(Tvir) = 4.69897 - p=0.625
+= 30 - log10(Tvir) = 4.69897 - p=0.75
+= 30 - log10(Tvir) = 4.69897 - p=0.875
+= 30 - log10(Tvir) = 4.69897 - p=1
+Fig. 15. Probability distribution functions of the volume of segmentations patches for the fiducial model (ζ = 30 and Tvir = 5 × 104 K) with
+the different persistences used in DisPerSE. Here, all the patches of
+each realisation for one specific model are accumulated.
+been mentioned in previous sections. are unchanged. Indeed, the
+shape of the reionization patches (see Fig. 16) remains very similar and the orientation of the patches with respect to the filaments
+is almost unchanged too, as one can see on Fig. 17.
+6. Comparison with EMMA simulations
+We now compare the topology of EoR simulations obtained with
+the semi-numerical code 21cmFAST to that coming from the
+cosmological simulation code EMMA (Electromagnétisme et Mécanique sur Maille Adaptative, Aubert et al. (2015)). EMMA is
+an adaptive mesh refinement (AMR) code that couples radiative
+transfer and hydrodynamics, and in which the light is described
+as a fluid (resolved using the moment-based M1 approximation,
+Aubert & Teyssier (2008)).
+The EMMA simulations set on which we work here is composed of two simulations with cosmology given by Planck Collaboration et al. (2020), with no AMR and no reduced speed of
+light (see Gillet et al. (2021) for more information on the simulations). The difference between the two simulations is the mass
+resolution of the stellar particles: 107 M for the one labelled
+as EMMA "Mslow" and 108 M for the other one. As detailed in
+Gillet et al. (2021), stellar particles are converted from gas according to a Poissonian process. Cells that will convert to stars
+0.0 0.2 0.4 0.6 0.8 1.0
+Treg
+10
+2
+10
+1
+10
+0
+d
+Nregions / d
+Treg
+oblate triaxial prolate
+= 30 - log10(Tvir) = 4.69897 - p=0.5
+= 30 - log10(Tvir) = 4.69897 - p=0.625
+= 30 - log10(Tvir) = 4.69897 - p=0.75
+= 30 - log10(Tvir) = 4.69897 - p=0.875
+= 30 - log10(Tvir) = 4.69897 - p=1
+0.0 0.2 0.4 0.6 0.8 1.0
+Treg
+0.85
+0.90
+0.95
+1.00
+1.05
+1.10
+1.15
+d(Nregions/N1model) / d
+Treg
+oblate triaxial prolate
+= 30 - log10(Tvir) = 4.69897 - p=0.5
+= 30 - log10(Tvir) = 4.69897 - p=0.625
+= 30 - log10(Tvir) = 4.69897 - p=0.75
+= 30 - log10(Tvir) = 4.69897 - p=0.875
+= 30 - log10(Tvir) = 4.69897 - p=1
+Fig. 16. Probability distribution functions of the triaxiality parameter
+for the fiducial model (ζ = 30 and Tvir = 5 × 104 K) with the different
+persistences used in DisPerSE (top panel). The bottom pannel represents the same PDFs but each one of them is divided by one particular
+model (the fiducial one with the persistence being 0.5 − σ). On the two
+panels, all the patches of each realisation for one specific model are
+accumulated.
+an amount of gas only slightly larger than the stellar mass will
+naturally lead to a stochastic star formation process. Conversely,
+if the same amount of gas is much larger than the stellar mass
+particle, it will induce a steady stream of particles. As a consequence the EMMA "Mslow" model presents a diffuse population
+of stars, whereas the other one exhibits a stellar biased population focused on the densest cells. For these two simulations, the
+boxes have 5123
+cells for 5123
+cMpc3
+/h
+3
+. We have then cut those
+boxes in 64 sub-boxes of 1283
+cells and 1283
+cMpc3
+/h
+3
+, creating 64 "realisations" of the two EMMA models. The resolution of
+those sub-boxes is the same than the one of the 21cmFAST simulations. Comparisons with the 21cmFAST models are made with
+64 realisations of each 21cmFAST simulation for consistency.
+On Fig. 18, one can see the ionized volume fractions of every
+simulation mentioned in this study. The EMMA ones are fully ionized approximately at the same time as the 21cmFAST ones. With
+EMMA, however, the reionization starts later and is more abrupt,
+which could be explained by the fact that EMMA simulations have
+Article number, page 10 of 13
+Emilie Thélie et al.: A first look at the topology of reionization redshifts in models of the Epoch of the Reionization
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
+1.0
+1.5
+2.0
+2.5
+3.0
+d(Nregions/N) / d
+c
+o
+s( zreion, )
+= 30 - log10(Tvir) = 4.69897 - p=0.5
+= 30 - log10(Tvir) = 4.69897 - p=0.625
+= 30 - log10(Tvir) = 4.69897 - p=0.75
+= 30 - log10(Tvir) = 4.69897 - p=0.875
+= 30 - log10(Tvir) = 4.69897 - p=1
+= 30 - log10(Tvir) = 4.69897 - p=0.5 with fil rotation
+Fig. 17. Probability distribution functions of the cosine of the angle
+between the reionization patches and their corresponding filaments (as
+explained in Sect. 2.4) of the fiducial model (ζ = 30 and Tvir = 5 ×
+104 K) with the different persistences used in DisPerSE, accumulating
+all patches of every realisation. Besides, the model with the 0.5 − σ is
+also represented (in gray) with a rotation of filaments in order to have a
+comparison with total randomness.
+larger volumes compared to the 21cmFAST ones, with greater
+voids and larger halos.
+Again, before using DisPerSE on the EMMA fields, the same
+kind of transformations as mentioned in Sect. 2.3 are applied on
+each sub-box, using the means and the standard deviations of
+the 5123
+cMpc3
+/h
+3 boxes instead of those of each sub-grid. Doing so, we take into account the cosmic variance of the whole
+box. After having obtained the segmentations with DisPerSE
+with the same persistence used for all the 21cmFAST simulations
+(0.5−σ), one can compute the distribution of volumes of patches.
+It is shown in Fig. 19 for every EMMA and 21cmFAST simulations accumulating 64 realisations for each one of them. The
+EMMA simulations have smaller patches and a greater number of
+them than the 21cmFAST simulations. The EMMA model with the
+massive, 108M, stellar particles is significantly different from
+the 21cmFAST simulations: the patch size distribution is clearly
+shifted to smaller volumes with a large number of small patches.
+Meanwhile, the EMMA "Mslow" model with the less massive,
+107M, stellar particles is more alike the 21cmFAST models: the
+more diffuse source distribution, allowed by such settings, manage to recover topological features similar to 21cmFAST models
+(in which all locations is a potential source of radiation with its
+own distribution of emitting halos).
+The tensors and main directions of the reionization patches
+and filaments of the EMMA simulations are computed, and allow
+us to compare the direction of the propagation of radiation with
+respect to the filament. The top panel of Fig. 20 shows the distributions of the cosine of the angle between those directions for
+the EMMA and the 21cmFAST simulations. There is an alignment
+of patches and gas filaments in the EMMA simulation similar to the
+21cmFAST models, with the EMMA "Mslow" being slightly more
+aligned. The bottom panel of Fig. 20 shows the ratio of each
+PDFs of cosines with the fiducial 21cmFAST model and again
+the EMMA "Mslow" shows very similar PDFs to the 21cmFAST
+models, which implies that it is possible to recover the same
+kind of behaviour than semi-analytical simulations with a fullynumerical code even if the reionization occurs differently. Con4 6 8 10 12 14 16
+z
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+x
+HII
+21cmFAST - = 6.5 - log10(Tvir) = 3.5
+21cmFAST - = 12.0 - log10(Tvir) = 4.0
+21cmFAST - = 30 - log10(Tvir) = 4.69897
+21cmFAST - = 40 - log10(Tvir) = 4.69897
+21cmFAST - = 55 - log10(Tvir) = 4.69897
+21cmFAST - = 100 - log10(Tvir) = 4.69897
+21cmFAST - = 300 - log10(Tvir) = 4.69897
+21cmFAST - = 55.0 - log10(Tvir) = 5.0
+21cmFAST - = 150.0 - log10(Tvir) = 5.4
+EMMA
+EMMA Mslow
+Fig. 18. Ionized volume fraction of all the 21cmFAST simulations and
+the two EMMA simulations having different models, each one of them
+averaged on 64 realisations.
+10
+2 10
+3 10
+4 10
 5
+Vregion [h
+3 Mpc
+3
+]
 10
 15
-20
-Campaign
-Figure 9. Fraction of stars with νmax detections that also have ∆ν
-detections.
-fined to a small range around R = R. This is specially useful for studying the formation and evolution of the Galaxy.
-Away from the plane the radial coverage in R extends all the
-way from 2 kpc to 14 kpc (Figure 7b, blue curve). However,
-close to the plane the radial extent is quite limited (Figure 7a,
-z ∼ 0 kpc). In the heliocentric (x, y) projection the giants can
-be seen in all four quadrants, but there are more of them in
-the lower half defined by yhelio < 0 (Figure 7c). Although
-the giants extend up to a distance of about 6 kpc from the
-Sun, most of the stars are within a distance of about 2.5 kpc
-(Figure 7d, green curve).
-3.1.1. Probability to detect νmax.
-For bright stars the K2 mission is expected to detect oscillations in stars with 10 . νmax/µHz . 270. The lower limit
-νmax is due to the duration of the observations and the upper
-limit is due to the 30 min cadence of the data. The absolute magnitude, for example MKs, increases with increasing
-νmax. Hence, stars with νmax measurements should be confined to a range in MKs. This suggests that MKs can be used
-to estimate the overall detection probability and this can be
-seen in Figure 8, where we plot the ratio of stars with νmax
-measurement to the number of observed stars as function of
-MKs. The probability in the range −2.5 < MKs < 0 is approximately constant but falls off at either end. Stars with MKs > 0
-have νmax that is too high to be measurable while stars with
-MKs < −2.5 have νmax that is too low. The average probability in the range −2.5 < MKs < 0 was found to be 0.86 for K2
-and 0.89 for Kepler. This represents the overall probability
-to detect νmax. The probability for Kepler is slightly higher,
-most likely due to higher SNR resulting from light curves
-being about 12 times longer. For Kepler the high detection
-probability zone extends to lower values of MKs (−3) than for
-K2 (−2.5). This is expected due to Kepler light curves being significantly longer than for K2. For K2, we restrict our
-analysis to bright stars, 10 <VJK < 13, this is because fainter
-stars have low S/N, which progressively makes it harder to
-detect νmax, specially for stars with high νmax, which have
-lower oscillation amplitudes. Lowering the bright limit on
-VJK was found to have no effect on the detection probability
-profile shown in Figure 8.
-3.1.2. Probability to detect ∆ν for a given νmax.
-In Figure 9 we show the probability of detecting ∆ν given
-a νmax detection, with each campaign shown separately. The
-probability is computed as the fraction of stars with νmax detection that also have a ∆ν detection. The fraction shows
-an undulating behaviour with two peaks, which arise from a
-global smooth hill shape that peaks at νmax ∼ 60µHz and a
-local dip near νmax of 30µHz. For the global shape, the drop
-towards lower νmax is due to the lower limit set by the 80 day
-duration of the light curve; ∆ν becomes harder to resolve.
-The drop towards higher νmax is because νmax approaches the
-Nyquist frequency. The dip at νmax ∼ 30µHz corresponds to
-the location of the red clump (RC) stars. It shows that ∆ν is
-generally harder to detect in clump stars. The asteroseismic
-completeness for other pipeline results and as a function of
-mass and radius is considered in Zinn et al. (2021).
-3.2. Comparing observed asteroseismic data with Galactic
-model predictions
-One of the main aims of the K2GAP is to study the formation and evolution of the Milky Way. A important step in this
-process is to compare the observed asteroseismic data with
-the predictions of a current state-of-the-art Galactic model.
-This will help identify any major issues that need to be addressed before fine tuning the model. Each K2 campaign was
-unique with characteristics such as the light curve duration,
-the pointing accuracy, and the crowding varying from campaign to campaign. Hence, it is important to highlight if any
-10 SHARMA ET AL.
 10
+14
+10
+13
+10
+12
+10
+11
+10
+10
+d
+Nregions/d
+Vregion [V
 1
-10
-2
-10
+box h
+3 M
+p
+c
 3
-max[ Hz]
-(a) C1, 1151 (b) C1, 0.80 (c) C2, 1140 (d) C2, 0.80
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(e) C3, 1069 (f) C3, 0.74 (g) C4, 1931 (h) C4, 0.70
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(i) C5, 2666 (j) C5, 0.89 (k) C6, 2193 (l) C6, 0.81
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(m) C7, 1678 (n) C7, 0.79 (o) C8, 954 (p) C8, 0.78
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(q) C10, 1196 (r) C10, 0.72 (s) C11, 449 (t) C11, 0.30
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(u) C12, 1167 (v) C12, 0.66 (w) C13, 1597 (x) C13, 0.71
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(y) C14, 1063 (z) C14, 0.83 (aa) C15, 2254 (ab) C15, 0.79
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(ac) C16, 1805 (ad) C16, 0.84 (ae) C17, 672 (af) C17, 0.80
-10.0 12.5 15.0
-VJK [mag]
-10
-1
-10
-2
-10
-3
-max[ Hz]
-(ag) Kepler, 12712
-10.0 12.5 15.0
-VJK [mag]
-(ah) Kepler, 0.86
-10.0 12.5 15.0
-VJK [mag]
-(ai) K2, 22536
-10.0 12.5 15.0
-VJK [mag]
-(aj) K2, 0.78
-10
-0 10
-1 10
-2
-Nobs
-0.5 1.0 1.5
-Nobs/Npred
-10
-0 10
-1 10
-2
-Nobs
-0.5 1.0 1.5
-Nobs/Npred
-Figure 10. Distribution of observed (the first and the third columns) stars in the (νmax,VJK) plane for different K2 campaigns. The results for
-Kepler is shown in panel (ag), while the combined results from all K2 campaigns (except C11) is shown in (ai). The panels in the second and
-the fourth columns plot the ratio of observed to predicted oscillating giants in each bin, with the average recovery rate shown in the top right of
-each panel. The predictions are based on simulations using Galaxia. The dashed line represents the equation νmax = −60(VJK − 17).The upper
-right region (above the dashed line) indicates where we cannot detect oscillations due to too low signal-to-noise.
-K2GAP TARGET SELECTION 11
-campaigns are in some way problematic. For example, if observations agree with model predictions in some campaigns
-but not in others, then that is strong evidence for problematic campaigns. Having described the selection function and
-detection completeness we now proceed to performing this
-model comparison.
-We begin by creating a synthetic catalog of stars in accordance with a Galactic model that satisfy the same selection
-function as the observed data, which is available for download 4
-. Next, we compare the predicted and observed distribution of various stellar properties, such as apparent magnitude VJK, νmax, and κM; the latter being a seismic mass proxy
-that includes both νmax and ∆ν.
-To sample data from a prescribed Galactic model we use
-the Galaxia5
-code (Sharma et al. 2011). It uses a Galactic
-model that is initially based on the Besançon model by Robin
-et al. (2003) but with some crucial modifications, which are
-described in Sharma et al. (2019). One of the most significant
-change was the shift in mean effective metallicity of the thick
-disc from −0.78 to −0.162. This model with a metal rich thick
-disc is hereafter referred to as Galaxia(MR).
-The main steps in creating the synthetic catalog are as follows. Using Galaxia, we create magnitude limited samples
-with J < 15 for each campaign over a circular area of 8 degree radius. The stars are then filtered in accordance with the
-selection function on color, magnitude, and angular coordinates as described in Table 1. We provide a python function6
-to do this. Next, the synthetic stars are sub-sampled (without replacement) to match the total number of observed stars
-in each campaign that follow the selection function (column
-5 in Table 1). In reality, to reduce Poisson noise we oversample the synthetic stars by a factor of 10. For reference
-purposes we also show results for the Kepler mission. The
-selection function that we adopt for Kepler is given by Equations (2) and (3) of Sharma et al. (2019). Full details to reproduce the Keplerselection function can be found in Sharma
-et al. (2016).
-The seismic quantities νmax and ∆ν for the synthetic stars
-are estimated from effective temperature, Teff, surface gravity, g, and density, ρ, using the following asteroseismic scaling relations (Brown et al. 1991; Kjeldsen & Bedding 1995;
-Ulrich 1986).
-νmax
-νmax,
-=
-g
-g
-
-Teff
-Teff,
-−0.5
-and ∆ν
-∆ν
-= f∆ν
-
-ρ
-ρ
-0.5
-.(5)
-Here, f∆ν is the correction factor derived by Sharma et al.
-(2016) by analyzing theoretical oscillation frequencies with
-4 http://www.physics.usyd.edu.au/k2gap/download/k2_observed_
-simulated.fits
-5 http://galaxia.sourceforge.net
-6 https://github.com/sanjibs/k2gap
-GYRE (Townsend & Teitler 2013) for stellar models generated with MESA (Paxton et al. 2011, 2013). We used the
-code ASFGRID7
-(Sharma et al. 2016) that computes the correction factor as a function of metallicity Z, initial mass M,
-evolutionary state Estate (pre or post helium ignition), Teff, and
-logg. A random scatter based on the median observed uncertainty for each campaign is added to estimated values of νmax
-and ∆ν.
-As discussed earlier in Section 3.1.1, we expect to detect
-oscillations only in the range 10 . νmax/µHz . 270. However the probability to measure νmax is not constant over this
-range. The oscillation amplitude in general decreases with
-νmax and the overall noise in the extracted power spectrum
-increases with increasing apparent magnitude. This means
-that at fainter magnitudes the high νmax stars are less likely to
-show detectable oscillations. To model the seismic detection
-probability we follow the scheme presented by Chaplin et al.
-(2011) and Campante et al. (2016). The exact procedure that
-was adopted is given in Section 3.4 of Sharma et al. (2019).
-In short, the oscillation amplitude was estimated based on
-stellar luminosity, mass, and temperature. The apparent magnitude was used to compute the instrumental photon-limited
-noise in the power spectrum, which when combined with
-granulation noise gave the total noise. The mean oscillation
-power and the total noise were then used to derive the probability of detecting oscillations (with less than 1% possibility
-of false alarm). Stars with a detection probability of greater
-than 0.9 were assumed to be detectable.
-3.2.1. The distribution of stars in the (νmax,VJK) plane
-Figure 10 shows the distribution of observed stars in the
-(VJK,νmax) plane for different K2 campaigns (first and third
-columns). Results from Kepler (panel (ag)) and the combination all K2 campaigns (panel (ai)) are also shown. The heat
-maps in the second and fourth columns show the number ratio of observed to predicted giants. It can be see that νmax
-can be measured for stars as faint as VJK = 16. However, the
-efficiency seems to decrease beyond VJK = 16 (dark region in
-Figure 10aj). It can be seen that in K2 there is a lack of observed stars in the upper right corner (above the red dashed
-line). The red dashed line roughly identifies the threshold beyond which the theory predicts that the oscillations would be
-hard to detect because of too low oscillation amplitude (high
-νmax) and to high noise (faint stars).
-The ratio of observed to predicted number of stars varies
-from campaign to campaign, and is typically between 0.66
-and 0.89. When averaged over all campaigns the ratio is 0.78.
-From Section 3.1.1 (Figure 9) we know that 14% of giants
-are expected to be missing. The extra 8% of missing giants
-are most likely due to the fact that the model overpredicts the
-7 http://www.physics.usyd.edu.au/K2GAP/Asfgrid
-12 SHARMA ET AL.
-number of giants (stars with MKs < 2) compared to dwarfs
-for stars with J −Ks > 0.5. This needs further investigation.
-It could also be due to the turnoff stars being bluer in the
-model, and hence getting excluded in our J − Ks > 0.5 cut
-used to select the stars.
-Campaign C11 has unusually low numbers of observed
-stars compared to the prediction, with a ratio of 0.3. This
-could be related to the data quality, which is doubtful for a
-couple of reasons. Firstly, due to an error in the initial roll angle, a correction was applied 23 days into the campaign and
-as a result the campaign was split into two segments. Secondly, C11, which was pointing towards the Galactic bulge,
-has the highest stellar density amongst all the campaigns analyzed here. Due to the high stellar density the pipelines used
-for extracting light curves as well as for the subsequent asteroseismic analysis are most likely operating outside their
-nominal design range. This can severely hamper the quality
-of the derived asteroseismic parameters. In the following two
-sections we will look at the distributions shown in Figure 10
-collapsed onto either axis.
-3.2.2. The distribution of apparent magnitude
-In Figure 11 we show the distribution of apparent magnitude VJK of the giants with νmax detections, which shows
-good agreement between the model and the data. The good
-match is primarily a reflection of the fact that the model correctly reproduces the number of giants as a function of magnitude. A good match in VJK is in some sense a necessary
-condition before we embark on a more detailed comparison
-of model predictions with observations. The number of observed and predicted giants is listed on each panel. It can
-be seen that the model overpredicts the number of oscillating
-giants, which we discuss in more detail later on.
-3.2.3. The distribution of νmax
-In Figure 12 we now show the observed distribution of νmax
-alongside the model predictions. The distribution shows a
-peak at around νmax of 30.5 µHz, corresponding to the RC
-stars. For K2, the peak of observed stars is significantly
-shallower compared to the prediction. This could be due to
-the uncertainty in νmax being underestimated in the model
-or because the model is inaccurate. It could also be due to
-RC stars preferentially ‘escaping detection’. For K2, the observed peak is systematically shifted to lower νmax compared
-to the predictions, except for C4 and C13. Interestingly, both
-C4 and C13 point towards the anti-center direction suggesting the model requires some changes.
-3.2.4. The distribution of stars in the (νmax,κM) plane
-We now turn to
-κM =
-
-νmax
-νmax,
-3 
-∆ν
-∆ν
-−4
-, (6)
-0.0
-p0.4
-(a)
-1151
-1437
-C1
-(b)
-1140
-1421
-C2
-0.0
-p0.4
-(c)
-1069
-1436
-C3
-(d)
-1931
-2756
-C4
-0.0
-p0.4
-(e)
-2666
-3001
-C5
-(f)
-2193
-2707
-C6
-0.0
-p0.4
-(g)
-1678
-2118
-C7
-(h)
-954
-1228
-C8
-0.0
-p0.4
-(i)
-1196
-1664
-C10
-(j)
-449
-1510
-C11
-0.0
-p0.4
-(k)
-1167
-1769
-C12
-(l)
-1597
-2264
-C13
-0.0
-p0.4
-(m)
-1063
-1278
-C14
-(n)
-2254
-2836
-C15
-0.0
-p0.4
-(o)
-1805
-2156
-C16
-(p)
-672
-835
-C17
-8 10 12 14
-VJK [mag]
-0.0
-p0.4
-(q)
-12712
-14703
-Kepler
-8 10 12 14
-VJK [mag]
-(r)
-22985
-30422
-K2
-Galaxia(MR) Observed
-Figure 11. Magnitude distribution of observed oscillating giants
-from K2 along with predictions from Galaxia (model MR). The
-number of stars with νmax detections in the observed sample and
-those predicted by the model are also listed in each panel.
-which essentially is a temperature-independent seismic
-proxy for stellar mass. Mass is one of the most useful asteroseismic quantities because it helps us to determine the
-stellar age. Hence, comparing the observed distribution of
-κM with theoretical models is central to the theme of Galactic archaeology. Here, we begin by studying the distribution
-of stars in the (νmax,κM) plane. This plane is also useful to
-study the properties of RC and red giant branch (RGB) stars
-separately, because as Sharma et al. (2019) showed, it can be
-used to segregate RC from RGB stars. The RC stars show a
-very sharp edge in this plane; a feature that was used by Li
-et al. (2021) to measure the intrinsic scatter of asteroseismic
-scaling relations.
-Figure 13 shows the (νmax,κM) distribution for the K2GAP
-stars (top row) and for the Kepler sample (third row). The
-K2GAP TARGET SELECTION 13
-0.00
-p0.08
-C1 (a) C2 (b)
-0.00
-0.08 p
-C3 (c) C4 (d)
-0.00
-0.08
-p
-C5 (e) C6 (f)
-0.00
-0.08 p
-C7 (g) C8 (h)
-0.00
-p0.08
-C10 (i) C11 (j)
-0.00
-0.08 p
-C12 (k) C13 (l)
-0.00
-p0.08
-C14 (m)C15 (n)
-0.00
-0.08 p
-C16 (o) C17 (p)
-16 24 32 40
-max [ Hz]
-0.00
-p0.06
-Kepler (q)
-16 24 32 40
-max [ Hz]
-K2 (r)
-Galaxia(MR) Observed
-Figure 12. The probability distribution of νmax for observed and
-predicted oscillating giants. The dashed line, νmax = 30.5 µHz,
-shows the approximate location of the peak in the distribution of
-the predicted stars. The peak corresponds to the location of the RC
-giants. Panel (q) shows the same distributions for Kepler. Panel
-(r) shows the combined data from all K2 campaigns. The observed
-peak is systematically lower compared to the predictions, except for
-C4 and C13, which point towards the anti-center direction.
-model predictions for K2 and Kepler are shown in the second
-and fourth rows, respectively. The distributions of RC (middle column) and RGB (right column) stars are also shown
-separately. The RGB stars are distributed over a wide range
-of νmax and κM. However, RC stars form a diagonal sequence, with most of them lying in a narrow region marked
-by the two solid curves. These curves were designed by
-Sharma et al. (2019) to segregate the RC from the RGB.
-Here, they aid the eye when comparing the distributions in
-the different panels. The sharp right edge in the RC distribution is very clear. The over density in the RGB distribution
-is due to the RGB-bump stars, and it partly overlaps with the
-location of the majority of the RC stars. The distributions for
-K2 and Kepler are very similar. However, the RC sequence
-is slightly sharper for Kepler, most likely due to more precise
-νmax and κM. Overall, the model predictions match well with
-the observed distributions. A comparison of panel (b) with
-other panels in the middle column shows that K2 has a significant number of stars to the right of the rightmost solid curve,
-which is neither predicted by the model (Figure 13e) nor it is
-present in the Kepler data (Figure 13h). This suggests that
-in K2 some RGB stars are misclassified as RC stars, which
-is not unexpected given the K2 observations are relatively
-short making the seismic RC/RGB distinction more uncertain (Hon et al. 2018a). The RC stars with high νmax and high
-κM are secondary clump stars. The models (Figure 13e,k)
-suggest that they have an upper limit of around 100 µHz for
-νmax. In Kepler we do see these stars all the way till 100 µHz.
-However, the K2 data seems to have relatively fewer of them.
-The models also predict a second sequence at low νmax (stars
-at the end of helium core burning; the so-called AGB clump
-stars), but this is not seen in the data. Finally, in the models, the location of the RGB-bump is offset with respect to
-that in observations, with the model’s location being shifted
-to lower νmax, which is a known problem of contemporary
-stellar evolution models (Silva Aguirre et al. 2020).
-3.2.5. The distribution of stars in κM
-The distribution of κM is one of the most sensitive tests
-of the Galactic models, because it is related to mass, which
-in turn is related to age. Hence, the distribution of κM is
-effectively the age distribution of the stars. As such, it is
-sensitive to the star formation history and radial migration
-in the Galaxy. From Sharma et al. (2019) we know that for
-a given age, the mass of a star is correlated with its metallicity. Hence, the distribution of κM indirectly also probes
-the age metallicity relation. Studies using Kepler showed
-that models over predict the number of low κM stars Sharma
-et al. (2016). However, doubts about the reproducibility of
-the complicated selection function of Kepler, prevented us
-from drawing any strong conclusions. This problem was alleviated by K2GAP, because of its simple selection function.
-Using data from four K2 campaigns, Sharma et al. (2019)
-showed that most of the discrepancy was due to the metallicity of the thick disc being too low in the models. In Figure 14 we repeat the same analysis but now using 16 K2
-campaigns. Distributions for high-luminosity RGB (hRGB),
-RC, and low-luminosity RGB (lRGB) stars are shown separately. This was done because, for K2 the probability to
-detect ∆ν varies with stellar type (Figure 9), suggesting systematic effects for different stellar types. The stars were split
-into these categories based on their location in the (νmax,κM)
-plane (see Figure 13); hRGB (left of leftmost solid curve),
-RC (between the two solid curves) and lRGB (right of right-
-14 SHARMA ET AL.
-Figure 13. Distribution of stars in the (κM,νmax) plane. Panels(a,b,c) show result for K2 stars. Panels(d,e,f) show theoretical predictions for
-K2. Panels(g,h,i) show results for Kepler stars. Panels(j,k,l) show theoretical predictions for Kepler. Left columns show the results for all stars,
-the middle columns show the results for RC stars while the right columns show the results for RGB stars. The solid lines (two curves and a
-horizontal line) are drawn to aid the eye when comparing the distributions in the different panels. The two curves are from (Sharma et al. 2019),
-which were designed to roughly identify the RC stars.
-K2GAP TARGET SELECTION 15
-Table 4. Ratio of observed median κM to that predicted by Galaxia
-(MR) for different giant classes. Uncertainties on the computed ratio are also listed. C11 being an outlier is excluded when averaging
-over all K2 campaigns.
-Campaign hRGB RC lRGB
-1 1.15±0.04 1.14±0.02 0.999±0.006
-2 1.06±0.03 1.04±0.02 0.98±0.01
-3 1.07±0.05 1.16±0.02 1.019±0.007
-4 1.09±0.02 1.11±0.01 1.033±0.007
-5 1.07±0.02 1.16±0.01 1.036±0.005
-6 1.03±0.02 1.14±0.01 1.002±0.005
-7 1.02±0.02 1.08±0.01 1.025±0.008
-8 1.11±0.05 1.16±0.02 1.033±0.008
-10 1.1±0.04 1.19±0.03 1.027±0.007
-11 0.82±0.04 0.94±0.02 0.95±0.02
-12 1.17±0.05 1.18±0.02 1.029±0.007
-13 1.13±0.02 1.14±0.01 1.01±0.01
-14 1.07±0.03 1.19±0.02 1.022±0.007
-15 1.05±0.02 1.17±0.01 1.005±0.005
-16 1.13±0.03 1.17±0.01 1.059±0.006
-17 1.09±0.05 1.16±0.02 1.01±0.01
-K2 1.082±0.009 1.153±0.004 1.022±0.002
-Kepler 0.96±0.01 1.018±0.003 1.041±0.002
-most solid curve). Our results confirm the findings of Sharma
-et al. (2019). Figure 14 shows that for the lRGB stars the
-observed κM distribution is in good agreement with the predictions. The agreement is also good for hRGB stars, but the
-models seems to slightly over predict the number of low mass
-stars. However, for the RC the models seem to significantly
-over predict the number of low mass stars. This can be seen
-more clearly in Figure 15 where we combine the results from
-all K2 campaigns to boost the sample size. The predicted
-distribution from the old Galaxia model, with its very metal
-poor thick disc, is also shown for comparison. It cannot even
-reproduce the κM distribution for the lRGB stars. A more detailed quantitative comparison is given in Table 4, where we
-list the ratio of observed to predicted median κM for different
-K2 campaigns, which simply reinforce the qualitative trends
-discussed above.
-The mismatch between the observed and the predicted distribution for RC stars (Table 4) could be due to the model
-being inaccurate. For example, inaccuracies in the Galactic
-model (or underlying stellar models) or inaccuracies in predicting the asteroseismic parameters for the modelled sample. However, given that K2 fails to measure ∆ν for a significant number of RC stars (Figure 9), it is possible that low
-mass stars preferentially evade ∆ν measurement. There is
-some circumstantial evidence to support this. For Kepler we
-do not have any ∆ν incompleteness and we also do not see
-any discrepancy with model predictions.
-4. ASTEROSEISMIC SCALING RELATIONS AND
-GALACTIC ARCHAEOLOGY
-Asteroseismology can provide ages for giant stars and
-hence is a promising tool for studying Galactic structure and
-evolution. However, it has proven to be difficult to check the
-accuracy of the ages and masses estimated by asteroseismology, due to the shortage of independent estimates of mass and
-age. Earlier studies indicated that asteroseismology overestimated masses, found by comparing them with the expected
-mass of metal poor giants in the Kepler sample (Epstein et al.
-2014), and dynamical mass measurements of binary systems
-(Gaulme et al. 2016). Based on Stello et al. (2009), Sharma
-et al. (2016) showed that there are theoretically motivated
-corrections to the ∆ν scaling relation, which are important
-to take into account. These corrections are enough to resolve
-the discrepancy for metal poor giants noticed by Epstein et al.
-(2014). However, the situation regrading the eclipsing binaries is more complicated. Gaulme et al. (2016) suggested
-15% overestimation of mass in spite of ∆ν corrections, while
-the work by Brogaard et al. (2018) suggested a good match
-with the dynamical masses for at least some binaries.
-Population synthesis-based Galactic models, provide an
-indirect way to validate the asteroseismic estimates, assuming that the models are sufficiently accurate. These models have been constructed independently of asteroseismology
-and built to satisfy a number of observations, such as photometric star counts, kinematics, and stellar abundances from
-spectroscopic surveys. As mentioned in the previous section,
-studies using the Kepler mission have revealed that the models predict too many low mass stars compared to the observed
-mass distributions, both for giants (Sharma et al. 2016) and
-subgiants (Sharma et al. 2017). This raised doubts on the
-accuracy of the asteroseismic scaling relations, the Galactic
-models, and/or the selection function. Sharma et al. (2019)
-revisited this by analyzing asteroseismic data from four campaigns of the K2 mission, which had a well defined selection
-function. They showed that if the metallicity distribution in
-the Galactic models is updated to match the measurements
-from recent spectroscopic surveys, the distribution of asteroseismic masses (for low luminosity giants) is in good agreement with the model predictions. And as mentioned in the
-previous section, that result is confirmed here using data from
-all K2 campaigns.
-A number of new interesting developments have happened
-since the analysis by Sharma et al. (2019). Sharma et al.
-(2019) updated the metallicity in the Galactic model based
-on results from APOGEE-DR14, but in the latest APOGEEDR16 data release the metallicity of thick disc stars is lower
-by about -0.06 dex. This will again make the models overpredict the number of low mass stars.
-Recent results by Sharma et al. (2021a,b, 2020b) suggest
-that the thick disc model adopted by Galaxia is too simplis-
-16 SHARMA ET AL.
-0.0
-p
+]
+21cmFAST - = 6.5 - log10(Tvir) = 3.5
+21cmFAST - = 12.0 - log10(Tvir) = 4.0
+21cmFAST - = 30 - log10(Tvir) = 4.69897
+21cmFAST - = 40 - log10(Tvir) = 4.69897
+21cmFAST - = 55 - log10(Tvir) = 4.69897
+21cmFAST - = 100 - log10(Tvir) = 4.69897
+21cmFAST - = 300 - log10(Tvir) = 4.69897
+21cmFAST - = 55.0 - log10(Tvir) = 5.0
+21cmFAST - = 150.0 - log10(Tvir) = 5.4
+EMMA
+EMMA Mslow
+Fig. 19. Probability distribution functions of the volume of segmentations patches for every 21cmFAST and EMMA simulation. Here, all the
+patches of each 64 realisations for one specific model are accumulated.
+versely, the EMMA model with massive, 108M, stellar particle
+presents quite a different picture in terms of alignments. The
+scarce, stochastic and biased distribution of sources in this models leads to much more perpendicular patches than all the other
+models. While this model is in reasonable agreement in terms of
+reionization history, its topology ends up being quite different:
+it emphasises how models that present some reasonable global
+agreements can end up being vastly different in terms of topology as soon as the details of for example the source models are
+not equivalent. The higher star formation stochasticity and the
+more biased distribution of sources lead to trends similar to the
+larger virial temperatures in the 21cmFAST simulations, with isolated reionization seeds that dominate more their environment.
+As for the shape of the reionization patches in the EMMA simulations set, they are also rather prolate in both simulations as in the
+21cmFAST simulations and no significant difference between the
+models have been found (not shown here).
+Article number, page 11 of 13
+A&A proofs: manuscript no. aanda
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
+1.0
 1.5
-(a)
-86 C1, hRGB 129
-(b)
-262 C1, RC 720
-(c)
-511 C1, lRGB 587
-0.0
-p
-1.5
-(d)
-145 C2, hRGB 268
-(e)
-267 C2, RC 893
-(f)
-200 C2, lRGB 259
-0.0
-p
-1.5
-(g)
-70 C3, hRGB 148
-(h)
-263 C3, RC 790
-(i)
-455 C3, lRGB 497
-0.0
-p
-1.5
-(j)
-180 C4, hRGB 304
-(k)
-691 C4, RC 1675
-(l)
-523 C4, lRGB 776
-0.0
-p
-1.5
-(m)
-199 C5, hRGB 269
-(n)
-771 C5, RC 1602
-(o)
-994 C5, lRGB 1128
-0.0
-p
-1.5
-(p)
-195 C6, hRGB 294
-(q)
-492 C6, RC 1472
-(r)
-918 C6, lRGB 940
-0.0
-p
-1.5
-(s)
-247 C7, hRGB 332
-(t)
-602 C7, RC 1483
-(u)
-321 C7, lRGB 302
-0.0
-p
-1.5
-(v)
-69 C8, hRGB 115
-(w)
-249 C8, RC 608
-(x)
-389 C8, lRGB 504
-0.0
-p
-1.5
-(y)
-78 C10, hRGB 178
-(z)
-183 C10, RC 832
-(aa)
-443 C10, lRGB 653
-0.0
-p
-1.5
-(ab)
-64 C11, hRGB 396
-(ac)
-167 C11, RC 966
-(ad)
-45 C11, lRGB 147
-0.0
-p
-1.5
-(ae)
-88 C12, hRGB 201
-(af)
-221 C12, RC 872
-(ag)
-446 C12, lRGB 696
-0.0
-p
-1.5
-(ah)
-188 C13, hRGB 298
-(ai)
-645 C13, RC 1481
-(aj)
-308 C13, lRGB 484
-0.0
-p
-1.5
-(ak)
-82 C14, hRGB 121
-(al)
-239 C14, RC 627
-(am)
-426 C14, lRGB 529
-0.0
-p
-1.5
-(an)
-228 C15, hRGB 370
-(ao)
-618 C15, RC 1830
-(ap)
-771 C15, lRGB 635
-0.0
-p
-1.5
-(aq)
-136 C16, hRGB 207
-(ar)
-552 C16, RC 1117
-(as)
-647 C16, lRGB 831
-0.0
-p
-1.5
-(at)
-58 C17, hRGB 89
-(au)
-163 C17, RC 478
-(av)
-256 C17, lRGB 267
-0.5 1.0 1.5 2.0 2.5 3.0
-M
-0.0
-p
-1.5
-(aw)
-899 Kepler, hRGB 1472
-0.5 1.0 1.5 2.0 2.5 3.0
-M
-(ax)
-8104 Kepler, RC 10337
-0.5 1.0 1.5 2.0 2.5 3.0
-M
-(ay)
-3709 Kepler, lRGB 2894
-Galaxia(MR) Observed
-Figure 14. The distribution of κM for different K2 campaigns and Kepler. Distributions for three different stellar classes, high-luminosity RGB,
-RC, and low luminosity RGB stars are shown separately. The classification was done using the two solid curves in Figure 13. In each panel,
-the number of observed and predicted stars are listed on the right hand side. The bottom row shows the distributions for Kepler.
-K2GAP TARGET SELECTION 17
-0.0
-0.4
-0.8
-1.2
-1.6
 2.0
-2.4
-p
-(a)
-2049
-3331
-3875
-K2, hRGB
-(b)
-6218
-16486
-15108
-K2, RC
-(c)
-7608
-9094
-12472
-K2, lRGB
-0.5 1.0 1.5 2.0 2.5 3.0
-M
-0.0
-0.4
+2.5
+3.0
+d(Nregions/N) / d
+c
+o
+s( zreion, )
+21cmFAST - = 6.5 - log10(Tvir) = 3.5
+21cmFAST - = 12.0 - log10(Tvir) = 4.0
+21cmFAST - = 30 - log10(Tvir) = 4.69897
+21cmFAST - = 40 - log10(Tvir) = 4.69897
+21cmFAST - = 55 - log10(Tvir) = 4.69897
+21cmFAST - = 100 - log10(Tvir) = 4.69897
+21cmFAST - = 300 - log10(Tvir) = 4.69897
+21cmFAST - = 55.0 - log10(Tvir) = 5.0
+21cmFAST - = 150.0 - log10(Tvir) = 5.4
+EMMA
+EMMA Mslow
+0.0 0.2 0.4 0.6 0.8 1.0
+cos( zreion, )
 0.8
+0.9
+1.0
+1.1
 1.2
-1.6
-2.0
-2.4
-p
-(d)
-899
-1472
-2111
-Kepler, hRGB
-0.5 1.0 1.5 2.0 2.5 3.0
-M
-(e)
-8104
-10337
-9620
-Kepler, RC
-0.5 1.0 1.5 2.0 2.5 3.0
-M
-(f)
-3709
-2894
-2447
-Kepler, lRGB
-Galaxia(MP) Galaxia(MR) Observed
-Figure 15. The distribution of κM for oscillating giants in Kepler and K2. Distributions for high-luminosity RGB, RC, and low luminosity RGB
-stars are shown separately. Predictions based on Galaxia for the metal poor (MP) and metal rich (MR) model are also shown in each panel.
-tic. These results suggest that there is no distinct thick disc,
-instead the whole disc is considered to be a continuous sequence of stars in age, with no natural boundary between
-thick and thin discs. The stellar abundances were shown to be
-a function only of stellar age and birth radius with the radial
-migration playing a crucial role in moving stars from their
-place of birth. The effect of the new model on the distribution of stellar masses is expected to be small, but it still needs
-to be tested.
-Sharma et al. (2021b) showed that kinematics can be used
-to estimate the age of an ensemble of stars and hence test the
-asteroseismic scaling relations. They concluded that the asteroseismic ages for Kepler stars is underestimated by at least
-10% (or mass overestimated by about 2.6%). However, no
-such correction is required for K2. The exact reason for the
-systematic difference between Kepler and K2 is not yet clear,
-however, it is clear that this systematic is due to the K2 light
-curve being significantly shorter. Zinn et al. (2021) demonstrate in their Figure 5 that Kepler data, when shortened to K2
-time baselines, leads to an underestimation of νmax by about
-1% (hence mass by 3%), which is in good agreement with
-findings of Sharma et al. (2021b). This is consistent with our
-results for lRGB stars as shown in Table 4, which shows that
-for K2, the mass is overestimated by 2.2% while for Kepler it
-is 4.1%. In other words, the K2-based masses are about 1.9%
-lower than for Kepler. Another interesting systematic associated with asteroseismic mass and age is given by Warfield
-et al. (2021), who suggest that the ages of high [α/Fe] stars
-are underestimated by stellar models by about 10%, in excellent agreement with Sharma et al. (2021b). Traditionally,
-the Salaris & Cassisi (2005) formula is used to account for
-[α/Fe] enhancement by assuming solar composition, but increasing the metallicity. Warfield et al. (2021) suggests that
-this approach is not sufficient. To conclude, both Kepler
-and K2 results (after taking the systematic due to light curve
-length into account) suggest that there is a discrepancy of
-about 4% between the observed and predicted masses, with
-the observed masses being higher.
-5. DISCUSSION AND CONCLUSIONS
-In this paper, we have provided an overview and motivation of the K2GAP Guest Observer program, whose main
-aim is to study the Galaxy through asteroseismology of giants. The program was designed to select stars with an easily
-reproducible selection function. A total of 132,197 targets
-were proposed through K2GAP, accounting for 30.5% of the
-stellar targets observed by K2. Amongst these, 101,419 stars
-follow a well defined color-magnitude selection. One of the
-most important contributions of this work is providing rigorous selection function criteria for each campaign in a tabular
-form. A python code implementing the selection function is
-also provided. We also provide a catalog of all stars observed
-by K2 along with flags to identify stars belonging to our pro-
-18 SHARMA ET AL.
-gram and stars that strictly satisfy our prescribed selection
-criteria. In order to facilitate comparison with predictions
-of theoretical Galactic models, we also provide selectionmatched mock catalogs generated using Galaxia. We present
-a simple and efficient “change point identification” algorithm
-used to screen out K2 stars that were proposed by the K2GAP
-but were serendipitously selected by NASA through other
-Guest Observer programs.
-Our work provides useful guidelines for designing future
-astronomy surveys. Quite often we know the targets that we
-want based on some property of the targets. However, we
-lack decisive data that measures that property. In such cases
-it is tempting to design overly sophisticated approaches that
-in most cases lead to marginal increase in efficiency of selecting the right targets. We show that in such situations,
-if possible, adopting a holistic approach can greatly simplify
-the selection function. For K2GAP, we applied a simple color
-criteria to focus on the giants. This inevitably led to dwarfs
-in our sample, which are not useful for doing asteroseismology with K2’s 30-min cadence. However, recognizing the
-fact that they are useful for exoplanet studies, no effort was
-made to exclude them. This greatly simplified our selection
-function.
-We show that asteroseismic giants in K2 span a wide range
-of R and |z| in the Galaxy, offering a significant advantage for
-Galactic studies compared to Kepler. K2 also contains significantly older stars than Kepler, which are useful to probe
-the early history of the Galaxy. However, the wider coverage
-comes at the price of light curves having shorter duration,
-and consequently lower S/N.
-Making use of Gaia parallaxes, we identify giants that are
-bright enough to show oscillations with appreciable SNR and
-use them to study νmax measurement completeness. We find
-that for about 14% of these giants νmax cannot be measured.
-The exact cause for this is not known and requires further
-investigation. Unlike Kepler, not all stars with νmax measurements have a ∆ν measurement. The probability to detect ∆ν
-is maximum at around νmax = 60 µHz and falls off for higher
-and lower values of νmax. This is due to lower SNR and frequency resolution of K2 compared to Kepler, which makes
-detection of ∆ν harder. Additionally, our results suggest that
-it is more difficult to detect ∆ν for a RC star compared to an
-RGB star, most likely due to the oscillation power spectra of
-RC stars being more complex.
-For each campaign, we compare the observed distribution
-of various asteroseismic parameters with the predictions of a
-Galactic model using Galaxia. Such a comparison is useful to
-test the model and theory, but is also useful to check the quality of the data. This is especially important for K2 because
-it collected data over various campaigns with each of them
-having their unique technical difficulties and challenges over
-the full course of the mission. For most campaigns, the observed number of giants with νmax measurements is roughly
-in agreement with predictions, with a observed-to-predicted
-ratio of stars of 0.78. However, for C11 the ratio is 0.3, which
-is exceptionally low. Further investigations suggest that this
-could be due to the roll angle error and the shortened light
-curve for this particular field.
-The distribution of stars in the (νmax,κM) plane shows a
-good match with model predictions, both for RGB and RC
-stars. However, some differences could also be seen. The
-RC sequence in K2 is not as sharp as in Kepler, due to K2
-having higher uncertainty in νmax and κM compared to Kepler. The location of the RGB-bump was at a lower νmax in
-the models compared to the observations as expected from
-shortcomings in stellar evolution models (Silva Aguirre et al.
-2020). Some RGB stars were found to be classified as RC in
-K2. There also seems to be a lack of secondary RC stars in
-K2 observations compared to both the model predictions and
-the Kepler results.
-We compare the observed κM distribution with those of
-model predictions. We find that for low luminosity giants in
-K2, the observed median κM is 2.2% higher than predicted.
-The observed RC and high luminosity giant distributions differ significantly from predictions. This is most likely due
-to significant incompleteness in ∆ν measurements. For low
-luminosity Kepler giants the observed median κM is 4.1%
-higher than predicted. Hence, in general the K2 masses are
-lower by about 1.9% compared to Kepler, which is in agreement with findings of Sharma et al. (2021b) based on stellar kinematics. As discussed in Zinn et al. (2021, see their
-Figure 5), this systematic offset is due to the shorter time
-baseline of K2 compared to Kepler. Hence, data from both
-K2 and Kepler suggest that asteroseismic masses are higher
-by about 4% compared to model predictions. Some of this
-discrepancy could be due to inaccurate modelling of [α/Fe]
-enhanced stars (Warfield et al. 2021), and some of it could be
-due inaccuracies in modelling the Galactic disc Sharma et al.
-(2021a,b). In future, a further improvement in both the stellar
-models and Galactic models is required.
-6. DATA AVAILABILITY
-The datasets used are available for download at http:
-//www.physics.usyd.edu.au/k2gap/. The python code for
-selection function is available at https://github.com/sanjibs/
-k2gap
-ACKNOWLEDGEMENTS
-We would like to thank the entire community supporting
-the K2 GAP. SS is funded by a Senior Fellowship (University of Sydney), an ARC Centre of Excellence for All Sky
-Astrophysics in 3 Dimensions (ASTRO-3D) Research Fellowship and JBH’s Laureate Fellowship from the Australian
-Research Council (ARC). JBH is supported by an ARC Aus-
-K2GAP TARGET SELECTION 19
-tralian Laureate Fellowship (FL140100278) and ASTRO3D. Funding for the Stellar Astrophysics Centre is provided
-by The Danish National Research Foundation (Grant agreement No. DNRF106). Parts of this research were conducted
-by the Australian Research Council Centre of Excellence for
-All Sky Astrophysics in 3 Dimensions (ASTRO 3D), through
-project number CE170100013.
-This publication makes use of data products from the Two
-Micron All Sky Survey (2MASS), which is a joint project
-of the University of Massachusetts and the Infrared Processing and Analysis Center/California Institute of Technology,
-funded by the National Aeronautics and Space Administration (NASA) and the National Science Foundation (NSF).
-This paper includes data collected by the Kepler mission
-and the K2 mission. Funding for the Kepler mission and K2
-mission are provided by the NASA Science Mission directorate.
-This work has made use of data from the European Space
-Agency (ESA) mission Gaia (https://www.cosmos.esa.int/
-gaia), processed by the Gaia Data Processing and Analysis
-Consortium (DPAC, https://www.cosmos.esa.int/web/gaia/
-dpac/consortium). Funding for the DPAC has been provided
-by national institutions, in particular the institutions participating in the Gaia Multilateral Agreement.
-This research has made use of the VizieR catalogue access
-tool, CDS, Strasbourg, France (DOI : 10.26093/cds/vizier).
-The original description of the VizieR service was published
-in 2000, A&AS 143, 23 This research made use of the following software: Python 3, numpy (Harris et al. 2020),
-matplotlib (Hunter 2007),
-REFERENCES
-Bland-Hawthorn, J., Sharma, S., Tepper-Garcia, T., et al. 2019,
-MNRAS, 486, 1167, doi: 10.1093/mnras/stz217
-Brogaard, K., Hansen, C. J., Miglio, A., et al. 2018, MNRAS, 476,
-3729, doi: 10.1093/mnras/sty268
-Brown, T. M., Gilliland, R. L., Noyes, R. W., & Ramsey, L. W.
-1991, ApJ, 368, 599, doi: 10.1086/169725
-Campante, T. L., Schofield, M., Kuszlewicz, J. S., et al. 2016, ApJ,
-830, 138, doi: 10.3847/0004-637X/830/2/138
-Chaplin, W. J., Kjeldsen, H., Bedding, T. R., et al. 2011, ApJ, 732,
-54, doi: 10.1088/0004-637X/732/1/54
-De Ridder, J., Barban, C., Baudin, F., et al. 2009, Nature, 459, 398,
-doi: 10.1038/nature08022
-Epstein, C. R., Elsworth, Y. P., Johnson, J. A., et al. 2014, ApJL,
-785, L28, doi: 10.1088/2041-8205/785/2/L28
-Freeman, K., & Bland-Hawthorn, J. 2002, ARA&A, 40, 487,
-doi: 10.1146/annurev.astro.40.060401.093840
-Gaulme, P., McKeever, J., Jackiewicz, J., et al. 2016, ApJ, 832,
-121, doi: 10.3847/0004-637X/832/2/121
-Harris, C. R., Millman, K. J., van der Walt, S. J., et al. 2020,
-Nature, 585, 357
-Hon, M., Stello, D., & Yu, J. 2018a, MNRAS, 476, 3233,
-doi: 10.1093/mnras/sty483
-Hon, M., Stello, D., & Zinn, J. C. 2018b, ApJ, 859, 64,
-doi: 10.3847/1538-4357/aabfdb
-Huber, D., Bryson, S. T., Haas, M. R., et al. 2016, ApJS, 224, 2,
-doi: 10.3847/0067-0049/224/1/2
-Hunter, J. D. 2007, Computing in science & engineering, 9, 90
-Kjeldsen, H., & Bedding, T. R. 1995, A&A, 293, 87
-Li, Y., Bedding, T. R., Stello, D., et al. 2021, MNRAS, 501, 3162,
-doi: 10.1093/mnras/staa3932
-Miglio, A., Montalbán, J., Baudin, F., et al. 2009, A&A, 503, L21,
-doi: 10.1051/0004-6361/200912822
-Mullally, F., Barclay, T., & Barentsen, G. 2016, K2fov: Field of
-view software for NASA’s K2 mission. http://ascl.net/1601.009
-Paxton, B., Bildsten, L., Dotter, A., et al. 2011, ApJS, 192, 3,
-doi: 10.1088/0067-0049/192/1/3
-Paxton, B., Cantiello, M., Arras, P., et al. 2013, ApJS, 208, 4,
-doi: 10.1088/0067-0049/208/1/4
-Rendle, B. M., Miglio, A., Chiappini, C., et al. 2019, MNRAS,
-490, 4465, doi: 10.1093/mnras/stz2454
-Robin, A. C., Reylé, C., Derrière, S., & Picaud, S. 2003, A&A,
-409, 523, doi: 10.1051/0004-6361:20031117
-Salaris, M., & Cassisi, S. 2005, Evolution of Stars and Stellar
-Populations (John Wiley & Sons)
-Sharma, S., Bland-Hawthorn, J., Johnston, K. V., & Binney, J.
-2011, ApJ, 730, 3, doi: 10.1088/0004-637X/730/1/3
-Sharma, S., Hayden, M. R., & Bland-Hawthorn, J. 2021a,
-MNRAS, doi: 10.1093/mnras/stab2015
-Sharma, S., Stello, D., Bland-Hawthorn, J., Huber, D., & Bedding,
-T. R. 2016, ApJ, 822, 15, doi: 10.3847/0004-637X/822/1/15
-Sharma, S., Stello, D., Huber, D., Bland-Hawthorn, J., & Bedding,
-T. R. 2017, ApJ, 835, 163, doi: 10.3847/1538-4357/835/2/163
-Sharma, S., Bland-Hawthorn, J., Binney, J., et al. 2014, ApJ, 793,
-51, doi: 10.1088/0004-637X/793/1/51
-Sharma, S., Stello, D., Buder, S., et al. 2018, MNRAS, 473, 2004,
-doi: 10.1093/mnras/stx2582
-Sharma, S., Stello, D., Bland-Hawthorn, J., et al. 2019, MNRAS,
-490, 5335, doi: 10.1093/mnras/stz2861
-Sharma, S., Hayden, M. R., Bland-Hawthorn, J., et al. 2020a, arXiv
-e-prints, arXiv:2004.06556. https://arxiv.org/abs/2004.06556
-—. 2020b, arXiv e-prints, arXiv:2011.13818.
-https://arxiv.org/abs/2011.13818
-—. 2021b, MNRAS, 506, 1761, doi: 10.1093/mnras/stab1086
-Silva Aguirre, V., Christensen-Dalsgaard, J., Cassisi, S., et al.
-2020, A&A, 635, A164, doi: 10.1051/0004-6361/201935843
-20 SHARMA ET AL.
-Stello, D., Chaplin, W. J., Basu, S., Elsworth, Y., & Bedding, T. R.
-2009, MNRAS, 400, L80,
-doi: 10.1111/j.1745-3933.2009.00767.x
-Stello, D., Huber, D., Bedding, T. R., et al. 2013, ApJL, 765, L41,
-doi: 10.1088/2041-8205/765/2/L41
-Stello, D., Huber, D., Sharma, S., et al. 2015, ApJL, 809, L3,
-doi: 10.1088/2041-8205/809/1/L3
-Stello, D., Zinn, J., Elsworth, Y., et al. 2017, ApJ, 835, 83,
-doi: 10.3847/1538-4357/835/1/83
-Townsend, R. H. D., & Teitler, S. A. 2013, MNRAS, 435, 3406,
-doi: 10.1093/mnras/stt1533
-Ulrich, R. K. 1986, ApJL, 306, L37, doi: 10.1086/184700
-Warfield, J. T., Zinn, J. C., Pinsonneault, M. H., et al. 2021, AJ,
-161, 100, doi: 10.3847/1538-3881/abd39d
-Zinn, J. C., Stello, D., Elsworth, Y., et al. 2020, ApJS, 251, 23,
-doi: 10.3847/1538-4365/abbee3
-—. 2021, arXiv e-prints, arXiv:2108.05455.
-https://arxiv.org/abs/2108.05455
+d(Nregions/N1model) / d
+c
+o
+s( zreion, )
+21cmFAST - = 6.5 - log10(Tvir) = 3.5
+21cmFAST - = 12.0 - log10(Tvir) = 4.0
+21cmFAST - = 30 - log10(Tvir) = 4.69897
+21cmFAST - = 40 - log10(Tvir) = 4.69897
+21cmFAST - = 55 - log10(Tvir) = 4.69897
+21cmFAST - = 100 - log10(Tvir) = 4.69897
+21cmFAST - = 300 - log10(Tvir) = 4.69897
+21cmFAST - = 55.0 - log10(Tvir) = 5.0
+21cmFAST - = 150.0 - log10(Tvir) = 5.4
+EMMA
+EMMA Mslow
+Fig. 20. On the top panel, there are the probability distribution functions
+of the cosine of the angle between the reionization patches and their corresponding filaments (as explained in Sect. 2.4). On the bottom panel,
+the same PDFs are shown but they are divided by the one of the model
+with ζ = 30 and log10(Tvir) = 4.69897. Each 21cmFAST model is represented here, alongside with the two EMMA simulations, accumulating all
+patches of 64 realisations on both panels.
+7. Conclusions
+In this study, we have analysed the topological structures extracted from different EoR models made with the 21cmFAST
+semi-analytical code and the EMMA cosmological simulation
+code. For that purpose, we have used the reionization redshift
+and gas density fields. The reionization redshift field corresponds
+to the time when the gas has reionized, and contains spatial and
+temporal information on the physical processes during the EoR.
+To extract the topological information, we have used DisPerSE,
+that applies concepts of the Morse theory, on the density field to
+get the filaments of matter and on the reionization redshift field
+to segment it into reionization patches coming from the same
+seed of local reionization.
+In the 21cmFAST models, the size distributions of the reionization patches show us that they have an average radius of 10
+cMpc/h quantifying the typical extent of the radiative influence
+of the seeds of reionization. In general increasing the virial temperature and the ionizing efficiency of halos decreases the number of patches and makes them larger, extending the reach of the
+radiative influence of the seeds of local reionization.
+Using the inertial tensors of the reionization patches and density filaments, one could extract their shape and orientation. We
+found that the reionization patches are statistically prolate and
+aligned with the local gas filaments. Radiation escapes from
+sources beaded along the gas filament to reach the zones that
+reionize the latest (typically, the voids) in an inside-out manner.
+A minority of patches have the opposite behaviour with a "butterfly" shape, that are oblate patches with radiations escaping
+perpendicularly to the local filaments. We believe that the difference arises from the properties of sources within the patches:
+if the initial source that defines a reionization patch is locally
+dominant in terms of photons output, butterflies shape can appear, whereas if the initial source is only the first of a collection
+of rather similar close-by emitters, patches end up aligned with
+the local distribution of matter. We note that the dominant status
+of a source can depend on many factors (intrinsic emission, escape fraction, density and configuration of local absorbers) and
+is therefore likely to be resolution and/or model dependent. Our
+results, obtained at rather low resolution (1.483
+cMpc3
+), should
+be revisited later on, for instance at higher resolution.
+Comparisons of the 21cmFAST segmentations with the ones
+obtained from EMMA simulations showed that EMMA simulations
+can provide results similar to the semi-analytical predictions in
+terms of patches properties (volume, number) and relative orientations to the filaments of matter. We also find that EMMA simulations with increased bias and stochasticity for star formation can
+also lead to quite different topologies on the same criteria, even
+though they present similar reionization histories.
+These results appear to be robust when changing the persistence parameter with DisPerSE. As the persistence increases
+and patches are merged, the latter gets larger and more prolate. It
+provides an insight on the percolation process of our EoR models, directly from a single reionization map. We find that during
+the first stages of the Reionization, isolated ionized bubbles appear and merge with time in order to form larger and fibre-like
+ionized bubbles (Chen et al. 2019). This subject could be further
+investigated, as it is complementary to standard percolation studies based on sequences of snapshots of ionized fractions maps.
+To sum up, the reionization redshift field contains a lot of
+spatial and temporal information, and is found to be quite useful
+in the current topological framework. In addition, making statistical analyses with this field is quite practical since it requires
+to only extract one zreion field from each simulation. We believe
+that we only skimmed through the potential of the approach developed here. We already mention the possibilities offered by the
+persistence parameter. We could also investigate the halo properties in relation to their host reionization patches. Moreover, we
+could work on smaller scales and see if the study of the patches
+geometry (size, shape, orientation) could inform us about the
+ways radiations escape from galaxies, how far they can influence their environment and even about the time evolution/duty
+cycles of the photons production (see e.g. Deparis et al. (2019)).
+However, such studies on galaxies or halos are not possible at the
+resolution discussed here and ideally would be conducted with
+models with CoDa-like characteristics (Ocvirk et al. 2016). Finally the zreion field is not a direct observable, and similar analyses could be directly done on the topology of 21-cm maps or
+lightcones. These geometrical studies may reveal a way to relate
+these observations to the timing of the reionization process.
+Article number, page 12 of 13
+Emilie Thélie et al.: A first look at the topology of reionization redshifts in models of the Epoch of the Reionization

@@ -1,591 +1,566 @@
-AbstractDifferentiation.jl: Backend-Agnostic
-Differentiable Programming in Julia
-Frank Schäfer
-Department of Physics
-University of Basel, Switzerland
-frank.schaefer@unibas.ch
-Mohamed Tarek
-Pumas-AI Inc., USA
-UNSW Canberra, Australia
-mohamed@pumas.ai
-Lyndon White
-Invenia Labs
-Cambridge, UK
-lyndon.white@invenialabs.co.uk
-Chris Rackauckas
-Massachusetts Institute of Technology, USA
-Julia Computing Inc., USA
-Pumas-AI Inc., USA
-crackauc@mit.edu
-Abstract
-No single Automatic Differentiation (AD) system is the optimal choice for all
-problems. This means informed selection of an AD system and combinations
-can be a problem-specific variable that can greatly impact performance. In the
-Julia programming language, the major AD systems target the same input and thus
-in theory can compose. Hitherto, switching between AD packages in the Julia
-Language required end-users to familiarize themselves with the user-facing API of
-the respective packages. Furthermore, implementing a new, usable AD package
-required AD package developers to write boilerplate code to define convenience
-API functions for end-users. As a response to these issues, we present AbstractDifferentiation.jl for the automatized generation of an extensive, unified, user-facing
-API for any AD package. By splitting the complexity between AD users and AD
-developers, AD package developers only need to implement one or two primitive
-definitions to support various utilities for AD users like Jacobians, Hessians and
-lazy product operators from native primitives such as pullbacks or pushforwards,
-thus removing tedious – but so far inevitable – boilerplate code, and enabling the
-easy switching and composing between AD implementations for end-users.
-1 Introduction
-Differentiable programming (∂P), i.e., the ability to differentiate general computer program structures,
-has enabled the efficient combination of existing packages for scientific computation and machine
-learning [Raissi et al., 2019, Rackauckas et al., 2020a, de Avila Belbute-Peres et al., 2018]. Black-box
-machine learning approaches are flexible but require a large amount of data. Incorporating scientific
-knowledge about the structure of a problem via ∂P reduces the amount of data needed. It allows the
-learning task to be simplified, for example, by focusing on learning only the parts of the model that
-are missing [Rackauckas et al., 2020b, Dandekar et al., 2020]. There are already many examples
-where such differentiable frameworks have provided performance and accuracy advantages over
-black-box approaches to machine learning, including but not limited to protein-folding [AlQuraishi,
-2018, Ingraham et al., 2018], fluid dynamics [Schenck and Fox, 2018], robotics [Schenck and Fox,
-2018], and quantum control [Schäfer et al., 2020, 2021].
-∂P is (commonly) realized by automatic differentiation (AD), a family of techniques to efficiently
-and accurately differentiate numeric functions expressed as computer programs. Generally, besides
-Preprint. Under review.
-arXiv:2109.12449v1 [cs.MS] 25 Sep 2021
-forward- and reverse-mode AD, the two main AD branches, many software implementations with
-different pros and cons exist. Some AD software implementations work at a lower level code representation, possibly mixing in LLVM-level compiler passes, to fully optimize scalar operations [Revels
-et al., 2016, Moses and Churavy, 2020] while others perform transformations at a higher level to
-keep linear algebra operations intact for optimal usage of BLAS primitives [Innes et al., 2019, Paszke
-et al., 2017]. The goal is to make the best choice of AD system in every part of the program without
-requiring users to extensively contort their code to the differing APIs.
-The AD landscape of the Julia programming language is developed in a manner in which composability between the AD systems is possible. While many automatic differentiation systems require
-specific formulations of the code, for example PyTorch using an alternative implementation of the
-NumPy API known as torch.numpy [Paszke et al., 2017] with torch.tensor and similarly for Jax with
-jax.numpy [Bradbury et al., 2018] each differing from the original NumPy [Oliphant, 2006] API in
-subtle ways with different numerical properties, the Julia AD systems generally act directly on the
-standard Julia syntax, with its standard library, array implementation, its standard GPU acceleration
-tools [Besard et al., 2018], and more. This has previously been shown to allow packages in Julia which
-were developed without knowledge of AD systems to be fully differentiable without modification
-by multiple different tools [Rackauckas et al., 2020a]. Furthermore, Julia has a common ground on
-which differentiation rules are defined, ChainRules.jl [White et al., 2021], which is shared amongst
-the AD packages. This empowers the idea of a “glue AD” system [Rackauckas] where software
-library authors define ChainRules overloads to add domain insight into the automatic differentiation
-process without tying to one particular AD system.
-However, switching from one backend to another on the user side can still be tedious because
-the user has to learn and adapt the code towards the user-facing API of the new AD package.
-Similarly, for the author of the AD package defining an extensive API supporting every possible
-differentiation use case requires a lot of boilerplate code, e.g. to define the Jacobian function,
-Jacobian-vector product, Hessian, Hessian-vector product, etc. Defining all of these functions for
-each AD implementation is tedious and unnecessary since the relationship between these functions is
-abstract and not implementation-specific. Therefore, while in theory switching between AD systems
-can be trivially done, in practice the competing APIs of the various AD mechanisms has limited its
-use throughout the language’s ecosystem.
-The Julia Language [Bezanson et al., 2012] has over a dozen automatic differentiation packages [White]. Different packages have different user interfaces and offer different tradeoffs. Popular
-systems include:
-1. ForwardDiff.jl [Revels et al., 2016], an operator-overloading-based, forward-mode AD
-implementation, with many years of extensive use and thus very high reliability
-2. ReverseDiff.jl [Revels, 2018], an operator-overloading-based, reverse-mode AD implementation, featuring several tape-based optimizations
-3. Zygote.jl [Innes et al., 2019], a reverse-mode AD implementation that does source code
-transformation to generate the derivative’s code from the function’s code, operating at the
-level of Julia’s intermediate representation. Zygote is therefore able to handle arbitrary Julia
-code but is unable to handle mutation.
-4. Enzyme.jl [Moses and Churavy, 2020], a reverse-mode AD implementation that runs
-by source code transformation at the LLVM level, with excellent performance on scalar
-operations, but at present lesser performance on large matrix operations.
-5. Diffractor.jl [Fischer], a new source-to-source AD package promising high performance on
-both scalar and vector/tensor code
-A more detailed summary of the strengths and limitations of different AD packages is given in
-Appendix A.
-Each of these AD systems (and each of the many others) has its own unique set of advantages and
-disadvantages. Additionally, all of them only define API functions for a subset of all the possible
-differentiation use cases, often requiring users to do package-specific implementations of quantities
-like Jacobian-vector product or Hessian-vector product when needed. Beside the existing stable AD
-implementations, any new implementation may or may not be mature enough to handle perturbation
-confusion properly [Siskind and Pearlmutter, 2005, Manzyuk et al., 2019] which prevents one from
-2
-doing general, higher-order AD correctly. A simple workaround is to compose various AD packages
-for each level of differentiation, further giving rise to applications where changing between AD
-mechanisms is increasingly common.
-As AD systems have different pros and cons, a software author will want to change AD systems
-depending on the problem and available hardware resources, see Appendix B. However, this is more
-challenging than it might seem. Changing AD systems results in forking the code, even though the
-nominal value of the software using the AD remains the same. To give some examples: Flux.jl1
-changed from using Tracker.jl2
-to Zygote.jl [Innes et al., 2019]. This resulted in a fork being created,
-viz. TrackerFlux.jl3
-, for those who want to use the old AD system – even though conceptually Flux is
-a Neural Network library that should be abstracted away from the AD. PyMC4 was created as an
-attempt to move from Theano [Al-Rfou et al., 2016], as used in PyMC3 [Salvatier et al., 2016], to
-using TensorFlow [Abadi et al., 2015]. This attempt was eventually abandoned, in favor of keeping
-Theano but adding a Jax [Bradbury et al., 2018] backend [The PyMC Development Team]. Not
-only did the code need to be forked, but the overall attempt was not successful. Admittedly, this
-was a particularly complex case beyond just AD, with TensorFlow and Theano being more general
-computational frameworks with AD as just one feature. The work we present here aims to ensure
-that changing the AD system is accessible by providing consistent abstractions that the author of the
-∂P algorithm implementation can use.
-A similar but more complex problem was solved by the MathOptInterface.jl [Legat et al., 2020].
-MathOptInterface.jl provides common abstractions across constrained mathematical optimizers such
-as IPOPT [Wachter, 2002], Cbc [Forrest et al., 2018], and Gurobi [Gurobi Optimization, LLC,
-2021]. It in turn is used by mathematical optimization frameworks including JuMP [Dunning et al.,
-2017] and Convex.jl [Udell et al., 2014]. Each of the different mathematical optimizers has their
-own very unique internal set of abstractions, but MathOptInterface.jl exposes them all in the same
-way. An additional complication is that each supports different kinds of problems and so this too
-must be exposed. Further still, for some classes of problems they can be re-expressed as a different
-kind through a mathematical transformation, MathOptInterface exposes this through an extensible
-system of so-called "bridges", that will automatically perform these reformulations. This system is
-considerably more complicated than our setting as every AD system can perform all the operations,
-to varying degrees of efficiency. The MathOptInterface system has proven very successful, which
-supports the idea that this kind of abstraction is valuable and can be practically realized.
-In light of the above, the authors believe it is necessary to have a backend-agnostic interface to provide
-objects like the function value, its gradient, Hessian, etc. as well as combining AD implementations
-together for higher-order AD. Such an interface can help us avoid a combinatorial explosion of code
-when supporting every differentiation package in Julia in every piece of software requiring gradients
-and/or Hessians. This is especially important for higher-order derivatives because one can combine
-any two differentiation backends to create a new higher-order backend. More generally for a k
-th
-order derivative, the amount of code required to support n differentiation packages in m ∂P algorithm
-implementations is O(m × n
-k
-).
-In this paper, we present AbstractDifferentiation.jl [Tarek et al.], a package that:
-• Defines an abstract, extensive API for differentiation in Julia enabling the development of
-algorithms requiring first and higher-order derivatives in an AD-implementation-agnostic
-way using a single, unified interface reducing the code complexity from O(m × n
-k
-) to
-O(m + n).
-• Automatically defines most of the extensive user-facing API for any new AD package from
-just one or two primitive API function definitions, thus making it easier for the AD package
-developer to support every possible use case without a great deal of boilerplate code.
-2 Levels of abstraction in Julia’s AD ecosystem
-In Figure 1, an overview of the levels of abstraction in Julia’s AD ecosystem with AbstractDifferentiation.jl is presented. At the bottom level, we have libraries of differentiation rules (DiffRules.jl and
-1
-https://github.com/FluxML/Flux.jl
-2
-https://github.com/FluxML/Tracker.jl
-3
-https://github.com/AStupidBear/TrackerFlux.jl
-3
-ChainRules.jl) for specific functions. These rules are either defined by AD developers for basic Julia
-constructs, or by AD users for specific user-defined functions with known analytic derivatives.
-Sitting on top of the library of rules are all the AD package implementations. At this level, numerous
-design decisions and optimizations can be made giving a variety of different AD package implementations with different tradeoffs. Each AD package developer will then define a minimal set of
-primitives and a backend type extending AbstractDifferentiation.jl. These minimal definitions then
-enable AbstractDifferentiation.jl to automatically define an extensive set of user-facing API functions
-for AD users to use, e.g. derivative, Jacobian, Hessian, Jacobian-vector product, Hessian-vector
-product, etc.
-At the top level, AD users can then use the relevant part of the AbstractDifferentiation.jl API to
-implement algorithms requiring ∂P. With this abstraction design, the amount of code needed to
-support all of n AD packages in m algorithms requiring k
-th order derivatives is only O(m + n), a
-significant reduction from the O(m × n
-k
-) without AbstractDifferentiation.jl. Additionally, the AD
-users and developers do not need to add unnecessary boilerplate code to extend an AD package’s API
-anymore, since AbstractDifferentiation.jl automatically does this for them.
-Figure 1: The levels of abstraction in Julia’s AD ecosystem.
-3 API description
-Installation and loading AbstractDifferentiation.jl is a registered Julia package and can be installed
-by the Julia package manager. The package can be loaded by
-# alternatively: import AbstractDifferentiation as AD
-using AbstractDifferentiation
-Note that AbstractDifferentiation.jl exports “AD" as an alias for the AbstractDifferentiation module.
-This alias allows us to conveniently access names within AbstractDifferentiation.jl via AD instead of
-typing the full package name.
-4
-3.1 Backends and primitives
-Forward-mode, reverse-mode, and finite-difference backends All functionalities in AbstractDifferentiation.jl are implemented based on an ab::AbstractBackend type. An AD package developer (or
-the AD user if necessary) first constructs a backend instance that subtypes ab::AbstractForwardMode,
-ab::AbstractReverseMode, or ab::AbstractFiniteDifference, which are themselves subtypes of
-ab::AbstractBackend. For example, backends that support ForwardDiff.jl or Zygote.jl are defined as
-follows:
-## ForwardDiff
-struct ForwardDiffBackend <: AD.AbstractForwardMode end
-const forwarddiff_backend = ForwardDiffBackend()
-## Zygote
-struct ZygoteBackend <: AD.AbstractReverseMode end
-const zygote_backend = ZygoteBackend()
-By adding fields to the backend struct, we can control configurations of the differentiation package
-such as chunk sizes, compilation flags, or method choices. To use a finite differencing method at a
-central grid of 5 points as implemented in the FiniteDifferences.jl package, we write:
-## FiniteDifferences
-struct FDMBackend{A} <: AD.AbstractFiniteDifference
-alg::A
-end
-# 1 denotes the order of the derivative to estimate.
-FDMBackend() = FDMBackend(central_fdm(5, 1))
-Higher-order backends To compute higher-order derivatives, it may be desirable to combine different backends. We provide AD.HigherOrderBackend to implement higher-order backends. Let
-ab_f be a forward-mode automatic differentiation backend and let ab_r be a reverse-mode automatic
-differentiation backend. To construct a higher-order backend for doing forward-over-reverse-mode
-automatic differentiation, one defines AD.HigherOrderBackend((ab_f,ab_r)). Analogously,
-higher-order backend for doing reverse-over-forward-mode automatic differentiation is constructed
-via AD.HigherOrderBackend((ab_r,ab_f)).
-Jacobian, pushforward, and pullback as primitive operation In addition to the definition of a
-backend, the AD package developer needs to define one of the following primitive operations:
-AD.@primitive function jacobian(ab::backend, f, xs...)
-return ..
-end
-AD.@primitive function pushforward_function(ab::backend, f, xs...)
-return ..
-end
-AD.@primitive function pullback_function(ab::backend, f, xs...)
-return ..
-end
-AbstractDifferentiation.jl then generates the other two primitive functions. For instance, a source-tosource reverse-mode AD package developer can specify only AD.pullback_function as the native
-primitive operation.
-## Zygote is source-to-source reverse-mode
-AD.@primitive function pullback_function(ab::ZygoteBackend, f, xs...)
-return function (vs)
-# Supports only single output
-_, back = Zygote.pullback(f, xs...)
-if vs isa AbstractVector
-return back(vs)
-else
-5
-# vs isa Tuple
-@assert length(vs) == 1
-return back(vs[1])
-end
-end
-end
-In the case of operator overloading AD implementations, we require additionally the definition of
-AD.primal_value returning the primal value of the forward pass.
-3.2 Automatically provided functions
-After these preparatory steps, AbstractDifferentiation.jl automatically defines various functions
-for AD users making use of the primitives defined. Some of the most important API functions
-provided are presented in the following. We refer the reader to the package documentation for further
-details [Tarek et al.].
-Derivative, gradient, jacobian, hessian
-ds = AD.derivative(ab::AD.AbstractBackend, f, xs::Number...)
-gs = AD.gradient(ab::AD.AbstractBackend, f, xs...)
-js = AD.jacobian(ab::AD.AbstractBackend, f, xs...)
-h = AD.hessian(ab::AD.AbstractBackend, f, x)
-Value and derivative, gradient, jacobian, hessian
-v, ds = AD.value_and_derivative(ab::AD.AbstractBackend, f, xs::Number...)
-v, gs = AD.value_and_gradient(ab::AD.AbstractBackend, f, xs...)
-v, js = AD.value_and_jacobian(ab::AD.AbstractBackend, f, xs...)
-v, h = AD.value_and_hessian(ab::AD.AbstractBackend, f, x)
-v, g, h = AD.value_gradient_and_hessian(ab::AD.AbstractBackend, f, x)
-Lazy operators
-Finally, we implemented lazy versions of the derivative, gradient, Jacobian, and Hessian,
-ld = lazy_derivative(ab::AbstractBackend, f, xs::Number...)
-lg = lazy_gradient(ab::AbstractBackend, f, xs...)
-lj = lazy_jacobian(ab::AbstractBackend, f, xs...)
-lh = lazy_hessian(ab::AbstractBackend, f, x)
-which are of interest in iterative solvers. For example, we compute a vector-Jacobian product by
-multiplying a single (transposed) vector, or a tuple of an appropriate shape, from the left to the lazy
-Jacobian operator.
-4 ∂P use cases and an example
-Many numerical algorithms require the computation of constructs such as the ones described in
-Section 3.2. Table 1 presents a rough summary linking some of the most widely adopted routines
-across different domains to the quantities used in the respective iterative update steps. As an
-example, we present a (simple, non-optimized) backend-agnostic implementation of the GaussNewton algorithm to solve non-linear least squares problems in Appendix C.
-We also expect AbstractDifferentiation.jl to be specifically handy for (future) AD package like
-Diffractor.jl or Enzyme.jl where computing constructs like Jacobians or Hessians is technically
-possible but not yet part of the public API due to abstractions or naming conventions made in the
-package.
-6
-algorithms required quantities
-root finding
-Newton–Raphson Jacobian
-Jacobian-Free Newton Krylov Jacobian-vector products
-optimization
-ADAM gradient
-Newton gradient, Hessian
-Levenberg–Marquardt Jacobian
-Gauss-Newton Jacobian
-differential equations
-stiff ODE solvers Jacobian
-stiff ODE Jacobian-free solvers Jacobian-vector products
-forward sensitivity methods Jacobian-vector products
-adjoint sensitivity methods vector-Jacobian product
-Table 1: Domain-specific algorithms requiring derivatives, gradients, Jacobians, Hessians, vectorJacobian products, Jacobian-vector products commonly computed by AD packages.
-5 Summary & Future work
-The ability to straightforwardly combine different packages in one workflow is one of the most
-versatile and key features of Julia. Switching between different AD packages and combining them
-for higher-order derivatives is a useful feature to have when selecting the best AD implementation for
-a specific application. We have presented the AbstractDifferentiation.jl package which makes this
-switching and combining of AD implementations as painless as possible for end-users while also
-reducing the amount of necessary boilerplate code per AD package to support all differentiation use
-cases.
-In the future, we aim to support AbstractDifferentiation.jl in all of the AD packages in Julia and
-remove lots of boilerplate code from popular Julia packages (e.g. in the SciML and TuringLang
-organizations) that heavily employ AD.
-References
-M. Abadi, A. Agarwal, P. Barham, E. Brevdo, Z. Chen, C. Citro, G. S. Corrado, A. Davis, J. Dean,
-M. Devin, S. Ghemawat, I. Goodfellow, A. Harp, G. Irving, M. Isard, Y. Jia, R. Jozefowicz,
-L. Kaiser, M. Kudlur, J. Levenberg, D. Mané, R. Monga, S. Moore, D. Murray, C. Olah, M. Schuster,
-J. Shlens, B. Steiner, I. Sutskever, K. Talwar, P. Tucker, V. Vanhoucke, V. Vasudevan, F. Viégas,
-O. Vinyals, P. Warden, M. Wattenberg, M. Wicke, Y. Yu, and X. Zheng. TensorFlow: Largescale machine learning on heterogeneous systems, 2015. URL https://www.tensorflow.org/.
-Software available from tensorflow.org.
-R. Al-Rfou, G. Alain, A. Almahairi, C. Angermueller, D. Bahdanau, N. Ballas, F. Bastien, J. Bayer,
-A. Belikov, A. Belopolsky, Y. Bengio, A. Bergeron, J. Bergstra, V. Bisson, J. Bleecher Snyder,
-N. Bouchard, N. Boulanger-Lewandowski, X. Bouthillier, A. de Brébisson, O. Breuleux, P.-L.
-Carrier, K. Cho, J. Chorowski, P. Christiano, T. Cooijmans, M.-A. Côté, M. Côté, A. Courville, Y. N.
-Dauphin, O. Delalleau, J. Demouth, G. Desjardins, S. Dieleman, L. Dinh, M. Ducoffe, V. Dumoulin,
-S. Ebrahimi Kahou, D. Erhan, Z. Fan, O. Firat, M. Germain, X. Glorot, I. Goodfellow, M. Graham,
-C. Gulcehre, P. Hamel, I. Harlouchet, J.-P. Heng, B. Hidasi, S. Honari, A. Jain, S. Jean, K. Jia,
-M. Korobov, V. Kulkarni, A. Lamb, P. Lamblin, E. Larsen, C. Laurent, S. Lee, S. Lefrancois,
-S. Lemieux, N. Léonard, Z. Lin, J. A. Livezey, C. Lorenz, J. Lowin, Q. Ma, P.-A. Manzagol,
-O. Mastropietro, R. T. McGibbon, R. Memisevic, B. van Merriënboer, V. Michalski, M. Mirza,
-A. Orlandi, C. Pal, R. Pascanu, M. Pezeshki, C. Raffel, D. Renshaw, M. Rocklin, A. Romero,
-M. Roth, P. Sadowski, J. Salvatier, F. Savard, J. Schlüter, J. Schulman, G. Schwartz, I. V. Serban,
-D. Serdyuk, S. Shabanian, E. Simon, S. Spieckermann, S. R. Subramanyam, J. Sygnowski,
-J. Tanguay, G. van Tulder, J. Turian, S. Urban, P. Vincent, F. Visin, H. de Vries, D. Warde-Farley,
-D. J. Webb, M. Willson, K. Xu, L. Xue, L. Yao, S. Zhang, and Y. Zhang. Theano: A Python
-7
-framework for fast computation of mathematical expressions. arXiv e-prints, abs/1605.02688, May
-2016. URL http://arxiv.org/abs/1605.02688.
-M. AlQuraishi. End-to-end differentiable learning of protein structure. bioRxiv, 2018. doi: 10.1101/
-265231. URL https://www.biorxiv.org/content/early/2018/02/14/265231.
-T. Besard, C. Foket, and B. De Sutter. Effective extensible programming: Unleashing Julia on
-GPUs. IEEE Transactions on Parallel and Distributed Systems, 2018. ISSN 1045-9219. doi:
-10.1109/TPDS.2018.2872064.
-J. Bezanson, S. Karpinski, V. B. Shah, and A. Edelman. Julia: A fast dynamic language for technical
-computing. arXiv preprint arXiv:1209.5145, 2012.
-J. Bradbury, R. Frostig, P. Hawkins, M. J. Johnson, C. Leary, D. Maclaurin, G. Necula, A. Paszke,
-J. VanderPlas, S. Wanderman-Milne, and Q. Zhang. JAX: composable transformations of
-Python+NumPy programs, 2018. URL http://github.com/google/jax.
-R. T. Chen, Y. Rubanova, J. Bettencourt, and D. Duvenaud. Neural ordinary differential equations.
-arXiv preprint arXiv:1806.07366, 2018.
-R. Dandekar, C. Rackauckas, and G. Barbastathis. A machine learning-aided global diagnostic and
-comparative tool to assess effect of quarantine control in covid-19 spread. Patterns, 1(9):100145,
-2020.
-F. de Avila Belbute-Peres, K. Smith, K. Allen, J. Tenenbaum, and J. Z. Kolter. End-to-end differentiable physics for learning and control. Advances in neural information processing systems, 31:
-7178–7189, 2018.
-I. Dunning, J. Huchette, and M. Lubin. Jump: A modeling language for mathematical optimization.
-SIAM Review, 59(2):295–320, 2017.
-K. Fischer. Non-local compiler transformations in the presence of dynamic dispatch. URL https:
-//www.youtube.com/watch?v=mQnSRfseu0c.
-J. Forrest, T. Ralphs, S. Vigerske, LouHafer, B. Kristjansson, jpfasano, EdwinStraver, M. Lubin,
-H. G. Santos, rlougee, and M. Saltzman. coin-or/cbc: Version 2.9.9, July 2018. URL https:
-//doi.org/10.5281/zenodo.1317566.
-Gurobi Optimization, LLC. Gurobi Optimizer Reference Manual, 2021. URL https://www.
-gurobi.com.
-J. Ingraham, A. Riesselman, C. Sander, and D. Marks. Learning protein structure with a differentiable
-simulator. In International Conference on Learning Representations, 2018.
-M. Innes, A. Edelman, K. Fischer, C. Rackauckus, E. Saba, V. B. Shah, and W. Tebbutt. Zygote: A
-differentiable programming system to bridge machine learning and scientific computing. arXiv
-preprint arXiv:1907.07587, 2019. URL https://arxiv.org/abs/1907.07587.
-B. Legat, O. Dowson, J. D. Garcia, and M. Lubin. Mathoptinterface: a data structure for mathematical
-optimization problems, 2020. URL https://arxiv.org/abs/2002.03447.
-O. Manzyuk, B. A. Pearlmutter, A. A. Radul, D. R. Rush, and J. M. Siskind. Perturbation confusion in
-forward automatic differentiation of higher-order functions. Journal of Functional Programming,
-29, 2019.
-W. Moses and V. Churavy. Instead of rewriting foreign code for machine learning, automatically
-synthesize fast gradients. In H. Larochelle, M. Ranzato, R. Hadsell, M. F. Balcan, and H. Lin,
-editors, Advances in Neural Information Processing Systems, volume 33, pages 12472–12485.
-Curran Associates, Inc., 2020. URL https://proceedings.neurips.cc/paper/2020/file/
-9332c513ef44b682e9347822c2e457ac-Paper.pdf.
-T. E. Oliphant. A guide to NumPy, volume 1. Trelgol Publishing USA, 2006.
-A. Paszke, S. Gross, S. Chintala, G. Chanan, E. Yang, Z. DeVito, Z. Lin, A. Desmaison, L. Antiga,
-and A. Lerer. Automatic differentiation in pytorch. 2017.
-8
-C. Rackauckas. Glue AD for full language differentiable programming. URL http://www.stochasticlifestyle.com/
-glue-ad-for-full-language-differentiable-programming/.
-C. Rackauckas, Y. Ma, V. Dixit, X. Guo, M. Innes, J. Revels, J. Nyberg, and V. Ivaturi. A comparison
-of automatic differentiation and continuous sensitivity analysis for derivatives of differential
-equation solutions. arXiv preprint arXiv:1812.01892, 2018.
-C. Rackauckas, A. Edelman, K. Fischer, M. Innes, E. Saba, V. B. Shah, and W. Tebbutt. Generalized
-physics-informed learning through language-wide differentiable programming. In AAAI Spring
-Symposium: MLPS, 2020a.
-C. Rackauckas, Y. Ma, J. Martensen, C. Warner, K. Zubov, R. Supekar, D. Skinner, and A. Ramadhan.
-Universal differential equations for scientific machine learning. arXiv preprint arXiv:2001.04385,
-2020b.
-M. Raissi, P. Perdikaris, and G. E. Karniadakis. Physics-informed neural networks: A deep learning
-framework for solving forward and inverse problems involving nonlinear partial differential
-equations. Journal of Computational Physics, 378:686–707, 2019.
-J. Revels. ReverseDiff.jl, 2018. URL http://github.com/JuliaDiff/ReverseDiff.jl.
-J. Revels, M. Lubin, and T. Papamarkou. Forward-mode automatic differentiation in julia. arXiv
-preprint arXiv:1607.07892, 2016.
-J. Salvatier, T. V. Wiecki, and C. Fonnesbeck. Probabilistic programming in python using PyMC3.
-PeerJ Computer Science, 2:e55, apr 2016. doi: 10.7717/peerj-cs.55. URL https://doi.org/
-10.7717/peerj-cs.55.
-F. Schäfer. Abstractdifferentiation.jl for AD-backend agnostic code. URL https://frankschae.
-github.io/post/abstract_differentiation/.
-F. Schäfer, M. Kloc, C. Bruder, and N. Lörch. A differentiable programming method for quantum
-control. Machine Learning: Science and Technology, 1(3):035009, 2020.
-F. Schäfer, P. Sekatski, M. Koppenhöfer, C. Bruder, and M. Kloc. Control of stochastic quantum
-dynamics by differentiable programming. Machine Learning: Science and Technology, 2(3):
-035004, 2021.
-C. Schenck and D. Fox. Spnets: Differentiable fluid dynamics for deep neural networks. In Conference
-on Robot Learning, pages 317–335. PMLR, 2018.
-J. M. Siskind and B. A. Pearlmutter. Perturbation confusion and referential transparency: Correct
-functional implementation of forward-mode AD. 2005.
-F. Srajer, Z. Kukelova, and A. Fitzgibbon. A benchmark of selected algorithmic differentiation tools
-on some problems in computer vision and machine learning. Optimization Methods and Software,
-33(4-6):889–906, 2018.
-M. Tarek, F. Schäfer, and contributers. AbstractDifferentiation.jl. URL https://github.com/
-JuliaDiff/AbstractDifferentiation.jl.
-The PyMC Development Team. The future of pymc3, or: Theano
-is dead, long live theano. URL https://pymc-devs.medium.com/
-the-future-of-pymc3-or-theano-is-dead-long-live-theano-d8005f8a0e9b.
-M. Udell, K. Mohan, D. Zeng, J. Hong, S. Diamond, and S. Boyd. Convex optimization in Julia.
-SC14 Workshop on High Performance Technical Computing in Dynamic Languages, 2014.
-A. Wachter. An interior point algorithm for large-scale nonlinear optimization with applications in
-process engineering. PhD thesis, Carnegie Mellon University, 2002.
-L. White. Juliadiff website. URL https://juliadiff.org/.
-9
-L. White, M. Zgubic, M. Abbott, J. Revels, A. Arslan, S. Axen, S. Schaub, N. Robinson, Y. Ma,
-G. Dhingra, W. Tebbutt, N. Heim, A. D. W. Rosemberg, N. Schmitz, C. Rackauckas, D. Widmann,
-R. Heintzmann, F. Schäfer, K. Fischer, A. Robson, M. Brzezinski, A. Zhabinski, M. Besançon,
-P. Vertechi, S. Gowda, A. Fitzgibbon, C. Lucibello, C. Vogt, D. Gandhi, and F. Chorney. Juliadiff/chainrules.jl: v1.11.5, Sept. 2021. URL https://doi.org/10.5281/zenodo.5467874.
-10
-A Summary of the current state of AD packages in Julia as of September
-2021
-Table 2: This table summarizes the current state of popular Julia AD packages in September 2021.
-“Scalar" refers to scalar operations support including defining custom rules for scalar-valued functions of scalars. "Vector/tensor" refers to native vector/tensor support as a construct including the
-ability to define custom differentiation rules for vector/tensor-valued functions and/or functions of
-vectors/tensors. Similarly, “First class struct support" refers to the native support of Julia structs as a
-construct including the ability to define custom differentiation rules for struct-valued functions or
-functions of structs. “GPU" refers to the ability to differentiate functions of or returning GPU arrays.
-"GC" refers to supporting functions that call the Julia garbage collector. “Mutation" refers to the
-ability to support mutating arrays and structs. “Runtime branches" refers to the ability to support
-“piece-wise" functions with control flow such that the path that the function takes and ultimately
-the structure of the mathematical function differentiated depends on the values of the inputs to the
-function. “Maturity" refers to a subjective measure of how mature each package is in the eyes of the
-community as well as the feature maturity of the package.
-Package Scalar Vector
-/ tensor
-First class
-struct support GPU GC Mutation Runtime
-branches Maturity
-ForwardDiff ✓ ✗ ✗ ✓ ✓ ✓ ✓ very high
-ReverseDiff slow ✓ ✗ ✗ ✓ limited ✓ high
-ReverseDiff with
-compiled tape ✓ ✓ ✗ ✗ ✓ limited ✗ high
-Tracker slow ✓ ✗ ✓ ✓ limited ✓ high
-Zygote slow ✓ ✓ ✓ ✓ ✗ ✓ high
-Enzyme ✓ limited wip wip wip ✓ ✓ low
-Diffractor ✓ ✓ ✓ ✓ ✓ ✗ ✓ low
-Table 2 summarizes the current state of the most popular AD packages in the Julia ecosystem as of
-the time of the writing of this paper.
-11
-B AD performance can be problem-specific
-It is well know that for a function f : R
-n → R
-m with n independent input variables and m
-dependent output variables, forward-mode AD is preferred to build the Jacobian when m  n while
-reverse-mode AD is preferred when n  m, i.e. as one increases the number of inputs within the
-same problem, reverse-mode AD mode will eventually overtake forward-mode AD in performance.
-This has been investigated in depth for differential equations when applied to models relevant to
-biopharmacology, alongside various adjoint options [Rackauckas et al., 2018]. This work shows
-that on sufficiently small ODEs (<100 ODEs + parameters), forward-mode AD via ForwardDiff.jl
-is the most efficient method comparing against analytical techniques and adjoint techniques using
-Tracker.jl, Enzyme.jl, and ReverseDiff.jl. When the size of the ODEs+parameters is increased in a
-stiff partial differential equation, it was shown that Enzyme.jl vector-Jacobian products mixed with
-a specific adjoint method was the most efficient, outperforming the ForwardDiff.jl techniques long
-with ReverseDiff.jl and Tracker.jl.
-In what follows, we demonstrate on two additional examples that the choice of the specific reversemode AD package may also significantly impact the performance [Srajer et al., 2018]. These examples
-show ReverseDiff.jl in compiled mode outperforming Enzyme.jl under certain circumstances. However, as ReverseDiff.jl is not compatible with GPUs and was shown to not be performance competitive
-on other potential equations in scientific computing applications, which allows Zygote.jl and Tracker.jl
-to be the most efficient. Together this shows in one application that 5 AD systems could potentially
-be the optimal choice depending on user inputs into the package code. This establishes that the
-optimal choice of AD mechanism can be rather complex for users and package developers, and thus
-decreasing the cost of performing such benchmarks is of value to many scientists.
-Example 1: Lotka–Volterra model
-Figure 2: Benchmark 1: Lotka–Volterra model. In all cases, we use a checkpointed interpolating
-adjoint method [Rackauckas et al., 2020b] to compute the local sensitivities. ‘false’ and ‘true’ indicate
-if the tape in ReverseDiff.jl is precompiled.
-Suppose that we have an instantaneous objective
-l(x(t), y(t)) = x(t) + y(t) (1)
-12
-for the Lotka–Volterra model
-x˙ = αx − βxy , (2)
-y˙ = γxy − δy , (3)
-with initial conditions x(t = 0) = 1 and y(t = 0) = 1. Let ξ denote any of the parameters α, β, γ, δ.
-We are interested in the sensitivities ∂
-∂ξ
-P
-i
-l(x(ti), y(ti)) with respect to an equally spaced time grid
-between 0 and 10 with a grid spacing of 0.1.
-Figure 2 shows a violin plot for the runtimes for four choices of the internally used AD system. This
-demonstrates that the vector-Jacobian products which use static compilation of the ODE function,
-ReverseDiff.jl with compilation enabled and Enzyme.jl, vastly outperform the other choices for
-small ODEs with a lot of scalar indexing, which is a common feature in many nonlinear physical
-and biochemical models. Note that all adjoint techniques were shown to be outperformed by
-ForwardDiff.jl on this example elsewhere [Rackauckas et al., 2018], but this example still confirms
-that in many scalar indexing cases the Zygote.jl system can perform rather poorly.
-Example 2: Neural ODE
-This example is the Spiral Neural ODE chosen from the Neural Ordinary Differential Equations
-manuscript [Chen et al., 2018]. It is an ODE defined as a neural network applied to the cubed states
-of the system:
-u˙ = NN(u
-3
-) (4)
-where NN(u) is a multilayer perceptron with one hidden layer of size 50 and a tanh activation
-function, and u ∈ R
-2
-. Figure 3 shows a violin plot for the runtimes for four choices of the internally
-used AD system. The results show that for direct differentiation on CPUs, ReverseDiffVJP with
-a compiled tape is the most efficient method. However, this has many caveats. One caveat is that
-ReverseDiff.jl’s tape-compiled form is only applicable if the code has no branching, and thus would
-be incompatible with activation functions like relu.
-Additionally, by testing over various sizes of hidden layers, we established that a RTX 2080 Super
-GPU outperformed a Ryzen 9 5950x CPU when the hidden layer size reached approximately 7,500
-(note the crossover point could potentially be a lot smaller in many scenarios if the neural network is
-deeper since the first and last layer sizes are 2, matching the dimensionality of u). At around this size
-of neural networks, the Zygote.jl and Tracker.jl strategies on GPUs become more efficient than the
-one of ReverseDiff.jl which is restricted to CPUs.
-These two examples, in addition to the prior research, clearly demonstrate that the internal AD system
-must be carefully chosen based on the problem (and hardware resources) at hand.
-13
-Figure 3: Benchmark 2: Spiral Neural ODE model. In all cases, we use a checkpointed interpolating
-adjoint method [Rackauckas et al., 2020b] to compute the local sensitivities. ‘false’ and ‘true’ indicate
-if the tape in ReverseDiff.jl is precompiled.
-14
-C Implementation of the Gauss-Newton algorithm
-In this appendix, we use AbstractDifferentiation.jl for the implementation of the Gauss–Newton
-algorithm for solving nonlinear least squares problems [Schäfer]. The Gauss–Newton algorithm
-iteratively finds the value of the N variables x = (x1, . . . , xN ) minimizing the sum of squares of M
-residuals (f1, . . . , fM)
-S(x) = 1
-2
+Flavor Violating Axions in the Early Universe
+Flavor violating axion couplings can be in action before recombination, and they can fill the early
+universe with an additional radiation component. Working within a model-independent framework,
+we consider an effective field theory for the axion field and quantify axion production. Current
+cosmological data exclude already a fraction of the available parameter space, and the bounds will
+improve significantly with future CMB-S4 surveys. Remarkably, we find that future cosmological
+bounds will be comparable or even stronger than the ones obtained in our terrestrial laboratories.
+Introduction. Light and weakly-coupled particles arise
+naturally as new degrees of freedom within motivated
+theoretical constructions for physics beyond the standard
+model (SM). A notable example is the QCD axion [1, 2]
+within Peccei-Quinn (PQ) theories [3, 4]. Not only these
+frameworks provide a dynamical solution to the strong
+CP problem, but also they can account for the observed
+dark matter abundance [5–7]. Typically, the axion field
+couples to several SM particles [8, 9], and experimentalists search for the effects of these interactions both in the
+early universe [10] and in our laboratories [11–13].
+In this work, we study the cosmological implications of
+axion couplings that are not diagonal in the SM fermion
+generations. These interactions can arise from radiative
+corrections with both loop and GIM suppressions even
+if the underlying theory does not violate flavor [14–18].
+Alternatively, flavor violation (FV) can be present already at tree-level [19–27]. We remain agnostic about
+the high-energy origin, and we work within the effective
+field theory framework
+L
+(a)
+FV =
+∂µa
+2fa
 X
-M
-i=1
-fi(x; p)
+ψi6=ψj
+ψ¯
+iγ
+µ
+
+c
+V
+ψiψj + c
+A
+ψiψj
+γ
+5
+
+ψj . (1)
+The axion field a interacts with up quarks ψi = {u, c, t},
+down quarks ψi = {d, s, b}, and charged leptons ψi =
+{e, µ, τ} [28]. As it is conventional in the literature, we
+employ the dimensionful parameters
+F
+α
+ψiψj ≡
+2fa
+c
+α
+ψiψj
+, α = {V, A} . (2)
+Once we impose that the Lagrangian is Hermitian, we
+find the condition (F
+α
+ψjψi
+)
+∗ = F
+α
+ψiψj
+.
+The FV interactions in Eq. (1) mediate axion production in the early universe. This relativistic axion population manifests itself today in the cosmic microwave background (CMB) anisotropy spectrum as an additional radiation component, an effect historically parameterized
+in terms of an effective number of additional neutrino
+species ∆Neff. This cosmic axion background, analogous
+to the one made of SM neutrinos, is one of the cosmological consequences of the PQ mechanism [29–33].
+Currently, the best bound comes from the Planck collaboration that reports Neff = 2.99 ± 0.17 [34]. Future
+CMB-S4 surveys will achieve the remarkable sensitivity
+∆Neff|
+1σ(2σ) ' 0.03 (0.06) [35, 36]; this corresponds approximately to the contribution from axions once in thermal equilibrium that decoupled before the electroweak
+phase transition [37]. These astonishing forecasts motivated recently a noteworthy effort with the aim to provide
+quantitative and reliable predictions [38–48].
+In what follows, we consider a single FV operator with
+a given pair of SM fermions and Lorentz structure (vector or axial) at a time. When evaluating the total axion production rate γa, which is defined as the number
+of processes per unit time and volume, we distinguish
+between FV couplings to leptons and quarks. The former are immune from complications as we approach the
+QCD phase transition (QCDPT) and perturbative calculations are reliable, the latter necessitate us to resort
+to non-perturbative techniques. Broadly speaking, there
+are two main production mechanisms: decays and scatterings. We divide the full production rate into these
+two individual contributions, γa = γ
+D
+a + γ
+S
+a
+, and explicit
+expressions for the rates due to decays and scatterings
+are known in the literature [49]. Decays become efficient
+as the temperature approaches the mass of the mother
+particle, and they are suppressed at higher temperatures
+because of the Lorentz time dilation. Scatterings need
+to be taken into account because the FV interactions in
+Eq. (1) mediate them as well. They are not included usually in this kind of analysis because decays are expected
+to dominate, but we will show how this is not always the
+case. For example, axion production via scatterings is
+proportional to the strong coupling constant αs when we
+consider FV interactions with quarks, and this contribution gets large slightly above the QCDPT. Finally, we
+feed the Boltzmann equation with the production rates
+and we track how the axion population evolves in the
+early universe. The output of this procedure is the evaluation of ∆Neff for the different FV couplings. We conclude with a comparison between cosmological bounds
+and prospects derived in this study with current and future constraints from terrestrial experiments.
+arXiv:2111.12108v1 [hep-ph] 23 Nov 2021
 2
-. (5)
-Starting from an initial guess x0 for the minimum, the method runs through the iterations
-x
-k+1 = x
-k − αk
-
-J
-T J
-−1
-J
-T
-f(x
-k
-; p), (6)
-where the residuals f(x
-k
-; p) depend on the current step x
-k
-and parameters p. J is the Jacobian matrix
-at x
-k
-, and αk is the step length determined via a line search subroutine.
-## Gauss-Newton scheme
-function GaussNewton!(xs, x, p backend; maxiter=100)
-for i=1:maxiter
-x = step(x, p, backend)
-push!(xs, x)
-end
-return xs, x
-end
-function step(x, p, backend, a=1//1)
-x2 = deepcopy(x)
-while !done(x,x2,p) # line-search condition
-# first return value of AD.jacobian is dfdx
-# second return value of AD.jacobian is dfdp
-J = AD.jacobian(backend, f, x, p)[1]
-d = -inv(J'*J)*J'*f(x,p)
-copyto!(x2,x + a*d)
-a = a//2
-end
-return x2
-end
-Switching between different AD systems is then easily accomplished by passing different backends
-as input to the GaussNewton function.
-1
+��-� ��-� ��� ��� ���
+-��
+-��
+-��
+-�
+�
+�
+�����
+�����
+�
+γ
+���α���
+�����
+�
+�
+γ�
+= γ�
+� + γ�
+�
+γ�
+� (μ → � �)
+�μ�
+�/�
+��-� ��� ��� ���
+-��
+-�
+�
+�
+�����
+�����
+�
+γ
+���α���
+�����
+�
+�
+γ�
+= γ�
+� + γ�
+�
+γ�
+� (τ → (μ� �) �)
+�τμ�τ�
+�/�
+Figure 1. FV axion production rate from charged leptons for
+decaying µ (left) and τ (right). Black and blue lines denote
+the total rate and the partial rate via decays, respectively.
+Leptonic Production. The intricate physics of confinement poses no problem for production via leptons.
+Charged lepton decays, `
+±
+i → `
+±
+j
+a with i 6= j and
+mli > mlj
+, are the contributions accounted for in the
+literature [38, 40]. However, the same FV interaction responsible for decays mediates axion production via scatterings of thermal bath particles: lepton/antilepton annihilations (`
+±
+i +`
+∓
+j → γ+a) and Primakoff-like scatterings
+(`
+±
+i,j + γ → `
+±
+j,i + a). The rates are proportional to the
+electromagnetic fine structure constant αem.
+Lepton interactions with the surrounding plasma modify the dispersion relation, and they lead to an effective
+mass m`,eff = (p
+m2
+` + 4m2
+th + m`)/2 with the thermal
+contribution m2
+th = e
+2T
+2/8 [50, 51]. However, axion production mediated by the operators in Eq. (1) is most efficient at lower temperatures (i.e., IR domination), and
+it is maximized at temperature scales around the heavier
+lepton mass. A rigorous thermal field theory treatment
+would not alter the total production rate [52].
+The total production rate for axion production via FV
+interactions with leptons is quantified by the solid black
+lines in Fig. 1. We present results for the case when the
+heavier lepton involved in the interaction is µ (left panel)
+or τ (right panel). For comparison, we also illustrate with
+solid blue lines the partial contribution to the total production rate from lepton decays. Once we integrate the
+Lagrangian in Eq. (1) by parts, we find pseudo-Yukawa
+interactions with strength proportional to (m`j ∓ m`i
+)
+for vector and axial currents, respectively. If we neglect
+the mass of the lighter lepton, the two couplings give
+identical rates; the case when corrections to this degeneracy are larger is for τ -µ couplings where the difference is
+nearly 30% since (mτ + mµ)
+2
+/ (mτ − mµ)
+2 ≈ 1.3. Furthermore, results for τ -µ and τ -e couplings are nearly
+equivalent for the same reason. Thus we present results combining these nearly degenerate cases together
+in Fig. 1. However, in our analysis we keep these distinctions and employ the appropriate rate for each case.
+At high temperatures, much higher than the mother
+particle mass, the production rate is controlled by scatterings with gauge bosons. While scatterings with massive weak gauge bosons are relatively suppressed due to
+their heavy mass, those with massless photons turn out
+� ��� ���
+�
+�
+��
+�����
+�����
+�
+γ
+���α���
+�����
+�
+�
+γ�
+= γ�
+� + γ�
+�
+γ�
+� (� → (�� �) �)
+������
+�/�
+Figure 2. Axion production rate via FV couplings to the bottom quark. Black and blue lines denote total and partial decay
+rates, respectively. Solid lines stop at the perturbative scale
+ΛN = 2 GeV, dashed lines extend the perturbative calculation
+down to Λ
+0
+N = 1 GeV (see text for details).
+to be dominant contributions to FV axion thermalization below the weak scale. Subsequently, when the thermal bath temperature approaches the mass of the heavier
+lepton involved in the cubic interaction, decay processes
+become more and more important to produce axions.
+Hadronic Production. The description where the axion is coupled to quarks, which is what expressed by our
+starting point in Eq. (1), breaks down once we reach the
+confinement scale. Computing the axion production rate
+for FV couplings to quarks is less straightforward.
+Third generation quarks are free from this complication since their masses are larger than the temperature
+where quarks confine into hadrons, and it is possible to
+compute the production rate as for the lepton cases. This
+is true especially for the top quark since its mass is approximately two orders of magnitude larger than the confinement scale. Axion production via FV couplings to the
+top quark studied in Ref. [42], and it was found that the
+resulting contribution to ∆Neff is at most barely within
+reach of future CMB-S4 surveys. The bottom quark is
+somewhat an intermediate case since its mass is a factor
+of a few larger than the scale where one loses perturbative
+control of rate calculations. Axion production is essentially inefficient once we reach this problematic scale as
+a consequence of the Maxwell-Boltzmann suppression in
+the bottom quark number density. This was also studied
+in Ref. [42], but only accounting for the decay contribution. We revisit this study by including also scatterings
+to the production rate with results shown in Fig. 2 [53].
+We present the numerical evaluations in a single figure
+since the final state quark and the Lorentz structure affect the rate marginally for the same reasons as the ones
+discussed in the lepton case. Solid lines stop at the temperature ΛN = 2 GeV, and we take this to be the fiducial
+scale above which we can rely upon perturbative calculations. The bottom quark mass is approximately a factor
+of two larger than ΛN, and axion production can still be
+efficient at T . ΛN ; we extrapolate the production rate
+down to temperatures Λ0
+N = 1 GeV, shown as dashed
+lines, and we checked that axion production saturates
+once we get to that temperature. As it is manifest from
+3
+��-� ��� ��� ���
+-��
+-��
+-��
+-�
+�
+�
+�����
+�����
+�
+γ
+���α���
+�����
+�
+�
+γ�
+= γ�
+� + γ�
+�
+γ�
+� (� → � �)
+γ�
+� (� → π �)
+���
+�
+��-� ��� ��� ���
+-��
+-��
+-��
+-�
+�
+�
+�����
+�����
+�
+γ
+���α���
+�����
+�
+�
+γ�
+= γ�
+� + γ�
+�
+γ�
+� (� → � �)
+γ�
+� (Λ → � �)
+���
+�
+��-� ��� ��� ���
+-��
+-��
+-��
+-��
+-�
+�
+�
+��
+�����
+�����
+�
+γ
+���α���
+�����
+�
+�
+γ� = γ�
+� + γ�
+�
+γ�
+� (� → � �)
+γ�
+� (� → π �)
+���
+�
+��-� ��� ��� ���
+-��
+-��
+-��
+-��
+-�
+�
+�
+��
+�����
+�����
+�
+γ
+���α���
+�����
+�
+�
+γ� = γ�
+� + γ�
+�
+γ�
+� (� → � �)
+γ�
+� (Λ�
+→ � �)
+���
+�
+Figure 3. Axion production rate via FV couplings to second
+generation quarks. Black and blue lines as in Fig. 2. The
+rate between ΛChPT = 150 MeV and ΛN = 2 GeV is connected
+smoothly via the cubic spline interpolation (dashed red).
+Fig. 2, the scattering contribution overwhelms the one
+from decays; the former is enhanced by αs, which does
+not appear in the bottom quark decay width, evaluated
+at temperatures not too far away from the QCDPT. This
+correct evaluation of the rate, not implemented before,
+has a dramatic impact on ∆Neff as we will see shortly.
+Once we consider lighter (second generation) quarks,
+we cannot avoid dealing with confinement. Perturbative QCD still provides a reliable computational tool at
+T & ΛN, and we employ the techniques of chiral perturbation theory (ChPT) [54–56] to describe production
+via hadronic resonances. We verify that production via
+scatterings is sub-dominant compared with the one from
+decays, and we employ in our analysis the hadronic matrix elements provided by Ref. [57]. The Lorentz structure combined with the invariance of strong interactions
+under parity select the hadronic final states from pseudoscalar meson decays: vector currents mediate decays to
+an axion plus a pseudoscalar meson, axial currents provide vector meson final states. For baryon decays, both
+currents contribute to the transition amplitudes.
+The four panels in Fig. 3 show our numerical results.
+Solid black lines indicate the total axion production rate
+in the two opposite regimes where we have computational
+control, and dashed red lines denote the interpolation
+obtained via the cubic spline method [58]. Solid blue
+lines indicate the partial production rate from quark decays in the deconfined phase that is subdominant with
+respect to scatterings as a consequence of the αs enhancement. Thus within the perturbative QCD regime, valid
+for T & ΛN = 2 GeV, quark and gluon scatterings control axion production. On the opposite side, we account
+for production via hadron decays up to T = ΛChPT =
+150 MeV above which the hadron resonance gas approximation [59–61] is not applicable [62]. We note that, in
+the hadronic resonance gas framework, even hadrons with
+heavy quarks such as charms and bottoms are considered to be thermalized at ΛChPT. Notwithstanding those
+hadron masses much heavier than the phase boundary,
+the so-called statistical hadronization approach is still
+the valid way to account for their distribution with thermal weights (see Ref. [63] for details).
+Results. The rates in Figs. 1-3 allow us to keep track the
+axion number density (na) via the Boltzmann equation
+dna
+dt + 3Hna = γa
+
+1 −
+na
+n
+eq
+a
+
+. (3)
+The Hubble rate H accounts for the expanding universe,
+thermal production is accounted for by the right-hand
+side with n
+eq
+a
+the equilibrium number density. We run
+the Boltzmann code with vanishing initial abundance at
+the weak scale since production is IR dominated. Eventually, the expansion takes over and the comoving number
+density Ya = na/s, where s is the entropy density, reaches
+a constant value Y ∞
+a
+that leads to ∆Neff ' 75.6 (Y ∞
+a
+)
+4/3
+.
+The output of our study is summarized by Fig. 4 where
+we show results for leptonic and hadronic FV in the upper and lower panels, respectively. Cosmological constraints are identified by the green bars: dark ones denote the current bound from Planck whereas the pale and
+palest green bars illustrate future prospects at 2-σ and
+1-σ, respectively. A common feature is that the present
+bounds become more severe as the decaying particles get
+lighter, and this is because Planck is sensitive to axions
+that reach thermal equilibrium around the QCDPT. Axions once in thermal equilibrium that decoupled when
+the thermal bath had a temperature TD provide a dark
+radiation contribution ∆Neff ' 13.69 g∗s(TD)
+−4/3 with
+g∗s the bath effective number of entropic degrees of freedom [46]. Thus the lighter the mother particle, the later
+axions are produced, and the smaller g∗s(TD). On the
+contrary, CMB-S4 prospects future an opposite behavior
+because they will be testing axions that do not thermalize. In this different regime, the final abundance is proportional to the square of the interaction strength that
+scales proportionally to the mass of the heavier fermion.
+Numerous terrestrial experiments search for invisible
+final state energy in meson decays; these processes could
+be mediated by FV couplings to the axion [16, 24, 27,
+57, 64–66]. For comparison, we collect in Fig. 4 current
+bounds (dark bars) for each FV coupling and the expected future sensitivities (pale bars). For completeness,
+we add the astrophysical constraints on F
+A
+sd and F
+V,A
+µe
+and we depict them with shaded magenta bars.
+The upper panel of Fig. 4 shows the landscape of FV
+couplings to leptons. Both terrestrial searches and cosmological productions do not discriminate between vector and axial couplings, so we present constraints together and we just distinguish among lepton flavors. Current and future laboratory constraints are visualized by
+the orange bars. The best bound on F
+V,A
+µe comes from
+4
+Figure 4. Terrestrial versus CMB constraints for FV axions
+coupled to leptons (upper panel) and quarks (lower panel).
+Darker and fainter areas denote present and future terrestrial
+bounds, respectively. CMB bounds follow the color code in the
+legenda, the shaded magenta areas denote SN1987A bounds.
+µ → e + inv [67], and in the future it will be improved thanks to the MEGII-fwd experiment [68]. We
+include the astrophysical SN1987A bound from Ref. [27].
+Searches for τ → (e, µ) + inv by the ARGUS collaboration [69] constrain both F
+V,A
+τ e and F
+V,A
+τµ , and Belle II [70]
+will improve the sensitivity on both couplings [27].
+The lower panel of Fig. 4 illustrates the current situation and future prospects for FV couplings to quarks.
+Current bounds for the vector and axial currents are, respectively, represented by the red and blue bars, and the
+expected sensitivities in forthcoming experiments correspond to the pale colored bars. Searches by the E949
+collaboration [71] for K+ → π
++ + inv provide the best
+bound on the vector coupling F
+V
+sd with future improvements by NA62 or KOTO [57]. The axial coupling F
+A
+sd
+is instead tested by searches for Ξ0 → Σ
+0 + inv [72], and
+the BESIII collaboration will provide an improved bound
+via searches for the hyperon decay Λ → n + inv [73].
+These are milder than the SN1987A constraint [57, 74],
+the observational cooling signal of which can be reduced
+by decays of abundant hyperons inside the proto-neutron
+star [75–78]. The CLEO collaboration [79] provides the
+bound on the vector coupling F
+V
+cu through searches for
+D+ → π
++ + inv, and the BESIII collaboration will improve this constraint by an order of magnitude [73]. The
+axial coupling F
+A
+cu is constrained by D-D¯ mixing [80],
+and the LHCb Phase II upgrade will improve such a
+bound [81]. Finally, switching to the third generation,
+searches by the BaBar collaboration for B+ → π
++ + inv
+provide the current bound on the vector coupling F
+V
+bd [82],
+and Belle II will attain an improved sensitivity to F
+V
+bd
+by an order of magnitude [74]. A stringent bound on
+the axial coupling F
+A
+bd arises from the decay channel
+Λb → n + inv [72], and Belle II will improve this bound
+via B+,0 → ρ
++,0+inv [57]. For couplings between second
+and third generations, the BaBar collaboration searches
+for B+,0 → K+,0 + inv and B+,0 → K∗+,0 + inv give
+the current experimental bound on F
+V
+bs and F
+A
+bs, respectively [83]. Belle II will gather a 100 larger integrated
+luminosity compared with BarBar, and this will lead to
+an order of magnitude enhanced bound on F
+V,A
+bs [57].
+The comprehensive, yet concise, summary illustrated
+by Fig. 4 places us in front of the complementarity between terrestrial and cosmological searches for axion FV
+interactions. For couplings involving the τ lepton, cosmological data are already more constraining than the
+bounds obtained in our laboratories, and this statement
+will be true in the future as well once the new experiments become operational. Planck bounds cannot compete at the moment with hadronic experiments, and our
+best constraints on hadronic FV couplings are all due
+to laboratory searches. Intriguingly, future CMB-S4 will
+reach a sensitivity stronger than the ones associated to
+future laboratory experiments.
+The axion is a hypothetical new particle beyond the
+SM motivated from the top-down, and multiple experimental strategies will probe a large fraction of the coupling parameter space in the near future. CMB data provide an additional and complementary strategy to constrain axion couplings, and they are competitive with
+other experimental searches for FV couplings. In this
+study, we restrict ourselves to a model-independent analysis based on the effective operators in Eq. (1). This
+should be thought as the low-energy theory valid at the
+energy scale where axion production takes place, which is
+typically the mass of the heavier femion appearing in the
+interacting vertex. Conceptually, from the high-energy
+point of view, these FV interactions can arise both for
+theories where flavor is conserved, and in these cases FV
+arises from radiative corrections driven by SM couplings,
+or for theories where flavor is violated already at the high
+PQ scale. Our findings, summarized by Fig. 4, motivate
+further studies within UV complete axion models.
+Acknowledgements. Authors acknowledge E. J. Chun,
+J. Martin Camalich, and H. Kim for useful discussions. This work is supported by the research grants:
+“The Dark Universe: A Synergic Multi-messenger Ap-
+5
+proach” number 2017X7X85K under the program PRIN
+2017 funded by the Ministero dell’Istruzione, Universit`a e della Ricerca (MIUR); “New Theoretical Tools
+for Axion Cosmology” under the Supporting TAlent in
+ReSearch@University of Padova (STARS@UNIPD). The
+authors also supported by Istituto Nazionale di Fisica
+Nucleare (INFN) through the Theoretical Astroparticle
+Physics (TAsP) project. F.D. acknowledges support from
+the European Union’s Horizon 2020 research and innovation programme under the Marie Sk lodowska-Curie grant
+agreement No 860881-HIDDeN. The authors acknowledge the Galileo Galilei Institute (GGI) for the kind hospitality during the workshop “New Physics from the Sky”
+while this work was in progress.
+∗

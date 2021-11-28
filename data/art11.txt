@@ -1,949 +1,2540 @@
-EVOLVING EVOLUTIONARY ALGORITHMS USING
-LINEAR GENETIC PROGRAMMING
-MIHAI OLTEAN
-Department of Computer Science,
-Faculty of Mathematics and Computer Science,
-Babes-Bolyai University, Kogalniceanu 1,
-Cluj-Napoca, 3400, Romania.
-https: // mihaioltean. github. io
-Abstract. A new model for evolving Evolutionary Algorithms is proposed in
-this paper. The model is based on the Linear Genetic Programming (LGP)
-technique. Every LGP chromosome encodes an EA which is used for solving
-a particular problem. Several Evolutionary Algorithms for function optimization, the Traveling Salesman Problem and the Quadratic Assignment Problem
-are evolved by using the considered model. Numerical experiments show that
-the evolved Evolutionary Algorithms perform similarly and sometimes even
-better than standard approaches for several well-known benchmarking problems.
+PBH formation from spherically symmetric hydrodynamical perturbations: a review
+Abstract: Primordial black holes, which could have been formed in the very early Universe due to the
+collapse of large curvature fluctuations, are nowadays one of the most attractive and fascinating research
+areas in cosmology for their possible theoretical and observational implications. This review article
+presents the current results and developments on the conditions for primordial black hole formation from
+the collapse of curvature fluctuations in spherical symmetry on a Friedman-Lemaître-Robertson-Walker
+background and its numerical simulation. We review the appropriate formalism for the conditions of
+primordial black hole formation, and we detail a numerical implementation. We then focus on different
+results regarding the threshold and the black hole mass using different sets of curvature fluctuations.
+Finally, we present the current state of analytical estimations for the primordial black hole formation
+threshold, contrasted with numerical simulations.
+Keywords: Primordial Black Holes; Early Universe Cosmology; Numerical General Relativity
 1. Introduction
-Evolutionary Algorithms (EAs) (Goldberg, 1989; Holland, 1975) are new and
-powerful tools used for solving difficult real-world problems. They have been developed in order to solve some real-world problems that the classical (mathematical)
-methods failed to successfully tackle. Many of these unsolved problems are (or could
-be turned into) optimization problems. The solving of an optimization problem
-means finding solutions that maximize or minimize a criteria function (Goldberg,
-1989; Holland, 1975; Yao et al., 1999).
-Many Evolutionary Algorithms have been proposed for dealing with optimization
-problems. Many solution representations and search operators have been proposed
-and tested within a wide range of evolutionary models. There are several natural
-questions to be answered in all these evolutionary models:
-What is the optimal population size?
-What is the optimal individual representation?
-What are the optimal probabilities for applying specific genetic operators?
-What is the optimal number of generations before halting the evolution?
-A breakthrough arose in 1995 when Wolpert and McReady unveiled their work
-on No Free Lunch (NFL) theorems for Search (Wolpert et al., 1995) and Optimization (Wolpert et al., 1997). The No Free Lunch theorems state that all the
-black-box algorithms have the same average performance over the entire set of
-optimization problems. (A black-box algorithm does not take into account any
-E-mail address: mihai.oltean@gmail.com.
-1
-arXiv:2109.13110v1 [cs.NE] 21 Aug 2021
-2 EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-information about the problem or the particular instance being solved.) The magnitude of the NFL results stroke all the efforts for developing a universal black-box
-optimization algorithm capable of solving all the optimization problems in the best
-manner. Since we cannot build an EA able to solve best all problems we have to
-find other ways to construct algorithms that perform very well for some particular
-problems. One possibility (explored in this paper) is to let the evolution to discover the optimal structure and parameters for the evolutionary algorithm used for
-solving a particular problem.
-In their attempt for solving problems, men delegated computers to develop algorithms capable of performing certain tasks. The most prominent effort in this
-direction is Genetic Programming (GP) (Koza, 1992; Koza, 1994), an evolutionary
-technique used for breeding a population of computer programs. Instead of evolving
-solutions for a particular problem instance, GP is mainly intended for discovering
-computer programs capable of solving particular classes of optimization problems.
-(This statement is only partially true since the discovery of computer programs may
-also be viewed as a technique for solving a particular problem input. For instance,
-the problem may be here: ”Find a computer program that calculates the sum of
-the elements of an array of integers.”).
-There are many such approaches in literature concerning GP. Noticeable effort
-has been dedicated for evolving deterministic computer programs capable of solving
-specific problems such as symbolic regression (Koza, 1992; Koza, 1994), classification (Brameier et al., 2001a) etc.
-Instead of evolving such deterministic computer programs we will evolve a fullfeatured evolutionary algorithm (i.e. the output of our main program will be an
-EA capable of performing a given task). Thus, we will work with EAs at two levels:
-the first (macro) level consists in a steady-state EA (Syswerda, 1989) which uses
-a fixed population size, a fixed mutation probability, a fixed crossover probability
-etc. The second (micro) level consists in the solutions encoded in a chromosome of
-the first level EA.
-For the first (macro) level EA we use an evolutionary model similar to Linear Genetic Programming (LGP) (Brameier et al., 2001a; Brameier et al., 2001b;
-Brameier et al., 2002) which is very suitable for evolving computer programs that
-may be easily translated into an imperative language (like C or Pascal).
-The rules employed by the evolved EAs during of a generation are not preprogrammed. These rules are automatically discovered by the evolution. The evolved
-EA is a generational one (the generations do not overlap).
-This research was motivated by the need of answering several important questions concerning Evolutionary Algorithms. The most important question is ”Can
-Evolutionary Algorithms be automatically synthesized by using only the information about the problem being solved?” (Ross, 2002). And, if yes, which are the
-genetic operators that have to be used in conjunction with an EA (for a given
-problem)? Moreover, we are also interested to find the optimal (or near-optimal)
-sequence of genetic operations (selections, crossovers and mutations) to be performed during a generation of an Evolutionary Algorithm for a particular problem.
-For instance, in a standard GA the sequence is the following: selection, recombination and mutation. But, how do we know that scheme is the best for a particular
-problem (or problem instance)? We better let the evolution to find the answer for
-us.
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING 3
-Several attempts for evolving Evolutionary Algorithms were made in the past
-(Ross, 2002; Tavares et al., 2004). A non-generational EA was evolved (Oltean et
-al., 2003) by using the Multi Expression Programming (MEP) technique (Oltean
-et al., 2003; Oltean, 2003).
-There are also several approaches that evolve genetic operators for solving difficult problems (Angeline, 1995; Angeline, 1996; Edmonds, 2001; Stephens et al.,
-1998; Teller, 1996). In his paper on Meta-Genetic Programming, Edmonds (Edmonds, 2001) used two populations: a standard GP population and a co-evolved
-population of operators that act on the main population. Note that all these approaches use a fixed evolutionary algorithm which is not changed during the search.
-A recent paper of Spector and Robinson (Spector, 2002) describes a language
-called Push which supports a new, self-adaptive form of evolutionary computation
-called autoconstructive evolution. An experiment for symbolic regression problems
-was reported. The conclusion was that ”Under most conditions the population
-quickly achieves reproductive competence and soon thereafter improves in fitness.”
-(Spector 2002).
-There are also several attempts for evolving heuristics for particular problems.
-In (Oltean et al., 2004a) the authors evolve an heuristic for the Traveling Salesman
-Problem. The obtained heuristic is a mathematical expression that takes as input
-some information about the already constructed path and outputs the next node of
-the path. It was shown (Oltean et al., 2004a) that the evolved heuristic performs
-better than other well-known heuristics (Nearest Neighbor Heuristic, Minimum
-Spanning Tree Heuristic (Cormen et al., 1990; Garey et al., 1979)) for the considered
-test problems.
-The paper is organized as follows. The LGP technique is described in section
-2. The model used for evolving EAs is presented in section 3. Several numerical
-experiments are performed in section 4. Three EAs for function optimization, the
-Traveling Salesman Problem and the Quadratic Assignment Problem are evolved
-in sections 4.1, 4.2 and 4.3. Further research directions are suggested in section 5.
-2. Linear Genetic Programming Technique
-In this section the Linear Genetic Programming (LGP) technique is described.
-LGP uses a linear chromosome representation and a special phenotype transcription
-model.
-2.1. LGP Algorithm. In our experiments steady-state (Syswerda, 1989) is used
-as underlying mechanism for LGP.
-The steady-state LGP algorithm starts with a randomly chosen population of individuals. The following steps are repeated until a termination condition is reached:
-Two parents are selected by using binary tournament and are recombined with a
-fixed crossover probability. Two offspring are obtained by the recombination of two
-parents. The offspring are mutated and the best of them replaces the worst individual in the current population (if the offspring is better than the worst individual
-in the current population).
-2.2. Individual Representation. Linear Genetic Programming (LGP) (Banzhaf
-et al., 1998; Brameier et al., 2001a; Nordin, 1994) uses a specific linear representation of computer programs. Programs of an imperative language (like C ) are
-4 EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-evolved instead of the tree-based GP expressions of a functional programming language (like LISP).
-An LGP individual is represented by a variable-length sequence of simple C language instructions. Instructions operate on one or two indexed variables (registers)
-r or on constants c from predefined sets. The result is assigned to a destination
-register, e.g. ri = rj * c.
-An example of an LGP program is the following:
-void LGP Program(double v[8])
-{
-. . .
-v[0] = v[5] + 73;
-v[7] = v[4] - 59;
-v[4] = v[2] *v[1];
-v[2] = v[5] + v[4];
-v[6] = v[1] * 25;
-v[6] = v[4] - 4;
-v[1] = sin(v[6]);
-v[3] = v[5] * v[5];
-v[7] = v[6] * 2;
-v[5] = [7] + 115;
-v[1] = sin(v[7]);
-}
-A linear genetic program can be turned into a functional representation by
-successive replacements of variables starting with the last effective instruction
-(Brameier et al., 2001a).
-Variation operators are crossover and mutation. By crossover continuous sequences of instructions are selected and exchanged between parents (Brameier et
-al., 2001a). Two cutting points are randomly chosen in each parent and the sequences of instructions between them are exchanged. As an immediate effect, the
-length of the obtained offspring might be different from the parents.
-Two types of mutations are used: micro mutation and macro mutation (Brameier
-et al., 2001a). By micro mutation an operand or an operator of an instruction is
-changed. Macro mutation inserts or deletes a random instruction.
-3. LGP for Evolving Evolutionary Algorithms
-In order to use LGP for evolving EAs we have to modify the structure of an
-LGP chromosome and define a set of function symbols.
-3.1. Individual Representation for Evolving EAs. Instead of working with
-registers, our LGP program will modify an array of individuals (the population).
-We denote by Pop the array of individuals (the population) which will be modified
-by an LGP program.
-The set of function symbols will consist in genetic operators that may appear
-into an evolutionary algorithm. There are usually 3 types of genetic operators that
-may appear into an EA. These genetic operators are:
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING 5
-Select - selects the best solution among several already existing solutions,
-Crossover - recombines two existing solutions,
-Mutate - varies an existing solution.
-These operators will act as function symbols that may appear into an LGP chromosome. Thus, each simple C instruction that appeared into a standard LGP
-chromosome will be replaced by a more complex instruction containing genetic operators. More specifically, we have three major types of instructions in the modified
-LGP chromosomes. These instructions are:
-Pop[k] = Select (Pop[i], Pop[j]); // Select the best individual from those stored
-in
-// Pop[i] and Pop[j] and keep the result in position k.
-Pop[k] = Crossover (Pop[i], Pop[j]); // Crossover the individuals stored in
-// Pop[i] and Pop[j] and keep the result in position k.
-Pop[k] = Mutate (Pop[i]); // Mutate the individual stored in
-// position i and keep the result in position k.
-Remarks:
-(i) The Crossover operator always generates a single offspring from two parents
-in our model. Crossover operators generating two offspring may be designed
-to fit our evolutionary model as well.
-(ii) The Select operator acts as a binary tournament selection. The better of
-two individuals is always accepted as the result of the selection.
-(iii) Crossover and Mutate operators are problem dependent. For instance, if we
-want to evolve an EA (with binary representation) for function optimization
-we may use the set of genetic operators having the following functionality:
-Crossover – recombines two parents using one cut point crossover, Mutate
-– one point mutation. If we want to evolve an EA for solving the TSP
-problem (Merz et al., 1997) we may use DPX as a crossover operator and
-2-opt as a mutation operator (Krasnogor, 2002).
-An LGP chromosome C, storing an evolutionary algorithm is the following:
-void LGP Program(Chromosome Pop[8]) // a population with 8 individuals
-{
-...
-Pop[0] = Mutate(Pop[5]);
-Pop[7] = Select(Pop[3], Pop[6]);
-Pop[4] = Mutate(Pop[2]);
-Pop[2] = Crossover(Pop[0], Pop[2]);
-Pop[6] = Mutate(Pop[1]);
-Pop[2] = Select(Pop[4], Pop[3]);
-Pop[1] = Mutate(Pop[6]);
-Pop[3] = Crossover(Pop[5], Pop[1]);
-6 EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-...
-}
-These statements will be considered to be genetic operations executed during
-an EA generation. Since our purpose is to evolve a generational EA we have to
-add a wrapper loop around the genetic operations that are executed during an
-EA generation. More than that, each EA starts with a random population of
-individuals. Thus, the LGP program must contain some instructions that initialize
-the initial population.
-The obtained LGP chromosome is given below:
-void LGP Program(Chromosome Pop[8]) // a population with of 8 individuals
-{
-Randomly initialize the population();
-for (int k = 0; k < MaxGenerations; k++){ // repeat for a number of generations
-Pop[0] = Mutate(Pop[5]);
-Pop[7] = Select(Pop[3], Pop[6]);
-Pop[4] = Mutate(Pop[2]);
-Pop[2] = Crossover(Pop[0], Pop[2]);
-Pop[6] = Mutate(Pop[1]);
-Pop[2] = Select(Pop[4], Pop[3]);
-Pop[1] = Mutate(Pop[6]);
-Pop[3] = Crossover(Pop[5], Pop[1]);
-}
-}
-Remark: The initialization function and the for cycle will not be affected by
-the genetic operators. These parts are kept unchanged during the search process.
-3.2. Fitness Assignment. We deal with EAs at two different levels: a micro
-level representing the evolutionary algorithm encoded into an LGP chromosome
-and a macro level GA, which evolves LGP individuals. Macro level GA execution
-is bounded by known rules for GAs (see (Goldberg, 1989)).
-In order to compute the fitness of a LGP individual we have to compute the
-quality of the EA encoded in that chromosome. For this purpose the EA encoded
-into a LGP chromosome is run on the particular problem being solved.
-Roughly speaking the fitness of an LGP individual equals the fitness of the best
-solution generated by the evolutionary algorithm encoded into that LGP chromosome. But since the EA encoded into a LGP chromosome uses pseudo-random
-numbers it is very likely that successive runs of the same EA will generate completely different solutions. This stability problem is handled in a standard manner:
-the EA encoded into an LGP chromosome is executed (run) more times (500 runs
-are in fact executed in all the experiments performed for evolving EAs for function
-optimization and 25 runs for evolving EAs for TSP and QAP) and the fitness of a
-LGP chromosome is the average of the fitness of the EA encoded in that chromosome over all the runs.
-The optimization type (minimization/maximization) of the macro level EA is
-the same as the optimization type of the micro level EA. In our experiments we
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING 7
-have employed a minimization relation (finding the minimum of a function and
-finding the shortest TSP path and finding the minimal quadratic assignment).
-Remark. In standard LGP one of the registers is chosen as the program output.
-This register is not changed during the search process. In our approach the register
-storing the best value (best fitness) in all the generations is chosen to represent the
-chromosome. Thus, every LGP chromosome stores multiple solutions of a problem
-in the same manner as Multi Expression Programming does (Oltean et al., 2003;
-Oltean, 2003; Oltean et al., 2004b).
-3.3. The Model used for Evolving EAs. For evolving EAs we use the steady
-state algorithm described in section 2.1. The problem set is divided into two sets,
-suggestively called training set, and test set. In our experiments the training set
-consists in a difficult test problem. The test set consists in some other well-known
-benchmarking problems (Burkard et al., 1991; Reinelt, 1991; Yao et al., 1999).
-4. Numerical Experiments
-In this section several numerical experiments for evolving EAs are performed.
-Two evolutionary algorithms for function optimization, the TSP and the QAP
-problems are evolved. For assessing the performance of the evolved EAs, several
-numerical experiments with a standard Genetic Algorithm for function optimization, for TSP and for QAP are also performed and the results are compared.
-4.1. Evolving EAs for Function Optimization. In this section an Evolutionary
-Algorithm for function optimization is evolved.
-4.1.1. Test Functions. Ten test problems f1 − f10 (given in Table 1) are used in
-order to asses the performance of the evolved EA. Functions f1 − f6 are unimodal
-test function. Functions f7 − f10 are highly multimodal (the number of the local
-minima increases exponentially with the problem dimension (Yao et al., 1999)).
-4.1.2. Experimental Results. In this section we evolve an EA for function optimization and then we asses the performance of the evolved EA. A comparison with
-standard GA is performed farther in this section.
-For evolving an EA we use f1 as the training problem.
-An important issue concerns the solutions evolved by the EAs encoded into an
-LGP chromosome and the specific genetic operators used for this purpose. The
-solutions evolved by the EA encoded into LGP chromosomes are represented using
-real values (Goldberg, 1989). Thus, each chromosome of the evolved EA is a fixedlength array of real values. By initialization, a point within the definition domain
-is randomly generated. Convex crossover with α = 1/2 and Gaussian mutation with
-σ = 0.5 are used (Goldberg, 1989).
-A short description of real encoding and the corresponding genetic operators is
-given in Table 2.
-Experiment 1
-In this experiment an Evolutionary Algorithm for function optimization is evolved.
-There is a wide range of Evolutionary Algorithms that can be evolved by using
-the technique described above. Since the evolved EA has to be compared with
-another algorithm (such as standard GA or ES), the parameters of the evolved EA
-should be similar to the parameters of the algorithm used for comparison.
-8 EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-Table 1. Test functions used in our experimental study. The
-parameter n is the space dimension (n = 5 in our numerical experiments) and fmin is the minimum value of the function.
-Test function Domain fmin
-f1(x) = Pn
-i=1
-(i · x
+One of the great mysteries in Science is the composition of dark matter, which accounts for the 27%
+of the present Universe. Although there are different theories and candidates that try to explain it, still
+the answer remains elusive. One of the most promising possibilities is Primordial Black Holes (PBHs),
+i.e. black holes (BH) generated at earlier than star formation times and therefore not of stellar origin. For
+the current observational status and constraints of PBHs in the form of dark matter we refer the reader to
+[1–6] .
+PBHs were first considered in [7,8]. They could be formed in the very early Universe due to the
+gravitational collapse of cosmological perturbations. Under this scenario, PBHs could have been generated
+as a consequence of high non-linear peaks in the primordial distribution of density perturbations, leaving
+open the possibility that PBHs could constitute a significant fraction of the Dark Matter (DM) [9–31].
+PBHs with a size smaller than MPBH < 10−20 M would have been already evaporated due to
+Hawking radiation [32]. Therefore, those with higher masses can account for dark matter. In addition,
+they may be responsible to seed supermassive black holes at the centre of galaxies [33,34], to generate
+large-scale structure through Poisson statistics [35] or change the thermal history of the Universe [36].
+Although PBHs were theorized time ago, it has not been until now that their popularity has increased
+exponentially. The current big interest in PBHs (and its golden age) is due to the first detection of
+gravitational waves from a black hole merger by the LIGO/Virgo collaborations [37]. Soon after this
+remarkable discovery, it was suggested that the constituents of the black hole merger could have had a
+primordial origin [16,38]. Later on, several analyses on the data signals have suggested that the population
+arXiv:2111.12693v1 [gr-qc] 24 Nov 2021
+2 of 58
+of black holes detected could have a primordial origin [24,39–43] (see also references therein). On the other
+hand, recent results on the NANOGrav experiment [44] have also been connected with PBHs [23,45–52]
+If formed by the collapse of inflationary perturbations, the abundance of PBHs is exponentially
+sensitive to the threshold of the gravitational collapse δc [53] (where δc is the minimum amplitude of the
+gravitational potential peak related to the perturbation undergoing to gravitational collapse and leading
+to a BH). In order to obtain the necessary precision on δc, a numerical analysis of PBH formation is an
+obvious way to go.
+Numerical simulations of PBH formation started some time ago, the first one was done in [54], where
+was studied the non-linear behavior of the gravitational collapse. Later on, in [55,56], δc was computed
+and a scaling behaviour for the PBH mass was found whenever the amplitude of the perturbation was
+close to δc [55–58]. The value of the scaling exponent found was consistent with the one given in the
+literature and computed from a perturbative treatment[59,60], or from numerical simulations [61] in
+asymptotically flat spacetime. While the constant of proportionality appearing in the scaling law depends
+on the specific shape of the perturbation considered, the scaling exponent is a universal quantity only
+dependent on the type of fluid. Earlier simulations on PBHs were mainly based on the application of
+a Lagrangian hydrodynamic code based on finite differences and developed from an earlier work [62],
+solving Misner-Sharp equations [63], which describe the motion of a relativistic fluid in a curved spacetime.
+An inconvenience of this procedure is the appearance of a coordinate singularity after forming the apparent
+horizon, which breaks down the simulation. To resolve that issue, Hernandez-Misner equations [64] (which
+are the Misner-Sharp equations in null coordinates) are used to evade the formation of an apparent horizon
+and follow the subsequent evolution to determine the value of the black hole mass. The method is based on
+[65]. As was shown in [66], the formation of PBHs from the collapse of initial fluctuations at super-horizon
+scales does not form shocks (a discontinuous solution) in comparison with the earlier result of [57], where
+shock waves were found, but using initial conditions on sub-horizon scales.
+On the other hand, even if a numerical code allows to compute the threshold, the realization of
+a numerical simulation can be quite expensive to be actually useful for statistical applications such as
+the calculations of PBH abundances. Therefore an analytical expression would drastically simplify the
+problem. There are some analytical estimations of δc (e.g. [67] and [68]), which were based on analytical
+models under certain assumptions. However, numerical simulations have shown that, even for a fixed
+equation of state, δc is not universal [56,57,66,69–73]. The main argument is that δc is dependent on the
+specific detail of the initial curvature fluctuation [72], i.e., on the scale dependence or “shape” of the
+perturbation, something that these analytical estimations do not take into account.
+Some works have tried to characterize the threshold for black hole formation in terms of the initial
+density perturbation profile. In [74] was used the amplitude of the curvature fluctuation and its second
+radial derivate at the centre to characterize the initial configuration profiles, showing that the probability
+of PBH formation is sensitive to them. Later on, in [75], numerical simulations were used to argue that
+the formation of a PBH from an over-density peak in a FLRW Universe assuming the perturbation to be
+initially at super cosmological scales, it only depends upon two master parameters: the integral of the
+initial curvature perturbation, and the edge of the over-density distribution. The paper in [72] recently
+refined the arguments of [75] by showing that these parameters may be more conveniently given in terms
+of the amplitude of the ”gravitational potential” at its maximum (r = rm), as already noticed in [70], and
+that it mainly depends upon the functional form (shape) of the gravitational potential. More precisely,
+in [72], the threshold δc was identified with the peak of the “compaction function” [70] at super-horizon
+scales. The compaction function, closely resembles the Schwarzschild gravitational potential and is defined
+as twice the local excess-mass over the co-moving areal radius.
+Following the aim to have a more accurate analytical estimation for the threshold of PBH formation,
+recently in [76] was argued that the threshold for primordial black hole formation should be quite
+3 of 58
+insensitive to the physics beyond rm: The threshold is the amplitude for which a "black hole" with zero
+mass would be formed. Therefore, all the over-density beyond rm will be diffused away while that just in
+the proximity of rm will block the collapse.
+With those arguments, it was shown that during a radiation-dominated epoch (equation of state
+p = wρ with w = 1/3), with a very good approximation, there exists a universal threshold value for the
+volume-averaged compaction function, which is actually shape-independent. Taking into account that
+the volume average is dominated by scales near the maximum of the compaction function, in [76] it was
+shown that it is enough to parametrize the profile dependence of δc by the curvature-shape around the
+compaction function at its maximum. Applying this result was made an analytical approximation for
+δc taking into account the shape dependence on the curvature fluctuation, which matches that found in
+simulations to within a few percent [76].
+From the results in [76], there was the question of whether or not this universality on the averaged
+critical compaction function is generic and not only an accident of radiation. Thus in [77], was addressed
+the universality question beyond the case of a radiation fluid. In [77] was generalized the arguments of
+[76] to provide a new analytical estimation for the threshold in terms of the equation of state and the
+shape-profile. This analytical formula was tested in front of numerical simulations and was found an
+accuracy better than a 6%.
+The other half-part of the problem is the determination of the final PBH mass. When a perturbation
+collapses, it will firstly form an apparent horizon with an associated mass MPBH,i
+. After that, due to the
+surrounding fluid of the FLRW background, there is an accretion process up to a final mass MPBH, f when
+the PBH is formed. As we have indicated, for fluctuations whose amplitude is near the threshold (the
+critical regime) was found a scaling law for the PBH mass in terms of the amplitude of the perturbation
+[55–58]. Although the importance of this result was pointed out in the context of critical collapse [78],
+nowadays it is substantially relevant because, as is indicated in the current literature [53], the PBHs with
+higher probability of formation are those that are formed in the critical regime. The probability distribution
+function is exponentially suppressed beyond the threshold, and therefore can be directly used the scaling
+law for estimations of PBH abundances.
+On the other hand, some studies have also considered the maximum size of PBHs at the formation
+time and the accretion effect from the surrounding background in the final mass of the PBH MPBH, f
+.
+It was already noticed in [67,79] that the accretion effect for small PBH should be small. Specifically,
+in[79] were derived some analytical expressions for the upper bound of a PBH formed by the collapse
+of hydrodynamical perturbations. In [80] was computed numerically the MPBH, f
+for different curvature
+profiles and was quantified the accretion effect, which could be substantially large for PBHs formed
+beyond the critical regime O(10%). There was also made a numerical comparison with some estimations
+of [79] for the case of radiation fluid.
+In conclusion, considering the recent developments of the field and future perspectives, we present
+this review paper to give the current state-of-the-art regarding the analytical, numerical and theoretical
+results about PBH formation from the collapse of hydrodynamical perturbations on a FLRW background
+under spherical symmetry; currently, the most common and popular scenario in the literature [32]. We
+hope that this review paper allows the scientific community to be introduced to the topic of PBH formation
+and understand the main insights.
+We want to tell the reader that there are fascinating and valuable review papers on the PBH topic
+with a different perspective than the one considered here. For an interesting historical review of the dark
+matter candidates, we refer the reader to [81]. About reviews that focus on gravitational waves applied to
+PBHs and the different constraints to account for the dark matter we have [1,82–88]. Another interesting
+review with potential applications to PBHs is [89], which is focused on scenarios with deviations from
+radiation domination in the early Universe.
+4 of 58
+This review paper is organized as follows: In section 2 we present the basics of PBH formation. In
+section 3 we give some basic details about the statistical estimation of PBH abundances. In section 4 we
+give the necessary ingredients to set up the formalism of PBH formation, in particular: the differential
+equations that describe the collapse of the perturbations, the initial conditions, the definition of compaction
+function and the threshold criteria. In section 5 we discuss and comment on the different numerical
+techniques employed in the literature, and we focus on a specific method publicly available. In section 6
+we give numerical results regarding the threshold and PBH mass in terms of the specific profiles using
+numerical simulations. In section 7 we discuss in detail the different developments for the analytical
+estimation of the threshold. Finally, in section 8 we enumerate other scenarios of PBH formation not
+explicitly considered in this review.
+2. Basics on PBH formation
+As we have pointed out in the previous section 1, PBHs could have been formed in the very early
+Universe during radiation domination due to the gravitational collapse of large curvature perturbations
+generated during inflation [7,8].
+Under this scenario, the collapse or dispersion of those hydrodynamic perturbations depends on the
+perturbation’s strength: if its greater than a given threshold, the perturbation will collapse and form a BH
+after the perturbation crosses the cosmological horizon. Otherwise, if it is lower, it will disperse because
+of pressure gradients preventing the collapse (a schematic picture can be found in Fig.1). Both things
+could happen, i.e., the perturbation could undergo gravitational collapse and subsequently bounce. In this
+case, the fluid is dispersed and collapsed continuously, making rarefactions waves (we will see it in more
+detail in section 6). This behaviour is particularly evident when the initial strength of the perturbation is
+very close to its threshold value. Therefore, pressure gradients play a crucial role in the collapse of the
+perturbation. If pressure gradients are strong enough, they will prevent gravitational collapse, which
+implies having a large threshold compared to the situation when the pressure gradients are small.
+A big effort has been made during the past decades to find the correct PBH formation criteria. The
+first estimation of a threshold was given by [7], using a Jeans-length argument and Newtonian gravity.
+The criteria for the formation of a BH used was that the size of an over-density at the maximum expansion
+should be larger than the Jeans length but also smaller than the particle horizon. This translates to the
+requirement that the peak value of the density contrast at scales smaller than the cosmological horizon
+must be at least w (where w is the equation of state of the perfect fluid which fills the FLRW Universe) in
+order to collapse.
+A simple, intuitive picture of PBH formation and its threshold connected with the Jeans length
+argument can be found in [12], and we summarize it here. Consider a cosmological perturbation at
+super-horizon scales. The spacetime metric can be written as a closed FLRW Universe (we will see in more
+detail in section 4) with a radial dependence on K(r).
+ds2 = −dt2 + a
 2
-i
-). [-10, 10]n 0
-f2(x) = Pn
-i=1
-x
+(t)
+
+dr2
+1 − K(r)r
 2
-i
-. [-100, 100]n 0
-f3(x) = Pn
-i=1
-|xi
-| +
-Qn
-i=1
-|xi
-|. [-10, 10]n 0
-f4(x) = Pn
-i=1
-P
-i
-j=1
-x
++ r
+2
+dΩ2
+
+. (1)
+If we ignore the radial derivate of K(r), the time-time component of the Einstein equations is given by,
+H
+2 +
+K(r)
+a
+2
+=
+8π
+3
+ρ, (2)
+which basically corresponds to the FLRW equation but with a small non-homogeneity term given by K(r).
+The previous equation allows to define a density contrast as,
+5 of 58
+δρ
+ρb
+=
+ρ − ρb
+ρb
+=
+3K
+8πρba
+2
+=
+K
+(aH)
+2
+. (3)
+A region will collapse instead of expanding when K > 0 if we ignore the radial dependence on K(r).
+This precisely happens when 3K/a
+2 = 8πρ, which corresponds roughly when the Hubble scale becomes
+equal to the lengthscale of the curved region. In this case, the assumption done with Eq.1 is no anymore
+valid but still can be assumed to get some threshold estimation.
+On that time (let’s called it t = tc), if we consider an homogeneous and isotropic Universe, this would
+imply δρ(tc)/ρb = 1. In particular:
+δρ
+ρb
+(tc) = K
+k
+2c
+2
+s
+= 1. (4)
+The criteria is that perturbations can not collapse if they have smaller scales than the Jeans length,
+which immediately implies that k
+2 = a
+2H2/c
+2
+s
+, where cs =
+√
+w is the sound speed of the fluid (perfect fluid
+in our case), and k is the wavelength mode associated to the perturbation. Therefore, the condition that
+should satisfy the density contrast at the time when the perturbation reenters the horizon (H2
+(tm)a
+2
+(tm) =
+k
+2
+) is given by:
+
+δρ
+ρb
+(tm)
+
+c
+=
+K
+H2(tm)a
+2(tm)
+= c
+2
+s
+k
+2
+H2(tm)a
+2(tm)
+= c
+2
+s = w, (5)
+which is basically the threshold value estimation obtained in [7].
+The second analytical estimation came years later in [68]. The authors considered a compensated
+"three zone" model, i.e, a central over-dense region followed by an under dense layer (which compensates
+the over density) and finally the FLRW background, to estimate the threshold for BH formation. Following
+an argument about the sound waves at the maximum expansion of the perturbation, it was found that the
+threshold of the peak value of the overdensity when it renters the horizon must be (3(1 + w)/(5 + 3w)) ·
+sin2
+(π
+√
+w/(1 + 3w)).
+Later on, however, became clear that the threshold depends on the shape of the curvature perturbation
+[56,58,75]. Moreover, it also depends on the specific equation of state of the fluid, since pressure gradients
+plays a role on the determination of it: larger is w stronger are the pressure gradients and therefore higher
+is the threshold.
+In [70] a new criteria for PBH formation was introduced. Importantly, it was found that the peak
+of the compaction function (the average mass excess on a given volume) was a good criterion for PBH
+formation and currently have become the standard definition of threshold, that we call δc. Previously to
+this criteria, some other measures for the threshold "definition" were not empty of some issues. See [72] for
+a historical perspective about that.
+In [72] simulations were performed for a radiation fluid with a set of curvatures profiles leading to a
+range of threshold values given by 0.41 . δc ≤ 2/3 using the criteria of the compaction function’s peak as
+the threshold definition. Later on, in [76] the minimum threshold value was refined, getting 0.4 rather
+than 0.41 in the case of a radiation fluid. This difference was due to a choice of unphysical profiles in some
+extreme limit of the range parameter.
+Although δc is a profile dependent quantity, in [76,77] was shown that exist an (approximately)
+universal value given by the averaged critical compaction function, which allowed to build a sufficiently
+accurate analytical expression for δc, which only depends on the type of fluid and the curvature around
+the peak of the compaction function.
+On the other hand, if a perturbation is sufficiently strong, it will collapse and form an apparent horizon.
+Later on, will follow a process of accretion of energy density from the surrounded FLRW background until
+6 of 58
+FRW background
+Gravitational collapse Pressure gradients
+Figure 1. Schematic picture of the collapse/dispersion of a perturbation on a FLRW background.
+reaching a stationary state, when the final mass of the PBH is achieved. As was shown in [55,56], the final
+PBH mass follows a critical scaling law when the amplitude of the perturbation is close to its threshold
+value (the critical regime),
+MBH = KMH(δ − δc)
+γ
+, (6)
+with values of γ consistent with previous numerical computation [78,90] γ ≈ 0.356. The scaling
+exponent is universal and only depends on the type of fluid, not on the initial condition. The MH is the
+mass of the cosmological horizon at the time of horizon crossing (when the lengthscale of the perturbations
+equals the cosmological horizon). The constant K depends on each initial condition used. As in the case of
+the threshold, the values of K are different depending on what initial conditions, but with values O(1)
+[91].
+The simulations in [56] were done for δ − δc & 10−5 which was not sufficient to test the critical
+regime up to very small values, i.e, up to machine precision δ − δc ≈ 10−15. In [66] it was verified, finally,
+the scaling law up to machine precision, and this was tested with an explicit example of a gaussian
+perturbation.
+3. The abundance of PBHs
+This section will give a brief review of the two approaches commonly used in the literature to perform
+PBH statistics (formed in radiation-dominated Universe) and estimate their abundances. In this review,
+we do not focus on the statistical estimation of PBH abundances, for which there are extensive works in
+this direction, with different approaches and methods. If the reader is interested, we suggest to check these
+references and the ones therein [92–112]. But to show this topic at the basic level, we will basically describe
+the Press-Schechter [113] and the peak theory [114] procedures. This section aims to clearly point out the
+relation between the threshold and PBH mass on the estimation of PBH abundances, especially why the
+threshold should be known with enough accuracy to be useful for statistics.
+In both cases, we consider the amplitude of the peak of density contrast in the comoving slicing,
+(usually denoted in the literature as ∆ ≡ δρ(0)/ρb
+[53,115]), as a statistically distributed variable. The
+power spectrum associated to the density contrast is defined as,
+P∆(k, t)δD(k, k
+0
+) = 1
+(2π)
+3
+< ∆(k, t)∆(k
+0
+, t) >, (7)
+7 of 58
+where δD is the Dirac delta and the moments j of P∆ are given by,
+σ
 2
 j
-!
-. [-100,
-100]n
+(t) = Z
+k
+2dk
+2π2
+P∆(k, t)k
+2j
+. (8)
+In the Press-Schechter formalism we make two assumptions: i) the density contrast field ∆ is a
+Gaussian variable ii) perturbations with ∆ > ∆c will collapse and form a PBH. So basically we integrate
+the probability distribution P(∆) over the range ∆c ≤ ∆ < ∆max, where ∆max is the maximum allowed
+value. In practice, we integrate up to ∆max → ∞ since the probability distribution is a rapidly decreasing
+function above ∆c, and therefore does not change the result and allows to simplify the computation. It’s
+important to notice that ∆c 6= δc, since we are comparing the critical density contrast with the critical
+averaged density contrast.
+Finally, consider a Gaussian distribution probability distribution,
+P(∆) = 1
+√
+2πσ0
+e
+− ∆
+2
+2σ
+2
+0 , (9)
+the abundance of PBHs can be computed as,
+β =
+ρPBH
+ρtot
+= 2
+Z ∞
+∆c
+MPBH
+MH
+P(∆)d∆ = 2
+Z ∞
+∆c
+K(∆ − ∆c)
+γP(∆)d∆
+=
+1
+√
+π
+2
+−
+1+γ
+2 K∆cσ
+−1+γ
 0
-f5(x) = max{xi
-, 1 ≤ i ≤ n}. [-100, 100]n 0
-f6(x) =
-nP−1
-i=1
-100 · (xi+1 − x
-2
-i
-)
-2 + (1 − xi)
-2
-. [-30, 30]n 0
-f7(x) = 10 · n +
-Pn
-i=1
-(x
-2
-i − 10 · cos(2 · π · xi)) [-5, 5]n 0
-f8(x) = −a · e
-−b
-s Pn
-i=1
-x2
-i
-n − e
-P cos(c·xi
-)
-n + a + e. [-32, 32]n
-a = 20, b =
-0.2, c = 2π.
-0
-f9(x) = 1
-4000 ·
-Pn
-i=1
-x
-2
-i −
-Qn
-i=1
-cos( √xi
-i
-) + 1. [-500, 500]n 0
-f10(x) = Pn
-i=1
-(−xi
-· sin(p
-|xi
-|)) [-500, 500]n -n∗ 418.98
-Table 2. A short description of real encoding.
-Function to be optimized f:[MinX, MaxX ]
-n → <
-Individual representation x = (x1, x2, . . . , xn).
-Convex Recombination
-with α = 0.5
-parent 1 – x = (x1, x2, . . . , xn).
-parent 2 – y = (y1, y2, . . . , yn).
-the offspring – o = ( x1+y1
+Γ(1 + γ)ΓU
+
+1 +
+γ
 2
 ,
-x2+y2
+3
 2
-, ... ,
-xn+yn
+,
+∆
+2
+c
+2σ
+2
+0
+!
+e
+−
+∆
+2
+c
+2σ
+2
+0 ,
+(10)
+where ΓU(a, b, c) is the confluent hypergeometric function1
+. Where has been assumed that the scaling
+law is accurate always even when ∆  ∆c (something not true, as we will show in section 6), but since the
+probability distribution is exponentially smaller for large ∆, Eq.10 is accurate. In the case of considering a
+monochromatic mass spectrum, i.e., that all the PBHs formed to have the same mass (in particular to the
+horizon mass MH), the abundance is given by,
+β = K¯ erf 
+∆c √
+2σ0
+
+.
+2
+(11)
+This can be obtained by simply taking the limit γ → 0 and K = K¯ in Eq.10.
+The procedure in the peak theory approach is a bit different. It makes statistics on counting the
+numbers of over-threshold peaks on the over-density, another approach used the curvature fluctuation ζ
+peaks instead [99,116].
+We summarize the procedure done in [53] to estimate the abundances through peak theory.
+First of all, we define the variable ν = ∆/σ0, which in the rare peak assumption we have that ν  1.
+The number of rare peaks is given by [114],
+N (ν) = 1
+a(tf
+)
+3
+1
+4π2
+
+σ1
+3
+√
+σ0
+3
+ν
+3
+e
+−ν
+2/2θ(ν − νc), (12)
+1 The confluent hypergeometric function is defined as ΓU(a, b, z) = 1
+Γ(a)
+R ∞
+0
+e
+−ztt
+a−1
+(1 + t)
+b−a−1dt
+2 The erf function is defined as erf(x) = √2
+π
+R z
+0
+e
+−t
+2
+dt
+8 of 58
+where a is the scale factor and tf
+is the time when the PBH are formed. It’s clear that we are considering
+only that peaks higher than the threshold value νc will contribute to the formation of PBHs. Therefore,
+the abundance of PBHs measured at formation with respect to the background energy-density can be
+computed as,
+β =
+Z ∞
+νc
+ρPBH(ν)
+ρb
+(tf
+)
+=
+Z ∞
+νc
+MPBH(ν)Nν
+ρb
+(tf
+)
+. (13)
+The scaling law mass, in terms of ν is given by ,
+MPBH = KMH
+
+σ˜0
+a
+2
+mH2
+m
+γ
+(ν − νc)
+γ
+, (14)
+where σ˜0 = σ0a
+2H2 and tm is the time of horizon crossing (when the length-scale of the perturbation
+equals the Hubble horizon). Taking into account that numerical simulations has shown that a f ≈ am ≈ 3,
+and using the saddle point approximation [117] νs ≈ νc + γ/νc, finally we get,
+β ≈
+r
+2
+π
+K
+
+k∗
+amHm
+3 
+σ˜0
+a
+2
+mH2
+m
+γ
+ν
+1−γ
+c γ
+γ+1/2e
+−ν
+2
+c /2, (15)
+where k∗ = σ1/(
+√
+3σ0). From Eqs.15,10,11 we clearly see the exponential dependence on the threshold
+for PBH formation and the linear dependence on the constant K associated to the scaling law. This is
+the reason why an accurate determination of the threshold is essential, since the abundances depends
+exponentially on it. These two methods are however only an approximation of the true statistics which
+consider the fact that each statistical realization of profiles have different threshold. This was developed in
+[92], we will not discuss it here as it is beyond the scope of this review paper. However, as it can be seen in
+[92] one finds again the generic behavior that β is exponentially sensitive to the threshold.
+4. Cosmological set up for PBH formation
+This section reviews the needed ingredients to simulate the formation of PBHs on a FLRW Universe
+under spherical symmetry and filled by a perfect fluid. We will see what differential equations describe
+the gravitational collapse, the consistent initial conditions for PBH formation we need to use, and the
+boundaries condition to supply. Later on, we will study the formation of the apparent horizon and
+characterize it in terms of the expansion of the congruences. Finally, we will describe the process of
+accretion of the PBH mass from the FLRW background and how it can be estimated its final mass.
+4.1. Misner-Sharp equations
+The Misner-Sharp equations [63] describe the motion of a relativistic fluid with spherical symmetric .
+It corresponds to the Einstein field Equations written in the comoving gauge (the gauge we use in this
+review paper). To obtain them, first of all, we need to consider a perfect fluid with energy-momentum
+tensor,
+T
+µν = (p + ρ)u
+µu
+ν + pgµν, (16)
+and with the following spacetime metric in spherical symmetry:
+ds2 = −A(r, t)
+2
+dt2 + B(r, t)
+2
+dr2 + R(r, t)
+2
+dΩ2
+, (17)
+where R(r, t) is the areal radius, A(r, t) is the lapse function and dΩ2 = dθ
+2 + sin2
+(θ)dφ
+2
+is the line element
+of a 2-sphere. The components of the four velocity u
+µ are given by u
+t = 1/A and u
+i = 0 for i = r, θ, φ,
+9 of 58
+since we are considering comoving coordinates (comoving gauge). In all the review paper, we will use
+units GN = c = 1.
+Solving the Einstein field equations for this problem, appear the following quantities:
+1
+A(r, t)
+∂R(r, t)
+∂t
+≡ DtR ≡ U(r, t),
+1
+B(r, t)
+∂R(r, t)
+∂r
+≡ DrR ≡ Γ(r, t), (18)
+where Dt and Dr are the proper time and distances derivatives, respectively. U is the radial component of
+the four-velocity associated with an Eulerian frame (so not comoving), which measures the radial velocity
+of the fluid with respect to the origin of coordinates. The Misner-Sharp mass M(r, t) is introduced as:
+M(R) ≡
+Z R
+0
+4πR˜
+2
+ρ dR˜ , (19)
+which is related with Γ, U and R though the constraint:
+Γ =
+r
+1 + U2 −
+2M
+R
+, (20)
+where Γ is called the generalized Lorentz factor. Finally, the differential equations governing the evolution
+of a spherically symmetric collapse of a perfect fluid in general relativity are:
+DtU = −
+
+Γ
+(ρ + p)
+Dr p +
+M
+R2
++ 4πRp
+, (21)
+DtR = U, (22)
+Dtρ = −
+(ρ + p)
+ΓR2
+Dr(UR2
+), (23)
+DtM = −4πR
+2U p, (24)
+DrM = 4πΓρR
+2
+, (25)
+DrA =
+−A
+ρ + p
+Dr p . (26)
+We refer to the reader to check [63] to see the details of the derivation. The boundary conditions in the
+Misner-Sharp equation are R(r = 0, t) = 0, leading to U(r = 0, t) = 0 and M(r = 0, t) = 0. Then, by
+spherical symmetry, we have Dr p(r = 0, t) = 0 and also we consider a perfect fluid p = wρ.
+At r → ∞, we should recover the solution of the FLRW background. However, in a numerical
+simulation, we have to handle the discretization of time and space. Therefore, is used the condition
+Dr p(r = rf
+, t) = 0 (where rf
+if the outer point of the grid) to match with the FLRW solution and avoid
+reflections from density waves. On the other hand, Eq.25 is called the Hamiltonian constraint, which is
+commonly used to check the correct solution of the numerical equations. For the case p = wρ, the lapse
+equation in Eq.26 can be solved considering A(rf
+, t) = 1 to match with the FLRW spacetime,
+A(r, t) = 
+ρb
+(t)
+ρ(r, t)
+ w
+w+1
+, (27)
+where ρb
+(t) = ρ0(t0/t)
+2
+is the energy density of the FLRW background and ρ0 = 3H2
+0
+/8π.
+10 of 58
+Actually, the Misner-Sharp equations can be written in a more advantageous way to perform
+numerical simulations using the definitions of Eq.18,
+U˙ = −A
+
+w
+1 + w
+Γ
+2
+ρ
+ρ
+0
+R0 +
+M
+R2
++ 4πRwρ
+
+, (28)
+R˙ = AU, (29)
+ρ˙ = −Aρ(1 + w)
+
+2
+U
+R
++
+U0
+R0
+
+, (30)
+M˙ = −4πAwρUR2
+, (31)
+M0 = 4πρR
+2R
+0
+, (32)
+where the dot U˙ represents the time derivate ∂U/∂t and the ρ
+0
+the radial derivative ∂ρ/∂r.
+4.2. The gradient expansion approximation, initial conditions and compaction function
+The gradient expansion method [118] (also called long-wavelength approximation) was used in [119]
+to set up consistent initial conditions for PBH formation on a FLRW background at super-horizon scales.
+First of all, let’s consider a cosmological perturbation at super-horizon scales, i.e. with a length-scale Rm
+much larger than the Hubble horizon. We can define a parameter e to relate the two scales: the Hubble
+horizon RH and the length-scale of the perturbation Rm,
+e =
+RH(t)
+Rm(t)
+, (33)
+where RH = 1/H. It is clear that at super-horizon scales we will have e  1. The gradient expansion
+method allows to expand these inhomogeneities in the spatial gradient in terms of e. In the limit e → 0, the
+spacetime locally corresponds to the FLRW metric, when the perturbation is smoothed out at sufficiently
+large scales Rm.
+Consider a general spacetime metric in the 3 + 1 Arnowitt-Deser-Misner (ADM) formalism [120,121],
+ds2 = −α
+2
+dt2 + γij(dxi + β
+i
+dt)(dxj + β
+j
+dt), (34)
+in general, the spatial part of the metric can be decomposed in
+γij = a
+2
+(t)e
+2ζ(t,x
+i
+)γ˜ij (35)
+where γij, βi and α are the spatial metric, shift-vector and lapse function respectively. The ζ is usually
+called the curvature fluctuation. Under the gradient expansion method, was shown in [70,122–124] that
+β = O(e), α = 1 + O(e
+2
+) and γ˜ij = δij + O(e
+2
+). Therefore in spherical symmetry and in the limit e → 0,
+the metric of Eq.34 can be written as,
+ds2 = −dt2 + a
+2
+(t)e
+2ζ(r˜)
+(dr˜
+2 + r˜
+2
+dΩ2
+). (36)
+Notice the time independence of ζ(r˜) since at super-horizon scales it is shown that ˙ζ = O(e
+2
+). Is important
+to point out, that although we consider the comoving gauge, other gauges are possible. In particular, in
+[70] was used the constant mean curvature gauge instead. But as was shown in [69,123], the differences
+between the two gauges in the ζ are of O(e
 2
 ).
-Gaussian Mutation the parent – x = (x1, x2, . . . , xn).
-the offspring – o = (x1 + G(0,σ), x2 + G(0,σ),
-. . . , xn + G(0,σ)),
-where G is a function that generates real values with Gaussian distribution.
-For instance, standard GA uses a primary population of N individuals and an
-additional population (the new population) that stores the offspring obtained by
-crossover and mutation. Thus, the memory requirement for a standard GA is 2 * N.
-In each generation there will be 2 * N Selections, N Crossovers and N Mutations
-(we assume here that only one offspring is obtained by the crossover of two parents).
-Thus, the number of genetic operators (Crossovers, Mutations and Selections) in a
-standard GA is 4 * N. We do not take into account the complexity of the genetic
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING 9
-operators, since in most of the cases this complexity is different from operator to
-operator. The standard GA algorithm is given below:
-Standard GA algorithm
-S1. Randomly create the initial population P(0)
-S2. for t = 1 to Max Generations do
-S3. P’(t) = φ;
-S4. for k = 1 to |P(t)| do
-S5. p1 = Select(P(t)); // select an individual from the population
-S6. p2 = Select(P(t)); // select the second individual
-S7. Crossover (p1, p2, offsp); // crossover the parents p1 and p2
-// an offspring offspr is obtained
-S8. Mutation (offspr); // mutate the offspring offspr
-S9. Add offspf to P’(t); //move offspr in the new population
-S10. endfor
-S11. P(t+1) = P’(t);
-S12. endfor
-The best solution generated over all the generations is the output of the program.
-Rewritten as an LGP program, the Standard GA is given below. The individuals of the standard (main) population are indexed from 0 to PopSize - 1 and the
-individuals of the new population are indexed from PopSize up to 2 * PopSize - 1.
-void LGP Program(Chromosome Pop[2 * PopSize])
-//an array containing of 2 * PopSize individuals
-{
-Randomly initialize the population();
-for (int k = 0; k < MaxGenerations; k++){ // repeat for a number of generations
-// create the new population
-p1 = Select(Pop[1], Pop[6]);
-p2 = Select(Pop[3], Pop[2]);
-o = Crossover(p1, p2);
-Pop[PopSize] = Mutate(o);
-p1 = Select(Pop[3], Pop[6]);
-p2 = Select(Pop[7], Pop[1]);
-o = Crossover(p1, p2);
-Pop[PopSize + 1] = Mutate(o);
-p1 = Select(Pop[2], Pop[1]);
-p2 = Select(Pop[4], Pop[7]);
-o = Crossover(p1, p2);
-Pop[PopSize + 2] = Mutate(o);
-...
-p1 = Select(Pop[1], Pop[5]);
-p2 = Select(Pop[7], Pop[3]);
-o = Crossover(p1, p2);
-Pop[2 * PopSize - 1] = Mutate(o);
-10EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-// pop(t + 1) = new pop (t)
-// copy the individuals from new pop to the next population
-Pop[0] = Pop[PopSize];
-Pop[1] = Pop[PopSize + 1];
-Pop[2] = Pop[PopSize + 2];
-...
-Pop[PopSize - 1] = Pop[2 * PopSize - 1];
-}
-}
-The parameters of the standard GA are given in Table 3.
-Table 3. The parameters of a standard GA for Experiment 1.
-Parameter Value
-Population size 20 (+ 20 individuals in the new pop)
-Individual encoding fixed-length array of real values
-Number of generations 100
-Crossover probability 1
-Crossover type Convex Crossover with α = 0.5
-Mutation Gaussian mutation with σ = 0.01
-Mutation probability 1
-Selection Binary Tournament
-We will evolve an EA that uses the same memory requirements and the same
-number of genetic operations as the standard GA described above.
-Remark. We have performed several comparisons between the evolved EA and
-the standard GA. These comparisons are mainly based on two facts:
-(i) the memory requirements (i.e. the population size) and the number of
-genetic operators used during the search process.
-(ii) the number of function evaluations. This comparison cannot be easily performed in our model since we cannot control the number of function evaluations (this number is decided by evolution). The total number of genetic
-operators (crossovers + mutations + selections) is the only parameter that
-can be controlled in our model. However, in order to perform a comparison
-based on the number of function evaluations we will adopt the following
-strategy: we will count the number function evaluations/generation performed by our evolved EA and we will use for comparison purposes another standard evolutionary algorithm (like GA) that performs the same
-number of function evaluations/generation. For instance, if our evolved EA
-performs 53 function evaluations/generation we will use a population of 53
-individuals for the standard GA (knowing that the GA described in section
-4.1.2 creates in each generation a number of new individuals equal to the
-population size).
-The parameters of the LGP algorithm are given in Table 4.
-The parameters of the evolved EA are given in Table 5.
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING11
-Table 4. The parameters of the LGP algorithm used for Experiment 1.
-Parameter Value
-Population size 500
-Code Length 80 instructions
-Number of generations 100
-Crossover probability 0.7
-Crossover type Uniform Crossover
-Mutation 5 mutations per chromosome
-Function set F = {Select, Crossover, Mutate}
-Table 5. The parameters of the evolved EA for function optimization.
-Parameter Value
-Individual representation fixed-length array of real values.
-Population size 40
-Number of generations 100
-Crossover probability 1
-Crossover type Convex Crossover with α = 0.5
-Mutation Gaussian mutation with σ = 0.01
-Mutation probability 1
-Selection Binary Tournament
-The results of this experiment are depicted in Figure 1.
-The effectiveness of our approach can be seen in Figure 1. The LGP technique is
-able to evolve an EA for solving optimization problems. The quality of the evolved
-EA (LGP chromosome) improves as the search process advances.
-Experiment 2
-This experiment serves our purpose of comparing the evolved EA with the standard Genetic Algorithm described in Experiment 1. The parameters used by the
-evolved EA are given in Table 5 and the parameters used by standard GA are given
-in Table 3. The results of the comparison are given in Table 6.
-Table 6 shows that the Evolved EA significantly outperforms the standard GA
-on all the considered test problems.
-The next experiment serves our purpose of comparing the Evolved EA with a
-Genetic Algorithm that performs the same number of function evaluations. Having
-this in view we count how many new individuals are created during a generation
-of the evolved EA. Thus, GA will use a main population of 56 individuals and
-a secondary population of 56 individuals. Note that this will provide significant
-advantage of the standard GA over the Evolved EA. However, we use this larger
-population because, in this case, the algorithms (the Standard GA and the Evolved
-EA) share an important parameter: they perform the same number of function
-evaluations. The results are presented in Table 7.
-12EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-Figure 1. The relationship between the fitness of the best LGP
-individual in each generation and the number of generations. Results are averaged over 25 runs.
-Table 6. The results obtained by applying the Evolved EA and
-the Standard GA for the considered test functions. StdDev stands
-for the standard deviation. The results are averaged over 500 runs.
-Test functionEvolved EA
-40 individuals
-Standard GA
-20 individuals in the standard population + 20 individuals in the new population
-Mean StdDev Mean StdDev
-f1 1.06 1.81 13.52 13.68
-f2 104.00 115.00 733.40 645.80
-f3 1.01 0.88 3.95 2.29
-f4 149.02 163.37 756.61 701.52
-f5 6.27 3.52 17.03 7.73
-f6 2440.30 5112.72 113665.57 307109.69
-f7 2.65 1.75 6.16 4.10
-f8 5.08 2.34 10.39 2.90
-f9 1.09 8.07 5.34 4.07
-f10 -959.00 182.00 -860.39 202.19
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING13
-Table 7. The results of applying the Evolved EA and the Standard GA for the considered test functions. StdDev stands for standard deviation. Results are averaged over 500 runs.
-Test function Evolved EA
-40 individuals
-Standard GA
-56 individuals in the standard population + 56 individuals in the new population
-Mean StdDev Mean StdDev
-f1 1.06 1.81 1.12 1.98
-f2 104.00 115.00 90.10 108.02
-f3 1.01 0.88 1.10 0.94
-f4 149.02 163.37 111.09 128.01
-f5 6.27 3.52 5.86 3.20
-f6 2440.30 5112.72 2661.83 7592.10
-f7 2.65 1.75 2.32 1.60
-f8 5.08 2.34 5.08 2.24
-f9 1.09 8.07 1.09 7.53
-f10 -959.00 182.00 -1010.00 177.00
-The results in Table 7 show that the Evolved EA is better than the standard GA
-in 3 cases (out of 10) and have the same average performance for 2 functions. However, in this case the standard GA has considerable advantage over the Evolved EA.
-In order to determine whether the differences (given in Table 6) between the
-Evolved EA and the standard GA are statistically significant we use a t-test with
-95% confidence. Before applying the t-test, an F-test has been used for determining
-whether the compared data have the same variance. The P-values of a two-tailed
-t-test are given in Table 8.
-Table 8. The results of the t-Test and F-Test.
-Function F-Test t-Test
-f1 0.04 0.58
-f2 0.17 0.05
-f3 0.13 0.15
-f4 7E-8 5E-5
-f5 0.03 0.05
-f6 1E-18 0.67
-f7 0.04 1E-5
-f8 0.32 0.99
-f9 0.12 0.94
-f10 0.47 2E-6
-14EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-Table 8 shows that the difference between the Evolved EA and the standard GA
-is statistically significant (P < 0.05) for 3 test problems.
-Experiment 3
-We are also interested in analyzing the relationship between the number of generations of the evolved EA and the quality of the solutions obtained by applying
-the evolved EA for the considered test functions. The parameters of the Evolved
-EA (EEA) are given in Table 5 and the parameters of the Standard GA (SGA) are
-given in Table 3. In order to provide a comparison based on the number of function
-evaluations we use a main population of 56 individuals for the Genetic Algorithm.
-The results of this experiment are depicted in Figure 2 (the unimodal test functions) and in Figure 3 (the multimodal test functions).
-Figures 2 and 3 show that the Evolved EA is scalable regarding the number of
-generations. For all test functions (f1 − f10) we can see a continuous improvement
-tendency during the search process.
-4.2. Evolving EAs for TSP. In this section, an Evolutionary Algorithm for solving the Traveling Salesman Problem (Cormen et al., 1990; Garey et al., 1979) is
-evolved. First of all, the TSP problem is described and then an EA is evolved and
-its performance assessed by running it on several well-known instances in TSPLIB
-(Reinelt, 1991).
-4.2.1. The Traveling Salesman Problem. The TSP may be stated as follows.
-Consider a set C = {c0, c1,. . . , cN–1} of cities, and a distance d(ci
-, cj ) ∈ <+
-for each pair ci
-, cj ∈ C. The tour <cπ(0), cπ(1), . . . , cπ(N-1) > of all cities in
-C having minimum length is needed (Cormen et al., 1990; Garey et al., 1979).
-The TSP is NP-complete (Garey et al., 1979). No polynomial time algorithm for
-solving this problem is known. Evolutionary Algorithms have been extensively used
-for solving this problem (Freisleben et al., 1996; Krasnogor, 2002; Merz et al., 1997).
-Experiment 5
-In this experiment, an EA for the TSP problem is evolved.
-A TSP path will be represented as a permutation of cities (Freisleben et al.,
-1996; Merz et al., 1997) and it is initialized by using the Nearest Neighbor heuristic
-(Cormen et al., 1990; Garey et al., 1979). The genetic operators used by the Evolved
-EA are DPX as crossover and 2-Exchange (Krasnogor, 2002) as mutation. These
-operators are briefly described in what follows.
-The DPX recombination operator copies into offspring all the common edges of
-the parents. Then it completes the offspring to achieve a valid tour with links that
-do not belong to the parents, in such a way that the distance between the parents
-in the newly created offspring is preserved. This completion may be done by using
-the nearest neighbor information (Freisleben et al., 1996; Merz et al., 1997).
-Mutation is performed by applying 2-Exchange operator. The 2-Exchange operator breaks the tour by 2 edges and then rebuilds the path by adding 2 new edges
-(see (Krasnogor, 2002)).
-The parameters used by the LGP algorithm are given in Table 9.
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING15
-Figure 2. The relationship between the number of generations
-and the quality of the solutions obtained by the Evolved EA (EEA)
-and by the Standard GA (SGA) for the unimodal test functions
-f1 − f6. The number of generations varies between 10 and 300.
-Results are averaged over 500 runs.
-16EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-Figure 3. The relationship between the number of generations
-and the quality of the solutions obtained by the Evolved EA (EEA)
-and by the Standard GA (SGA) for the multimodal test functions
-f7 − f10. The number of generations varies between 10 and 300.
-Results are averaged over 100 runs.
-Table 9. The parameters of the LGP algorithm used for Experiment 5.
-Parameter Value
-Population size 500
-Code Length 80 instructions
-Number of generations 50
-Crossover probability 0.7
-Crossover type Uniform Crossover
-Mutation 5 mutations per chromosome
-Function set F = {Select, Crossover, Mutate}
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING17
-The parameters of the Evolved EA are given in Table 10.
-Table 10. The parameters of the evolved EA for TSP.
-Parameter Value
-Population size 40
-Number of generations 100
-Crossover probability 1
-Crossover type DPX
-Mutation 2-Exchange
-Selection Binary Tournament
-For the training and testing stages of our algorithm we use several problems from
-the TSPLIB (Reinelt, 1991). The att48 problem (containing 48 nodes) is used for
-training purposes. Some other 25 well-known TSP instances are used as the test
-set.
-25 runs for evolving EAs were performed. The time needed for a run was about
-a day on a PIII -600 MHz computer. An EA yielding a very good performance
-was evolved in each run. One of these EAs was tested against other 26 difficult
-instances from TSPLIB.
-The results of the Evolved EA along with the results obtained by using the GA
-described in section 4.1.2 are given in Table 11. Again we count the number of the
-newly created individuals in a generation of the evolved EA. Thus the standard
-GA will use a main population of 55 individuals and a secondary population of 55
-individuals. In this way both algorithms will perform the same number of function
-evaluations.
-From Table 11 it can be seen that the Evolved EA performs better than the
-standard GA for all the considered test problems. The difference ∆ ranges from
-0.38 % (for the problem bier127 ) up to 5.79 % (for the problem ch130 ).
-One can see that the standard GA performs very poorly compared with other
-implementations found in literature (Krasnogor, 2002; Merz et al., 1997). This is
-due to the weak (non-elitist) evolutionary scheme employed in this experiment. The
-performance of the GA can be improved by preserving the best individual found so
-far. We also could use the Lin-Kernighan heuristic (Freisleben et al., 1996; Merz
-et al., 1997) for genereting very initial solutions and thus improving the search.
-However, this is beyond the purpose of this research. Our main aim was to evolve
-an Evolutionary Algorithm and then to compare it with some similar (in terms
-of the number of genetic operations performed, the memory requirements and the
-number of function evaluations) EA structures.
-4.3. Evolving EAs for the Quadratic Assignment Problem. In this section
-an evolutionary algorithm for the Quadratic Assignment Problem is evolved.
-4.3.1. The Quadratic Assignment Problem. In the quadratic assignment problem
-(QAP), n facilities have to be assigned to n locations at the minimum cost. Given
-the set Π(n) of all the permutations of {1, 2, 3,. . . n} and two nxn matrices A=(aij )
-and B=(bij ) the task is to minimize the quantity
-18EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-Table 11. The results of the standard GA and Evolved EA for 27
-instances from TSPLIB. Mean stands for the mean over all runs
-and StdDev stands for the standard deviation. The difference ∆ is
-in percent and it is computed considering the values of the Evolved
-EA as a baseline. Results are averaged over 100 runs.
-Problem Standard GA Evolved EA ∆ Mean StdDev Mean StdDev
-a280 3143.64 20.91 3051.35 39.34 3.02
-att48 37173.41 656.13 36011.50 650.19 3.22
-berlin52 8202.10 83.5758 7989.63 114.98 2.65
-bier127 127401.70 1119.56 126914.50 1295.47 0.38
-ch130 7124.14 86.98 6734.12 114.05 5.79
-ch150 7089.56 17.68 6950.81 97.36 1.99
-d198 17578.45 200.50 17127.13 220.12 2.63
-d493 40435.86 408.1137 39631.29 407.5115 2.03
-d657 59638.29 503.0018 58026.19 591.9782 2.77
-eil101 741.91 5.12 728.58 7.92 1.82
-eil51 468.91 5.06 461.25 4.22 1.66
-eil76 604.31 8.08 587.57 6.82 2.84
-fl417 14535.32 223.36 14288.14 198.99 1.72
-gil262 2799.96 26.56 2721.58 37.55 2.87
-kroA100 24496.34 235.40 23780.42 435.99 3.01
-kroA150 31690.82 374.15 30247.58 461.91 4.77
-kroA200 34647.90 278.16 33613.78 664.49 3.07
-kroB100 24805.07 281.13 23623.80 320.46 5.00
-kroB150 30714.54 425.03 29628.97 465.14 3.66
-kroC100 23328.12 336.89 22185.22 402.76 5.15
-kroD100 24716.68 195.48 24192.46 282.24 2.16
-kroE100 24930.71 202.08 24184.65 470.68 3.08
-lin105 16937.03 104.73 16324.81 432.41 3.75
-lin318 49813.96 454.12 49496.42 590.41 0.64
-p654 42827.31 522.99 40853.26 1004.75 4.83
-pcb442 59509.64 251.36 58638.23 485.51 1.48
-pr107 46996.24 362.04 46175.80 240.38 1.77
-C(π) = Xn
-i=1
-Xn
-j=1
-aij · bπ(i)π(j). π∈Π(n).
-Matrix A can be interpreted as a distance matrix, i.e. aij denotes the distance
-between location i and location j, and B is referred to as the flow matrix, i.e. bkl
-represents the flow of materials from facility k to facility l. The QAP belongs to
-the class of NP-hard problems (Garey et al., 1979).
-Experiment 12
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING19
-In this experiment, an Evolutionary Algorithm for the QAP problem is evolved.
-Every QAP solution is a permutation π encoded as a vector of facilities, so that
-the value j of the i
-th component in the vector indicates that the facility j is assigned
-to location i (π(i) = j).
-The initial population contains randomly generated individuals. The crossover
-operator is DPX (Merz et al., 2000). Mutation is performed by swapping two
-randomly chosen facilities (Merz et al., 2000).
-The parameters used by the LGP algorithm are given in Table 12.
-Table 12. The parameters of the LGP algorithm used for evolving
-an Evolutionary Algorithm for the Quadratic Assignment Problem.
-Parameter Value
-Population size 500
-Code Length 80 instructions
-Number of generations 50
-Crossover probability 0.7
-Crossover type Uniform Crossover
-Mutation 5 mutations per chromosome
-Function set F = {Select, Crossover, Mutate}
-The parameters of the Evolved EA for QAP are given in Table 13.
-Table 13. The parameters of the evolved EA for the QAP.
-Parameter Value
-Population size 40
-Number of generations 100
-Crossover probability 1
-Crossover type DPX
-Mutation 2-Exchange
-Selection Binary Tournament
-For the training and testing stages of our algorithm we use several problems from
-the QAPLIB (Burkard et al., 1991). The tai10a problem (containing 10 facilities)
-is used for training purposes. Some other 26 well-known QAP instances are used
-as the test set.
-25 runs for evolving EAs were performed. In each run an EA yielding a very
-good performance has been evolved. One of the evolved EAs was tested against
-other 26 difficult instances from QAPLIB. The results of the Evolved EA along
-with the results obtained with the GA described in section 4.1.2 are given in Table
-14. Since the evolved EA creates 42 individuals at each generation we will use for
-the standard GA a main population of 42 individuals and an additional population
-(the new population) with 42 individuals.
-Table 14 shows that the evolved EA performs better than the standard GA for
-all the considered QAP instances. The difference ∆ ranges from 0.02 (for the wil50
-problem) up to 22.90 (for the chr15a problem).
-We could use some local search (Merz et al., 2000) techniques in order to improve
-the quality of the solutions, but this is again beyond the purpose of our research.
-20EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-Table 14. The results of the standard GA and of the Evolved EA
-for 27 instances from QAPLIB. Mean stands for the mean over all
-runs and StdDev stands for the standard deviation. The difference
-∆ is shown as a percentage and it is computed considering the
-values of the Evolved EA as a baseline. Results are averaged over
-100 runs.
-Problem Standard GA Evolved EA ∆ Mean StdDev Mean StdDev
-bur26a 5496026.50 12150.28 5470251.89 14547.86 0.47
-chr12a 13841.42 1291.66 12288.16 1545.37 12.64
-chr15a 18781.02 1820.54 15280.78 1775.68 22.90
-chr25a 9224.26 600.94 7514.98 731.41 22.74
-esc16a 71.66 2.44 68.56 1.10 4.52
-had12 1682.10 9.40 1666.42 9.42 0.94
-had20 7111.54 46.19 7044.46 56.35 0.95
-kra30a 107165.20 1730.81 103566.40 2083.24 3.47
-kra32 21384.06 368.69 20727.38 374.24 3.16
-lipa50a 63348 48.02 63306.37 42.38 0.06
-nug30 6902.26 87.82 6774.00 85.40 1.89
-rou20 798047.00 7923.00 774706.80 8947.67 3.01
-scr20 141237.72 4226.88 128670.50 6012.24 9.76
-sko42 17684.18 159.31 17569.20 171.43 0.65
-sko49 25968.34 195.09 25895.76 186.31 0.28
-ste36a 13562.82 377.62 13022.90 457.48 4.14
-ste36b 31875.52 2095.00 29276.02 2254.04 8.87
-ste36c 11282157.00 320870.20 10899290.06 432078.30 3.51
-tai20a 785232.10 6882.52 759370.20 7808.40 3.40
-tai25a 1282398.50 7938.85 1256943.80 9985.62 2.02
-tai30a 2010495.90 14351.86 1978437.90 14664.52 1.62
-tai35a 2688498.90 17643.60 2649634.68 19598.61 1.46
-tai50a 5485928.90 29697.00 5461181.02 28383.97 0.45
-tai60a 7977368.30 35081.48 7960123.48 38001.33 0.21
-tho30 172923.82 2326.60 168152.84 2722.36 2.83
-tho40 281015.00 3890.10 277275.46 3555.32 1.34
-wil50 51751.84 250.69 51740.46 269.39 0.02
-5. Further work
-Some other questions should be answered about the Evolved Evolutionary Algorithms. Some of them are:
-• Are there patterns in the source code of the Evolved EAs? i.e. should
-we expect that the best algorithm for a given problem contain a patterned
-sequence of instructions? When a standard GA is concerned the sequence
-is the following: selection, recombination and mutations. Such a sequence
-has been given in section 4.1.2. But, how do we know what the optimal
-sequence of instructions for a given problem is?
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING21
-• Are all the instructions effective? It is possible that a genetic operation be
-useless (i.e. two consecutive crossovers operating on the same two parents).
-Brameier and Banzhaf (Brameier et al., 2001a) used an algorithm that
-removes the introns from the LGP chromosomes. Unfortunately, this choice
-proved to be not very efficient in practice since some useless genetic material
-should be kept in order to provide a minimum of genetic diversity.
-• Are all the genetic operators suitable for the particular problem being
-solved? A careful analysis regarding the genetic operators used should
-be performed in order to obtain the best results. The usefulness / useless
-of the genetic operators employed by the GP has already been subject to
-long debates. Due to the NFL theorems (Wolpert et al., 1997) we know
-that we cannot have ”the best” genetic operator that performs the best for
-all the problems. However, this is not our case, since our purpose is to find
-Evolutionary Algorithms for particular classes of problems.
-• What is the optimal number of genetic instructions performed during a
-generation of the Evolved EA? In the experiments performed in this paper
-we used fixed length LGP chromosomes. In this way we forced a certain
-number of genetic operations to be performed during a generation of the
-Evolved EA. Further numerical experiments will be performed by using
-variable length LGP chromosomes, hoping that this representation will find
-the optimal number of genetic instructions that have to be performed during
-a generation.
-Another approach to the problem of evolving EAs could be based on Automatically Defined Functions (Koza, 1994). Instead of evolving an entire EA we will try
-to evolve a small pattern (sequence of instructions) that will be repeatedly used to
-generate new individuals. Most of the known evolutionary schemes use this form
-of evolution. For instance the pattern employed by a Genetic Algorithm is:
-p1 = Select (P op[3], P op[7]); // two individuals randomly chosen
-p2 = Select (P op[5], P op[1]); // another two individuals randomly chosen
-c = Crossover(p1, p2);
-c = Mutate(c);
-An advantage of this approach is its reduced complexity: the size of the pattern
-is considerably smaller than the size of the entire EA.
-In order to evolve high high quality EAs and assess their performance an extended set of training problems should be used. This set should include problems
-from different fields such as: function optimization, symbolic regression, TSP, classification etc. Further efforts will be dedicated to the training of such algorithm
-which should to have an increased generalization ability.
-For obtaining more powerful Evolutionary Algorithms an extended set of operators will be used. This set will include operators that compute the fitness of the
-best/worst individual in the population. In this case the evolved EA will have the
-”elitism” feature which will allow us to compare it with more complex evolutionary
-schemes like steady-state (Syswerda, 1989).
-22EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-In our experiments only populations of fixed size have been used. Another extension of the proposed approach will take into account the scalability of the population
-size.
-Further numerical experiments will analyze the relationship between the LGP
-parameters (such as Population Size, Chromosome Length, Mutation Probability
-etc.) and the ability of the evolved EA to find optimal solutions.
-6. Conclusions
-In this paper, Linear Genetic Programming has been used for evolving Evolutionary Algorithms. A detailed description of the proposed approach has been given
-allowing researchers to apply the method for evolving Evolutionary Algorithms that
-could be used for solving problems in their fields of interest.
-The proposed model has been used for evolving Evolutionary Algorithms for
-function optimization, the Traveling Salesman Problem and the Quadratic Assignment Problem. Numerical experiments emphasize the robustness and the efficacy
-of this approach. The evolved Evolutionary Algorithms perform similar and sometimes even better than some standard approaches in the literature.
-Acknowledgments
-The author likes to thanks anonymous reviewers for their usefull sugestions.
-The source code for evolving Evolutionary Algorithms and all the evolved EAs
-described in this paper are available at www.eea.cs.ubbcluj.ro.
-References
-Angeline, P. J., (1995), Adaptive and Self-Adaptive Evolutionary Computations, Computational Intelligence: A Dynamic Systems Perspective, pages 152-163, IEEE Press: New York,
-USA.
-Angeline, P. J., (1996), Two Self-Adaptive Crossover Operators for Genetic Programming. In
-Angeline, P. and Kinnear, K. E., editors, Advances in Genetic Programming II, pages 89-110,
-MIT Press, Cambridge, MA, USA.
-Back, T. (1992), Self-Adaptation in Genetic Algorithms, In Toward a Practice of Autonomous
-Systems: Proceedings of the first European Conference on Artificial Life, pages 263-271, MIT
-Press, Cambridge, MA, USA.
-Banzhaf, W., Nordin, P., Keller, R. E. and Francone, F. D. (1998). Genetic Programming
-- An Introduction On the automatic evolution of computer programs and its applications,
-dpunkt/Morgan Kaufmann, Heidelberg/San Francisco.
-Brameier, M. and Banzhaf, W. (2001a). A Comparison of Linear Genetic Programming and
-Neural Networks in Medical Data Mining, IEEE Transactions on Evolutionary Computation,
-5:17-26, IEEE Press, NY, USA.
-Brameier, M. and Banzhaf, W. (2001b). Evolving Teams of Predictors with Linear Genetic
-Programming, Genetic Programming and Evolvable Machines, 2:381-407, Kluwer.
-Brameier, M. and Banzhaf, W. (2002). Explicit Control of Diversity and Effective Variation
-Distance in Linear Genetic Programming, In E. Lutton, J. Foster, J. Miller, C. Ryan and
-A. Tettamanzi Editors, European Conference on Genetic Programming IV, Springer Verlag,
-Berlin, pages 38-50, 2002.
-Burkard, R. E. and Rendl, F. (1991), QAPLIB-A Quadratic Assignment Problem Libray,
-European Journal of Operational Research, 115-119.
-Cormen, T. H., Leiserson, C. E. and Rivest, R. R. (1990). Introduction to Algorithms, MIT
-Press.
-Edmonds, B. (2001). Meta-Genetic Programming: Co-evolving the Operators of Variation.
-Electrik on AI, 9:13-29.
-EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING23
-Freisleben, B. and Merz, P. (1996). A Genetic Local Search Algorithm for Solving Symmetric and Asymmetric Traveling Salesman Problems, In IEEE International Conference on
-Evolutionary Computation 1996, pages 616-621, IEEE Press.
-Garey, M. R., and Johnson, D. S. (1979). Computers and Intractability: A Guide to NPCompleteness, Freeman & Co, San Francisco, CA.
-Goldberg, D. E. (1989). Genetic Algorithms in Search, Optimization, and Machine Learning,
-Addison-Wesley, Reading, MA.
-Holland, J. H. (1975). Adaptation in Natural and Artificial Systems, University of Michigan
-Press, Ann Arbor.
-Koza, J. R. (1992). Genetic Programming, On the Programming of Computers by Means of
-Natural Selection, MIT Press, Cambridge, MA.
-Koza, J. R. (1994). Genetic Programming II, Automatic Discovery of Reusable Subprograms,
-MIT Press, Cambridge, MA
-Krasnogor, N. (2002) Studies on the Theory and Design Space of Memetic Algorithms, PhD
-Thesis, University of the West of England, Bristol, 2002.
-Merz, P. and Freisleben B. (1997). Genetic Local Search for the TSP: New Results, In IEEE
-International Conference on Evolutionary Computation, pages 616-621.
-Merz, P. and Freisleben, B. (2000), Fitness Landscape Analysis and Memetic Algorithms
-for the Quadratic Assignment Problem, IEEE Transaction On Evolutionary Computation,
-4:337-352, IEEE Press, NY, USA.
-Nordin, P. (1994). A Compiling Genetic Programming System that Directly Manipulates the
-Machine-Code. In Kinnear K.E. editors, Advances in Genetic Programming I, pages 311-331,
-MIT Press, Cambridge, MA, USA.
-Oltean, M. and Gro¸san, C. (2003). Evolving Evolutionary Algorithms using Multi Expression
-Programming. In Banzhaf, W. (et al.) editors, European Conference on Artificial Life VII,
-LNAI 2801, pages 651-658, Springer-Verlag, Berlin, Germany.
-Oltean, M. (2003). Solving Even-parity problems with Multi Expression Programming. In
-Chen K. (et al.) editors, The 5
-th International Workshop on Frontiers in Evolutionary Algorithm, pages 315-318.
-Oltean, M. and Dumitrescu, D. (2004a). Evolving TSP heuristics with Multi Expression
-Programming, In Encoding Multiple Solutions in a Linear GP Chromosome. In Bubak, M.,
-van Albada, G. D., Sloot, P., and Dongarra, J., International Conference on Computational
-Sciences, Vol II, pages 670-673, Springer-Verlag, Berlin.
-Oltean, M., Gro¸san, C. and Oltean, M., (2004b). Encoding Multiple Solutions in a Linear
-GP Chromosome. In Bubak, M., van Albada, G. D., Sloot, P., and Dongarra, J., International Conference on Computational Sciences, E-HARD Workshop, Vol III, pages 1281-1288,
-Springer-Verlag, Berlin.
-Reinelt, G. (1991). TSPLIB - A Traveling Salesman Problem Library, ORSA, Journal of
-Computing, 4:376-384.
-Ross, B. (2002), Searching for Search Algorithms: Experiments in Meta-search, Technical
-Report: CS-02-23, Brock University, Ontario, Canada.
-Spector, L. and Robinson, A. (2002). Genetic Programming and Autoconstructive Evolution
-with the Push Programming Language. Genetic Programming and Evolvable Machines, 1:7-
-40, Kluwer.
-Stephens, C. R., Olmedo, I. G., Vargas, J. M. and Waelbroeck, H. (1998), Self-Adaptation in
-Evolving Systems, Artificial Life 4:183-201.
-Syswerda, G. (1989). Uniform Crossover in Genetic Algorithms. In Schaffer, J. D. editors,
-The 3rd International Conference on Genetic Algorithms, pages 2-9, Morgan Kaufmann
-Publishers, San Mateo, CA.
-Tavares, J., Machado, P., Cardoso A., Pereira F. B., Costa E. (2004). On the Evolution of
-Evolutionary Algorithms. In Keijzer, M. (et al.) editors, European Conference on Genetic
-Programming, pages 389-398, Springer-Verlag, Berlin.
-Teller, A. (1996). Evolving Programmers: the Co-evolution of Intelligent Recombination
-Operators. In Angeline, P. and Kinnear, K. E., editors, Advances in Genetic Programming
-II, pages 45-68, MIT Press, USA.
-Yao, X., Liu, Y. and Lin, G. (1999). Evolutionary Programming Made Faster. IEEE Transaction on Evolutionary Computation, 2:82-102, IEEE Press, NY, USA.
-24EVOLVING EVOLUTIONARY ALGORITHMS USING LINEAR GENETIC PROGRAMMING
-Wolpert, D. H. and McReady, W. G. (1995). No Free Lunch Theorems for Search, Technical
-Report SFI-TR-05-010, Santa Fe Institute, USA.
-Wolpert, D. H. and McReady, W. G. (1997). No Free Lunch Theorems for Optimization.
-IEEE Transaction on Evolutionary Computation, 1:67-82, IEEE Press, NY, USA.
+11 of 58
+Finally, the metric Eq.36 can be also written in other coordinates as a FLRW metric with a non-constant
+curvature K(r),
+ds2 = −dt2 + a
+2
+(t)
+
+dr2
+1 − K(r)r
+2
++ r
+2
+dΩ2
+
+. (37)
+The change of coordinates r,r˜ between the two metrics and the conversion between K(r), ζ(r˜) are given
+by the following relations, which have been obtained in several works previously (not necessarily in the
+context of PBH formation all of them) [72,74,108,125]:
+r = re˜
+ζ(r˜)
+, (38)
+dr
+dr˜
+= e
+ζ(r˜)
+
+1 + r˜ζ
+0
+(r˜)
+
+,
+K(r)r
+2 = −r˜ζ
+0
+(r˜)
+
+2 + r˜ζ
+0
+(r˜)
+
+,
+ζ(r˜) = Z r
+∞
+
+1 −
+1
+p
+1 − K(rˆ)rˆ
+2
+!
+drˆ
+rˆ
+,
+r˜ = r exp "
+Z r
+∞
+
+1
+p
+1 − K(rˆ)rˆ
+2
+− 1
+!
+drˆ
+rˆ
+#
+Therefore, the cosmological perturbation will be characterized by the curvature perturbation K(r), ζ(r˜).
+The Misner-Sharp equations can be solved at leading order in e  1 using the wavelength approximation
+as was done in [119],
+A(r, t) = 1 + e
+2
+(t)A˜,
+R(r, t) = a(t)r(1 + e
+2
+(t)R˜),
+U(r, t) = H(t)R(r, t)(1 + e
+2
+(t)U˜ ),
+ρ(r, t) = ρb
+(t)(1 + e
+2
+(t)ρ˜),
+M(r, t) = 4π
+3
+ρb
+(t)R(r, t)
+3
+(1 + e
+2
+(t)M˜ ),
+(39)
+where for e → 0 we recover the (FLRW) solution. The perturbations of the tilde variables at first order in
+gradient expansion were computed in [119], which we summarize here:
+ρ˜ =
+3(1 + w)
+5 + 3ω
+h
+K(r) + r
+3
+K
+0
+(r)
+i
+r
+2
+m,
+U˜ = −
+1
+5 + 3ω
+K(r)r
+2
+m,
+A˜ = −
+w
+1 + w
+ρ˜,
+M˜ = −3(1 + w)U˜ ,
+R˜ = −
+w
+(1 + 3ω)(1 + w)
+ρ˜ +
+1
+1 + 3ω
+U˜ .
+(40)
+12 of 58
+The perturbations in the r˜ coordinate with ζ(r˜) are [72],
+ρ˜ = −
+2(1 + w)
+5 + 3w
+exp [2ζ(r˜m)]
+exp [2ζ(r˜)]
+
+ζ
+00(r˜) + ζ
+0
+(r˜)
+
+2
+r˜
++
+ζ
+0
+(r˜)
+2
+ r˜
+2
+m, (41)
+U˜ =
+1
+5 + 3w
+exp [2ζ(r˜m)]
+exp [2ζ(r˜)]
+ζ
+0
+(r˜)
+
+2
+r˜
++ ζ
+0
+(r˜)
+
+r˜
+2
+m,
+The area radius of the length-scale Rm is given by Rm(t) = a(t)rm or also Rm(t) = a(t)r˜me
+ζ(r˜m) with
+the r˜ coordinate taking into account Eq.38. As was shown in [126], where was applied the gradient
+expansion method beyond first order using an iterative scheme (see [126] for more terms in the e expansion
+in comparison with Eq.39), the long-wavelength approximation at first order is accurate enough if a
+sufficiently small e parameter is taken.
+When we take e = 0 we recover the background solution equations: H(t) = H0t0/t , a(t) = a0(t/t0)
+α
+and RH(t) = RH(t0)(t/t0) where a0 = a(t0) , H0 = H(t0) = α/t0 and RH(t0) = 1/H0. Moreover we
+define α = 2/3(1 + w). We also consider as initial condition that rm = ΛRH(t0), where Λ is some number
+(the same with r˜m). Is commonly defined in the literature a time scale given when e(tm) = 1, which
+precisely correspond to the time when the Hubble horizon equals the lengthscale of the perturbation (the
+time of horizon crossing) tm = t0(a0rm/RH(t0))1/(1−α)
+.
+On the other hand, the amplitude of a cosmological perturbation can be measured as the averaged
+density contrast within a spherical region:
+¯δ(R) = 1
+V
+Z R
+0
+4π
+δρ
+ρb
+Rˆ
+2
+dRˆ, (42)
+where δρ = ρ − ρb and V = 4πR
+3/3.
+Related to that, in [70] was defined the compaction function C(r), which gives a measure of the mass
+excess on a given volume. In particular,
+C(r, t) = 2 [M(r, t) − Mb
+(r, t)]
+R(r, t)
+, (43)
+where Mb
+(r, t) is the mass of the FLRW background in the volume V. The compaction function can also be
+written in terms of ¯δ as was shown in [69],
+C(R) = ¯δ(RH)
+2
+. (44)
+At leading order in e,
+¯δ(r, t) = 
+1
+aHrm
+2
+δ(r), (45)
+where
+δ(r) = f(w)K(r)r
+2
+m, (46)
+f(w) = 3(1 + w)/(5 + 3w). (47)
+13 of 58
+From the above definitions, we finally define the compaction function at super-horizon scales at leading
+order of gradient expansion as:
+C(r, t) ' C(r) = f(w)K(r)r
+2 =
+r
+2
+r
+2
+m
+δ(r), (48)
+which yields C(rm) = δ(rm) = δm, i.e., δm = f(w)K(rm)r
+2
+m . The compaction function at super-horizon
+scales is an essential magnitude, since allows to use it to define the threshold itself. In particular, we now
+define the location of the maximum of C(r) as rm, and its value Cmax = C(rm) is going to be used as a
+criteria for PBH formation as was proposed in [70], and rm (r˜m in the case of using the r˜ coordinate) is
+considered the lenghtscale of the perturbation. The threshold for PBH formation will correspond to the
+peak value of the critical compaction function, i.e, Cc(rm) = δc. Therefore, we define the "amplitude" of
+the perturbation as δm = C(rm). Perturbations with δm > δc will collapse and form a PBH. In the opposite
+case, perturbations with δm < δc, will disperse on the FLRW background with no black hole formation.
+Notice that from Eq.37 we have a bound on the amplitude value δm at super-horizon scales given by
+δm,max = f(w), since Kmax(rm)r
+2
+m = 1.
+Because of the previous definitions, the value of rm is given by the solution of C
+0
+(r) = 0:
+K(rm) + rm
+2
+K
+0
+(rm) = 0. (49)
+The definition of the compaction function at super-horizon scales using the ζ(r˜) perturbation instead
+of K(r) leads to a different sightly definition,
+C(r˜) = f(w)
+h
+1 −
+
+1 + r˜ζ
+0
+(r˜)
+2
+i
+, (50)
+which yields the following condition for the peak r˜m:
+ζ
+0
+(r˜m) + r˜mζ
+00(r˜m) = 0, (51)
+and therefore δm = −f(w)[2 + r˜mζ
+0
+(r˜m)]r˜mζ
+0
+(r˜m). Interestingly, in [72] it was found ¯δ(rm, t) =
+3δρ(rm, t)/ρb at super-horizon scales, which relate the averaged mass excess with the local density contrast
+at rm.
+In this review paper, we are going to focus on PBH type I, which are those that fulfill that the areal
+radius R is a monotonic function, i.e, R
+0 > 0. Instead PBHs type II satisfy R
+0 < 0 [127]. PBHs type II
+are still unexplored in the literature from a numerical point of view or even with a general analytical
+treatment.
+4.3. Horizon formation
+If an initial perturbation at super-horizon scales has an amplitude δm bigger than its threshold δc, the
+perturbation will continue growing and, at some point, will be formed a trapped surface. It indicates the
+onset of gravitational collapse.
+To identify when trapped surfaces are formed, we have to consider the expansion Θ± of null geodesics
+congruences k
+±, orthogonal to a spherical surface Σ. The expansion Θ± is defined as Θ± ≡ h
+µν∇µk
+±
+ν
+,
+where h
+µν is the spacetime metric induced on Σ. There are two congruences, we call them inwards k
++
+µ and
+outwards k
+−
+µ whose components are k
+±
+µ = (A, ±B, 0, 0) with k
++ · k
+− = −2
+14 of 58
+In the case of flat spacetime, Θ− < 0 and Θ+ > 0, and these surfaces Σ are called normal surfaces.
+On the other hand, if Θ± < 0 the surface is called trapped, while if both are positive Θ± > 0 the surface is
+anti-trapped. In our case, we have that,
+Θ
+± =
+2
+R
+(U ± Γ). (52)
+In spherical symmetry, we can consider that any point (r, t) is a closed surface Σ with a proper radius
+R. These points can be classified as normal, trapped and anti-trapped. Specifically, the transition from
+a normal to a trapped surface should satisfy Θ− < 0 and Θ+ = 0, which corresponds to a marginally
+trapped surface, usually called the "apparent horizon". Taking into account that Θ+Θ− = 4
+R2
+(U2 − Γ
+2
+),
+the condition for the apparent horizon is given by U2 = Γ
+2 ⇒ 2M = R.
+In Figure.2 can be seen the evolution of 2M(r, t)/R(r, t) and the congruences Θ± in time for a
+supercritical (with an amplitude δm > δc) Gaussian curvature fluctuation, after the first horizon has been
+formed. The same qualitative behaviour can be applied for any perturbation of PBH type I (with w 6= 0).
+Figure 2. Top panel: Profile of 2M/R once the trapped surface has been formed. The dashed line
+corresponds to 2M/R = 1. Bottom panel: Profiles of the two expansions Θ± at the same time t than
+the top panel. The vertical orange lines corresponds to points where Θ± = 0. The initial fluctuation
+considered corresponds to a Gaussian profile.
+Looking the Fig.2 we can see three points where 2M = R, and therefore three different surfaces that
+we can characterize:
+• Surface (A-B) In this region we have a transition between Θ+ > 0 and Θ− < 0 (normal region) to
+Θ+ < 0 and Θ− < 0. This horizon, moves inwards the computational domain, which eventually
+will encounter a singularity at r = 0.
+• Surface (B-C) In this region we have a transition between Θ+ < 0 and Θ− < 0 to Θ+ > 0 and
+Θ− < 0 (normal region). This horizon, typically called "the apparent horizon", moves outwards the
+computational domain. Actually, this horizon and the previous one emerge from a single marginally
+trapped surface. During the evolution can be followed the motion of the horizon to obtain the
+PBH mass M(r∗, t), where r∗(t) is the location of the outer horizon in time. At the final stage of the
+gravitational collapse for very late times, this horizon will become static, i.e, r∗ = const.
+• Surface (C-D) In the last region we have transition between Θ+ > 0 and Θ− < 0 (normal region) to
+Θ+ > 0 and Θ− > 0. This case corresponds to an anti-trapped surface, which corresponds to the
+15 of 58
+cosmological horizon, moving outwards. We should mention that this horizon does not correspond
+to the cosmological horizon RH from the FLRW background, since the perturbed medium (deviated
+from the FLRW solution) affects the evolution of the cosmological horizon.
+For a more formal discussion about horizons, we suggest the reader to check [128–137].
+4.4. PBH mass and accretion
+Once the apparent horizon is formed, the initial PBH mass, i.e., the mass of the PBH MPBH,i at the
+moment of formation of the first apparent horizon tAH, will start to grow up to arrive at a stationary value
+MPBH,f. This situation is different from the case of dust collapse w = 0, where the mass would increase
+forever since no pressure gradients would avoid the accretion of energy matter.
+The process of accretion of energy-matter from the FLRW background has been studied in the past
+[7,79,138,139] in different scenarios. To estimate the final mass of the PBH, one could follow the motion
+of the apparent horizon until very late times when the horizon remains static. But since it could be
+computationally very expensive, we can use the Zeldovich-Novikov formula Eq.53 [139], which consider
+Bondi accretion [139–141], and in our case, assume that the energy density right outside the apparent
+horizon decreases as in an FLRW Universe. It is essential to indicate that this is not valid at the time tAH,
+since it neglects the cosmological expansion of the spacetime [142], but we can apply from sufficiently late
+time for t  tAH considering an effective constant accretion efficiency rate F [140,141]. This approximation
+was already used numerically in the context of PBH formation from domain walls in [143] with great
+success.
+In particular, for very late times t  tAH the mass accretion follows,
+dM
+dt = 4πFR2
+PBHρb
+(t) , (53)
+where F is commonly numerically found to be of order O(1). Taking into account the condition of
+apparent horizon in spherical symmetry RPBH = 2MPBH, the previous equation is solved analytically as:
+MPBH(t) = 1
+1
+Ma
++ 3
+2
+F
+
+1
+t − 1
+ta
+ , (54)
+where Ma is the initial mass when the asymptotic approximation is used at the time ta. The value of F has
+been found to weakly depend on the specific shape of the perturbation and its amplitude but strongly
+on the equation of state w. Specifically, F depends on the high non-linear process of accretion and the
+counterpart of pressure gradients. F can be obtained numerically by fitting the evolution of MPBH(t) (at
+sufficiently late times after the formation of the apparent horizon, when it is valid). Using that, the PBH
+mass is estimated as the asymptotic mass value at t → ∞, i.e.
+MPBH,f = MPBH(t → ∞) = 
+1
+Ma
+−
+3F
+2ta
+−1
+. (55)
+The final PBH mass will be dependent on the specific profile of the fluctuation, its initial amplitude
+δm and w. As was already shown in the past, in the critical regime where δm is very close to the critical
+value δc, then the black hole mass follows a scaling law [56–58],
+MPBH,f = KMH(δm − δc)
+γ
+, (56)
+16 of 58
+where γ ≈ 0.356 in radiation w = 1/3. The values of γ in terms of the equation of state w were found
+semi-analytically in [60] and are plotted in Fig.3. These results were numerically confirmed in [91].
+Figure 3. Values of γ(w) plotted from the data of Table.1 in [60].
+In Eq.56 the constant K depends on the specific shape of the profile considered and MH ≡ 1/2H(tm)
+is the Hubble mass, which is calculated at the time tm. Specifically, MH in terms of the initial values of
+perturbation can be written as:
+MH =
+3(1 + w)
+4
+t0 (a0Λ)
+3(1+w)
+1+3w , (57)
+which will depend on the initial lenghtscale rm and the equation of state w (we can consider gauge
+values a0 = 1 and t0 = 1). In the case of using the r˜ coordinate is just needed to replace Λ → Λe
+ζ(ΛRH(t0))
+in Eq.57. The scaling law starts to deviate at (δm − δc) & 2 · 10−2
+(for w = 1/3) as was indicated in
+[91]. It was shown explicitly in [73] that for large δm beyond the critical case, the scaling law seems to
+be deviated by order of O(10%) (at least for w = 1/3), but it can be smaller or larger depending on the
+profile considered. The deviation from the critical regime is expected to be also found for other w’s, but
+the quantification still is missing in the literature. As pointed out in [144], it is important to consider the
+scaling law behavior Eq.56 for the predictions of the PBH mass spectra.
+5. Numerical techniques
+Most of the times, PDEs can not be solved analytically, and numerical methods are needed. This is
+especially common in general relativity and is the case we have here. Nowadays several methods and
+tools can be employed in numerical relativity [145–153]. In the case of PBH formation, there is the extra
+difficulty that the gravitational collapse happens on a FLRW background, so not on asymptotically flat
+spacetime.
+Different authors have employed different numerical procedures to simulate PBH formation from
+the collapse of curvature fluctuations under spherical symmetry, as we have mentioned in section
+1. From a historical perspective, several works have used a finite differences approach to solve
+Hernandez-Misner-Sharp equations in the comoving gauge [55,56,58,71,72,75,91,119,154]. Alternatively,
+were also done simulations at earlier times using a different gauge, in particular, the mean curvature
+gauge [70]. The numerical results of both procedures with different gauges were verified to be consistent
+between them in [69]. A new numerical method came up recently using Pseudospectral methods [73] to
+solve Misner-Sharp equations together with the use of an excision technique to get the final mass of the
+black hole.
+17 of 58
+In this review, we are going to describe the pseudospectral collocation technique used in [73]. The
+basics of the numerical code are available here [155] (currently the only one in the literature publicly
+available), and therefore the reader can reproduce or even extent some of the results presented in this
+review.
+5.1. Pseudospectral methods
+Pseudospectral methods have been extensively used in computer science for solving complex physics
+phenomena [156–158]. The application to the field of numerical relativity has been also very popular to
+study different problems, from astrophysics to more oriented on high energy physics [159–174].
+In what follows, we outline how to use the basics of the pseudo-spectral technique applied to our
+problem, which allows solving partially algebraically the differential equations describing the gravitational
+collapse. See also [175,176] for much more details and mathematical foundations. In particular, we use the
+Chebyshev collocation method (but there are also other formulations).
+Let’s consider a function f(x) and fit it with Ncheb Chebyshev polynomials (any other orthonormal
+function could be used too). The function f(x) can be composed by a sum of Chebyshev polynomials as,
+fNcheb (x) =
+Ncheb
+∑
+k=0
+ckTk
+(x), (58)
+where Tk
+(x) are the Chebyshev polynomial of order k. The coefficients ck with k = 0, 1, ..., Ncheb are
+then obtained by solving fNcheb (xk
+) = f(xk
+) where xk = cos(kπ/Ncheb). The points xk
+, which satisfies
+T
+0
+k
+(xk
+) = 0, are called Chebyshev collocation points.
+Therefore,
+fNcheb (x) =
+Ncheb
+∑
+k=0
+Lk
+(x)f(xk
+), (59)
+Lk
+(x) =
+(−1)
+k+1
+(1 − x
+2
+)T
+0
+Ncheb
+(x)
+c¯kN2
+cheb(x − xk
+)
+, (60)
+where c¯k = 2 if k = 0, N and c¯k = 1 in other cases. The functions Lk are the Lagrange interpolation
+polynomials.
+The derivate of p order of the function will be given by,
+f
+(p)
+Ncheb
+(xi) =
+Ncheb
+∑
+k=0
+L
+(p)
+k
+(xi)fNcheb (xk
+). (61)
+We define the Chebyshev differentiation matrix as D(p) = {L
+(p)
+k
+(xi)}. The components of the matrix are
+given by:
+D
+(1)
+i,j =
+c¯i
+c¯j
+(−1)
+i+j
+(xi − xj)
+,(i 6= j), i, j = 1, ..., Ncheb − 1, (62)
+D
+(1)
+i,i = −
+xi
+2(1 − x
+2
+i
+)
+, i = 1, ..., Ncheb − 1, (63)
+D
+(1)
+0,0 = −D
+(1)
+Ncheb,Ncheb
+=
+2N2
+cheb + 1
+6
+. (64)
+18 of 58
+To improve round-off errors in the numerical computations [176], is used the following identity of the
+diagonal components of the matrix D:
+D
+(1)
+i,i = −
+Ncheb
+∑
+j=0,j6=i
+D
+(1)
+i,j
+. (65)
+In spectral methods, the error decays exponentially with Ncheb. It represents a significant improvement
+in comparison with finite differences, where the error decays algebraically like 1/Nv
+, where v > 0 and N
+is the number of points of the grid. The exponential convergence in spectral methods is obtained thanks to
+the fact that the derivate at a given point is computed taking into account all the other points of the grid,
+instead of finite differences that only consider the neighbours.
+The radial domain Ω in our case corresponds to Ω = [rmin,rmax] where rmax = NHRH(t0) and
+rmin = 0. NH is the number of initial cosmological horizons where we put the final point of the grid, which
+usually is enough to take NH ∼ 102
+. The domain of the Chebyshev polynomials is [−1, 1], therefore we
+need to do a mapping between the physical domain and the spectral one. Different options are possible,
+but commonly is used a linear mapping:
+x˜k =
+rmax + rmin
+2
++
+rmax − rmin
+2
+xk
+. (66)
+x˜k are the new Chebyshev points rescaled to our physical domain Ω. Also, the Chebyshev matrix can be
+rescaled using the chain rule:
+D˜ =
+2
+rmax − rmin
+D. (67)
+The imposition of boundary conditions in spectral methods is straightforward. In the case of Dirichlet
+boundary condition at xk
+, such that f(x = xk
+) = uD,bc, we just need to satisfy fNcheb (x = xk
+) = uD,bc.
+In the case of Neumann boundary condition such that f
+(1)
+(x = xk
+) = uN,bc, we should satisfy that
+(D · fNcheb )(x = xk
+) = uN,bc. The numerical stability will depend on the values chosen for dt and Ncheb. We
+don’t have a completely "freedom" to choose those values. If the number of points of the grid is increased,
+it will require a reduction on the time step dt, in order to avoid instabilities during the evolution. The
+Courant-Friedrichs-Lax (CFL) condition for hyperbolic PDEs already indicates that the maximum allowed
+time-step should fulfill dt ∝ 1/N2
+.
+There are situations where pressure gradients are substantially large during the numerical evolution.
+This, for instance, can happen when the curvature fluctuation has very sharp profiles or when w becomes
+large. In this situation is needed to increase the numerical accuracy of the simulation. One possibility is to
+increase the number of points of the grid Ncheb, but of course, this would imply reducing the time step dt to
+ensure stability. The other one (which is actually better and more clever) is to use a composite Chebyshev
+grid: split the full domain into several Chebyshev grids depending on the density of points needed in
+specific regions of the domain. In particular, the full domain Ω is split in M subdomains as Ωl = [rl
+,rl+1
+]
+with l = 0, 1..., M. A mapping between the spectral and physical domain for each is required. We choose a
+linear mapping again as,
+x˜k,l =
+rl+1 + rl
+2
++
+rl+1 − rl
+2
+xk,l
+, (68)
+where x˜k,l are the new Chebyshev points re-scaled to the subdomain Ωl
+. The Chebyshev differentiation
+matrix is re-scaled again using the chain rule:
+D˜
+l =
+2
+rl+1 − rl
+Dl
+. (69)
+19 of 58
+The numerical evolution is done independently in each subdomain, i.e., the spatial derivative is computed
+using the Chebyshev differentiation matrix D˜
+l associated with each subdomain, and the time integration
+is done applying the Runge-Kutta 4 method on each subdomain.
+To evolve across the different subdomains Ωl
+, is needed to impose boundary conditions. The approach
+followed is the one of [177], which is based on making an analysis of the characteristics of the field variables.
+The prescription is that the incoming fields derivative is replaced by the time derivative of the outgoing
+fields from the neighbouring domain at the boundaries. It was checked in [77] that all the fields of the
+Misner-Sharp equations are incoming except for the density field. Therefore, the boundary conditions that
+must be applied between each subdomain are:
+M˙ (t,rl+1,i
+) = M˙ (t,rl, f
+), (70)
+U˙ (t,rl+1,i
+) = U˙ (t,rl, f
+),
+R˙(t,rl+1,i
+) = R˙(t,rl, f
+),
+ρ˙(t,rl, f
+) = ρ˙(t,rl+1,i
+).
+Where rl, f and rl+1,i means the last grid point in the subdomain Ωl and the first grid point in the subdomain
+Ωl+1
+respectively. A diagram of the imposition of the boundary conditions between the subdomains can
+be found in Fig.4.
+V V V V
+U U U U
+r=0 r=rf
+Figure 4. Sketch of the application of the boundary conditions between the different subdomain grids.
+Through an analysis of characteristics, can be identified the flow of the field variables u and v, and apply
+the prescription of Eq.70.
+The use of multigrids in spectral methods has a similar idea to the use of an adaptative mesh
+refinement (AMR) in finite differences, to increase the resolution of the grid in some regions. Actually,
+the use of AMR was essential in [91] to verify the scaling law behaviour for the PBH mass in the critical
+regime.
+A known weak point of spectral methods is when they have to handle discontinuous solutions,
+particularly with the presence of shocks, since the derivative at each point is computed globally, and
+therefore, the discontinuity is quickly propagated to the other parts of the grids. In this situation, it is
+better to use a finite differences approach, although usually is still needed a modification on the numerical
+implementation to be able to capture shocks, like the introduction of artificial viscosity.
+However, as has been mentioned in section 1, in our case, shocks are not formed in the simulations
+since we should consider initial conditions at super-horizon scales [91].
+20 of 58
+5.2. Numerical procedure
+In all the simulation we fix the value of w, t0 = 1 and a0 = 1. From that we automatically get H0 = α,
+RH(t0) = 1/H0 and recall that α = 2/3(1 + w). For the initial lengthscale of the perpetuation is usually
+considered rm = 10RH(t0) (Λ = 10), which is sufficient to ensure the long wavelength approximation as
+was indicated in [72].
+First, we are going to focus on describing the procedure to obtain the threshold δc, and we leave
+the method to get the final mass MPBH,f for the following subsection. To obtain the threshold is used a
+bisection method, which compares different regimes of δm until finding the range in which appears the
+formation of the apparent horizon. The threshold δc corresponds to the midpoint of this range.
+An example of a successful procedure is the following:
+• Create the different grid points x˜k,l
+for the different subdomains Ωl with a given number of points
+Ncheb,l, and compute the different Chebyshev differentiation matrices Dl
+. Introduce also the initial
+time step dt0, which usually dt0 ≤ 10−3
+is enough to ensure stability.
+• Specify a lower and an upper limit in δm of the bisection. Can be chosen the maximum value
+δmax = f(w) for the upper limit, and for the lower bound δmin ≈ w (which correspond to the
+threshold estimation using a Jeans length criteria). To reduce the computational time can be chosen a
+closer domain to the δc if such domain is known.
+• A value δm is taken once the bisection starts. From that, can be build the curvature profiles K(r)
+or ζ(r˜) and find the location of the compaction function peak rm, r˜m using Eqs.49, 51 respectively.
+Subsequently, compute the perturbations of the hydrodynamical variables following Eqs.39,40.
+• Integrate the Eqs.28, 31 at each time-step dt using the four-order Runge-Kutta method, imposing at
+each internal time-step the boundary conditions at r = 0 and r = rf
+. Including the internal boundary
+conditions between the different Chebyshev grids Eq.70.
+• To distinguish numerically the formation of an apparent horizon or not, we use the peak value of the
+compaction function in time. When the peak approaches Cmax ≈ 1, it implies the formation of the
+apparent horizon 3
+. In this case, the value of δm chosen would imply the formation of a black hole, i.e.
+δm,yes, and therefore a lower value δm closer to δc must be found modifying the bound of the bisection
+in such way that δc ∈ [δc,min, δm,yes]. In the opposite case, when Cmax decreases continuously for
+some time, this will imply the dispersion of the perturbation and the bisection bound should be
+modified as δc ∈ [δm,no, δc,max].
+• The previous steps are iterated until the difference between δm,yes and δm,no is lower than the
+desired resolution, i.e., δm,yes − δm,no . δ(δc). From that, the threshold value is defined as δc =
+(δm,yes + δm,no)/2 ± δ(δc). When δm approaches the critical value, in some cases the grid resolution
+initially set up is not enough to follow the evolution, if so then δm is shifted according to δ(δc) to
+avoid being close to δc. Another alternative would be the dynamical inclusion of more subgrids in
+the desired region where gradients start to be large.
+During the time evolution is used a conformal time step dt = dt0(t/t0)
+α
+, which improves substantially
+the performance of the simulation. The 2-norm of the Hamiltonian constraint equation Eq.25 is computed
+3 Technically, the condition of formation of the apparent horizon is given when 2M(r, t)/R(r, t) = 1. But for computationally
+efficiency, is easier to check whatever C ≈ 1, since C = 2M(r, t)/R(r, t) − 2Mb(r, t)/R(r, t), which avoids to find the cosmological
+horizon.
+21 of 58
+at each time step. It is expected that the constraint should remain constant from t = t0 if Einstein equations
+are correctly solved. In particular,
+H = DrM − 4πΓρR
+2
+, (71)
+|| H ||2 ≡ ∑
+l
+1
+Ncheb,l
+vuut∑
+k
+
+
+
+M0
+k,l
+/R
+0
+k,l
+4πρk,lR
+2
+k,l
+− 1
+
+
+
+2
+. (72)
+where the label l refers to the sum of the different Chebyshev grids and k to the different points of the
+grid.
+5.3. Numerical estimation of the final PBH mass
+To obtain the final mass of the PBH MPBH,f we use an excision technique, and we describe it with
+detail in this section. Saying that, other alternatives in the literature have used null coordinates with the
+Hernandez-Misner equations [56,64,66] to get the final mass. We refer the reader to these references, but
+the primary approach followed can be summarized as follows: i) The simulation is set up with some initial
+data using the Misner-Sharp equations. ii) Starting the evolution, an outgoing null radial ray is sent from
+the centre to the outer point of the grid, and the values of the field variables are stored once the ray crosses
+each grid point. iii) The Misner-Hernandez equations are evolved using the initial conditions obtained in
+the previous step, which are basically the values stored.
+Let’s focus now on excision. The main idea of an excision technique is based on the fact that nothing
+inside the event horizon can affect the physics outside. Therefore, the aim is to dynamically remove the
+segment of the computational domain inside the apparent horizon, to avoid large gradients appearing and
+breaking down the simulation.
+There are different procedures to implement excision, but the one we have used here is the following:
+We define two parameters, ∆r and dr (always we consider ∆r > dr), where ∆r is the distance separation
+between the apparent horizon and the excision surface that we establish after each redefinition of the
+excision surface, and dr is the maximum allowed displacement of the apparent horizon before we create
+a new excision boundary. At each time step, we locate the position of the apparent horizon, taking into
+account that 2M(r∗, t)/R(r∗, t) = 1, where r∗(t) is the location of the apparent horizon in time. Since
+we handle a discretized grid, we use a cubic spline interpolation to find the correct value of r∗(t) (the
+difference of taking a quadratic spline interpolation is O(0.01%) for the PBH mass values).
+In particular, the method used is the following:
+For a supercritical perturbation, when the peak of the compaction function Cmax ≈ 1.2 (the final
+result is not affected by the exact value that we take, as long as we consider Cmax ≈ O(1)), part of the
+computation domain is removed, creating an excision surface close to the location of the apparent horizon,
+whose separation from the excision boundary is basically given by ∆r. Once done this, we create a dense
+but small Chebyshev grid starting from the excised boundary. Another single Chebyshev grid can cover
+the other domain since large gradients are only developed near the excision surface.
+We evolve in time the Chebyshev grids in the usual form independently, and we track the apparent
+horizon motion at each dt. Once the apparent horizon has been moved a distance greater than dr, we create
+a new excision surface separated a distance ∆r from the apparent horizon. During the evolution, we need
+to continuously reduce the values ∆r,dr, since the velocity of the apparent horizon decreases in time. This
+is especially important for very small δm − δc. We decide to reduce ∆r,dr when the Hamiltonian constraint
+starts to be continually violated. In particular, it was found that considering ∆r ≈ 2dr ≈ O(10−2
+) works
+nicely for our purposes.
+22 of 58
+There is no physical boundary condition to apply at the excision surface. Still, it was found that to
+freeze the gradient of ρ
+0 at the excision surface, after each redefinition of the excision boundary, allows to
+increase the stability of the method without changing the numerical results.
+6. Numerical results
+In this section, we are going to review some numerical results using the numerical procedure pointed
+out in the previous section. First of all, we are going to introduce a set of curvature profiles that allows us
+to span all different possible thresholds for PBH formation. Later on, we will see the dynamical evolution
+of the collapse for three different cases in terms of the initial amplitude δm and with a specific profile
+chosen. Finally, we will show the results regarding the final PBH mass in terms of the different profiles, as
+well as the effect of the accretion from the FLRW background.
+The numerical results have been obtained using the procedure of section 5 with a computer i − 7, 16
+GB of RAM and without parallelization procedures. As an example of the efficiency, in the case of w = 1/3
+and with a Gaussian profile, to obtain the threshold δc with a resolution δm − δc ≈ 10−3
+the running time
+was ∼ 3 − 5 minutes using the bisection method 5.2. To estimate the final mass MPBH,f was needed to
+run the excision method 5.3 for ∼ 3 hours for the largest PBHs. These values can differ when changing
+the profiles or equation of state w. The typical size of the grid chosen has been two or three grids with
+∼ 100 points in each grid. However, it could be needed more points for sharp initial profiles. With these
+configurations, the maximum resolution obtained for the threshold in the case of a Gaussian profile has
+been δm − δc ≈ 10−5
+(in the case of w = 1/3). With sharper profiles or larger w this resolution becomes
+slightly reduced.
+6.1. Curvature fluctuations
+The seed of the generation of the curvature fluctuation is the power spectrum, namely P(k) where
+k is the wavelength. We briefly review the procedure assuming Gaussian statistics of [114] applied to
+our purposes. We consider that the amplitudes of the curvature perturbations are statistically Gaussian
+distributed accordingly to the specific inflationary model considered. Therefore, since PBHs are rarely
+formed, the over-densities leading to PBH formation are, with a very good approximation, spherically
+symmetric [114].
+From the power spectrum Pζ (k) we can relate it to the curvature fluctuation ζ Eq.36 as,
+< ζkζk
+0 >= (2π)
+3
+2π
+3Pζ (k)
+k
+3
+δ
+3
+D(k + k
+0
+) (73)
+where ζk
+is the the Fourier mode k of the field ζ,
+ζ(~x) = Z
+d~k
+(2π)
+3
+e
+i~k·~x
+ζ(~k) (74)
+Notice that at linear theory and at super-horizon scales, the density contrast δρ/ρb
+(r˜) is related to ζ(r˜) as,
+δρ
+ρb
+(r˜) ≈ −
+2(1 + w)
+5 + 3w
+1
+a
+2H2 ∇2
+ζ(r˜) (75)
+and therefore
+
+δρ
+ρb
+
+k
+≈ −
+2(1 + w)
+5 + 3w
+k
+2
+a
+2H2
+ζk
+(76)
+23 of 58
+From that, we can build the normalized two-point correlation function by,
+ψ(r˜) = 1
+σ
+2
+0
+Z
+Pζ (k) sinc(kr˜)
+dk
+k
+(77)
+where the variance of the field ζ is given by,
+< ζ
+2 >= σ
+2
+0 =
+Z
+dk
+k
+P(k) (78)
+Therefore, the curvature fluctuation ζ(r) assuming peak theory can be build as,
+ζ(r˜) = µψ(r˜) = µ
+σ0
+Z
+Pζ (k) sinc(kr˜)
+dk
+k
+(79)
+where µ is the peak value of ζ.
+In conclusion, using Eq.79 we can relate the power spectrum to our curvature fluctuation ζ(r˜),
+and from that set up the initial conditions following Eqs.40,41, or alternative also build K(r) using the
+transformations of Eqs.38.
+Although it goes beyond the scope of the review, we should mention that one could also consider the
+effect of the inclusion of non-gaussianities in Eq.79. There are vast and extensive works that consider its
+impact on the thresholds, and PBH abundances [100,105,106,178–191], including some of them that have
+used numerical simulations following the basics shown in this review [192,193].
+Saying that, it is much more practical to span already a set of curvature profiles instead of considering
+different power spectrums when we are interested in studying the physical process of PBH formation.
+The reason is that setting up directly the curvature fluctuation would allow to modulate different shapes
+and therefore to get all possible thresholds and estimate their effects on the PBH mass. In any case, some
+typical power spectrum templates can be found in [107,178].
+In the literature has been commonly used exponential families of profiles to modulate K(r) [70,72,74,
+75]. Another possibility is a polynomial family [77]. Both can be written in a convenient way as:
+Kpol(r) = δm
+f(w)r
+2
+m
+1 + 1/q
+1 + 1
+q
+
+r
+rm
+2(q+1)
+; (80)
+Kexp(r) = δm
+f(w)r
+2
+m
+
+r
+rm
+2λ
+e
+(1+λ)
+2
+q
+
+1−(
+r
+rm
+)
+2q
+1+λ
+!
+(81)
+The profiles of Eq.80 and Eq.81 corresponds to a polynomial and exponential (for λ = 0)-non centrally
+peaked (for λ 6= 0) profiles respectively. Notice that the profiles depends on the ratio r/rm. The profiles
+are written in a convenient way with the amplitude δm, in such away that when computing C(r) using
+Eq.48, automatically gives C(rm) = δm when evaluating r = rm.
+On the other hand, the parameter q is a dimensionless parameter which relates how is the shape
+around the peak of the compaction function, which is defined as,
+q = −
+C
+00(rm)r
+2
+m
+4C(rm)
+. (82)
+24 of 58
+In terms of the r˜ coordinate, can be used the transformation in Eq.38 as was done in [194] to obtain,
+q = −
+C
+00(r˜m)r˜
+2
+m
+4C(r˜m)
+
+1 − 3
+2
+C(r˜m)
+ . (83)
+Interestingly, in [76] was found numerically that profiles with the same q have the same threshold δc upon
+a deviation of O(3 − 4%) (and O(1 − 2%) in the particular case of a radiative dominated Universe), but we
+will discuss this in more detail in section 7, since this result will be used to obtain analytical estimations on
+δc.The benefit of Eq.80 in comparison with Eq.81 is that at r → 0 fulfills regularity conditions, something
+that Eq.81 not for some small values of q. Actually, the profile Eq.80 can be considered as a basis profile,
+since allows to span all possible thresholds values, as we will see in more detail in 6.3. The profiles of C(r)
+for the polynomial profile can be found in Fig.5. When q  1 the peak of the compaction function is sharp,
+while when q  1 the peaks is broad.
+Figure 5. Left panel: Profiles of C(r) of Eq.80 for several values of q. The values δm has been normalized to
+δm = 1. Right panel: Density contrast δρ/ρb
+for the same profiles as the top panel. The profiles has been
+normalized to the peak δρ(0)/ρb
+. The negative peak value for q = 30 around r = rm goes up to ∼ −4.
+A profile with two modulating peaks in C was also considered in [80]. It is similar to the one
+considered in [71], where double PBH formation was studied.
+Ctt(r) = Cb
+(r, δ1, q1,rm1) + θ(r − rj)Cb
+(r − rj
+, δ2, q2,rm2). (84)
+25 of 58
+where Cb
+is equal to
+Cb
+(r, δj
+, qj
+,rmj) = δj
+
+r
+rmj !2
+1 + 1/qj
+1 + 1
+qj
+
+r
+rmj 2(qj+1)
+; (85)
+the value of the second peak of C can be modulated as,
+Ctt(peak,2) =
+(1 + q1)(rj + rm2)
+2
+δ1
+q1r
+2
+m1 + (rj + rm2)
+2(rj + rm2/rm1)
+2q1
++ δ2 (86)
+Different profiles of the three families are plotted in Fig.6. In particular we have plotted the profiles
+Eqs.80,81,84 and from them we have also plotted the corresponding compaction function from Eq.48, as
+well as the density contrast Eq.40. The conversion from K(r) to ζ(r˜) can be made using Eq.38.
+Figure 6. Plot for the profiles with Eq.80, Eq.81 and Eq.84 for C(r) (top-left), δρ(r)/ρb
+(top-right), ζ(r)
+(bottom-left) and K (bottom-right) as function of r/rm for δm ∼ δc. The dotted black line corresponds to
+q = 0 and the dashed black line to q → ∞. The values taken for Ctt(r) are δ1 = δc(q1), q2 = 3, rm1 = rm2 = 1,
+rj = 2rm1
+, Ctt(peak,2) = 0.3, with the corresponding δ2 obtained from Eq.86 using the previous parameters,
+q1 = 5 (violet) and q1 = 1 (orange).
+6.2. Non-linear behavior of the gravitational collapse
+In this subsection, we show the behaviour of the gravitational collapse of the curvature fluctuations for
+three different regimes. As an example is considered a Gaussian profile given by Eq.81 with q = 1 (λ = 0)
+and for different values of δm and w = 1/3. However, the same qualitative behaviour can be found for
+other profiles and other w 6= 0. In particular, can be establish three different regimes: subcritical (δm < δc),
+supercritical (δm > δc) with | δm − δc | O(10−3
+) in both previous cases, and critical | δm − δc |6 O(10−3
+).
+In Figs. 7 (supercritical), 8 (subcritical) and 9 (critical) we see the evolution of the variables ρ, Γ, U and C.
+26 of 58
+In the case of a super-critical evolution, which is the case of Fig.7, we can observe that the compaction
+function grows during the evolution. The gravitational collapse increases the energy density on the central
+regions, and therefore the mass excess grows. It is also obvious the formation of the two horizons as
+discussed in section 4.3. The outer horizon moves outwards, and the inner moves inwards, faster than the
+outwards. The simulation breaks down when the inner horizon approaches r = 0. It is when the excision
+technique has to be applied to remove the singularity.
+In Fig. 8 (the sub-critical case) the compaction function decreases continuously as the perturbation is
+diluted away due to the superiority of pressure gradients against gravity. In general, for late times, the
+peak Cmax is pushed outwards due to the pressure gradients. This behaviour can also be seen with the
+peak value of ρ/ρb
+. In the supercritical case, the peak value is continuously increasing. In contrast, in the
+subcritical case, the peak value starts to decrease at some moment (which means the perturbation start to
+disperse). In addition, from the Figs. 7, 8 and 9 can be observed that Γ is not constant during the evolution.
+As expected, the gradient expansion approximation fails for sufficiently late times t  t0.
+In Fig. 7 (super-critical case) we observe that U/Γ decreases quickly in time, and a negative velocity
+mainly dominates the profile before rm for late times, which indicates the collapse of the fluid. Instead, in
+Fig. 8 (sub-critical case) only a small negative value U/Γ is reached for early times, and beyond that, the
+values are positive, which indicates that the perturbation is dispersing, avoiding the gravitational collapse.
+The most relevant behaviour is found in the critical regime, in Fig. 9. Here the fluid is divided into
+two parts, one going outwards (positive U) and one inwards (negative U), which generates an under-dense
+region. This under-dense region re-attract the fluid with a net effect of compression and rarefaction process,
+which increases its velocity in time. In this situation, the gradients become very large and eventually break
+down the simulation if a sufficient resolution has been not set up for the simulation.
+It is interesting to mention that in the presence of secondary peaks in C(r) (not only one isolated),
+with an amplitude roughly equal or less than the first one, it was verified numerically in [193] that those
+secondary peaks decrease and disperses on the FLRW background, even in the case of supercritical
+perturbations. A different situation could happen when a secondary peak is sufficiently high. In such
+case, the secondary peak could also collapse even if the first peak is not greater than the threshold value to
+collapse itself.
+27 of 58
+Figure 7. Dynamics of the different magnitudes in the case of a supercritical fluctuation (Gaussian profile)
+at given times t. In particular δm = 0.51 and δc = 0.49774 ± 2 · 10−5
+.
+Figure 8. Dynamics of the different magnitudes in the case of a subcritical fluctuation with δm = 0.49
+(Gaussian profile) at given times t. In particular δm = 0.49 and δc = 0.49774 ± 2 · 10−5
+.
+28 of 58
+Figure 9. Dynamics of the different magnitudes in the case of a perturbation close to the critical threshold
+δm ≈ δc (Gaussian profile) at given times t. In particular δm = 0.49775 and δc = 0.49774 ± 2 · 10−5
+.
+In Fig. 10 is shown the correctness of the numerical evolution using the Hamiltonian constraint of
+Eq.72 at each step. It corresponds to different evolutions of the gravitational collapse, both subcritical
+and supercritical. In the figure can be seen that the constraint starts to be violated for late times for
+(δm − δc) ≈ O(10−5
+), which gives a bound on the maximal resolution for δc (in this particular example)
+Figure 10. Right panel: Hamiltonian constraint for the numerical iterations of the bisection procedure in
+the case of a profile given by a Gaussian fluctuation for the supercritical case with Eq.81 and q = 1, λ = 0 .
+Left Panel: The same as the right panel but for subcritical fluctuations. The initial Hamiltonian constraint is
+subtracted for each evolution of δm in both cases.
+29 of 58
+The convergence with the use of spectral methods can be found in Fig.11. It is clear that the
+convergence is exponential, which is a high improvement in comparison with the methods of finite
+differences. In particular, the use of a multidomain grid improves the performance and accuracy of the
+simulations substantially, as is shown in the right panel of Fig.11, where the spectral accuracy is obtained
+with less number of points (in comparison with the left panel). Making the first grid Ω1 from r = 0 up to
+r = 2rm, allows capturing the region where large gradients are developed. Then for the second grid Ω2
+from r = 2rm up to r = rf and only needed few points.
+Figure 11. Spectral convergence for different profiles. Red points corresponds to the profile of Eq.81 with
+q = 1, blue points to q = 5 and green points to q = 10 (λ = 0 in all cases). The black solid line is the
+exponential fit ∼ e
+−αNcheb . Left panel: Case with a single grid Ncheb and α ≈ 0.23, 0.032, 0.022 respectively
+for the previous cases. Right panel: Case with two grids N1 and N2 = 50, with the second grid starting at
+r = 2rm, and α ≈ 0.59, 0.12, 0.06, with the same profiles of the left panel. The simulation corresponds to
+δm = 0.5 and t = tH for w = 1/3.
+An interesting behavior is found for tAH when w is changed, as noticed in [77]. Although pressure
+gradients work against the gravitational collapse, since it is also a form of gravitational energy, it will
+mostly favour it when the collapse is active. consequently it implies a shorter time of formation for larger
+w, as can be observed in Fig.12.
+Figure 12. Time that takes the fluctuation to form the apparent horizon tAH in terms of w. The fluctuation
+chosen corresponds to Eq.80 with q = 1 and δm = δc + 10−2
+.
+30 of 58
+6.3. Thresholds for PBH formation
+As we have mentioned, the threshold for PBH formation depends on the shape of the curvature
+fluctuation. Following the numerical procedure in section 5.2 can be obtained all the possible thresholds
+for PBH formation using the basis polynomial profile of Eq.80. The results are shown in Fig.13 for different
+profiles. In the particular case of a radiation fluid, has been found in [72,76] that the range of all possible
+thresholds is δc ∈ [0.4, 2/3]. The minimum threshold δc,min = 0.4 corresponds to the limit case of q → 0
+(broad profile in C, which would be a homogeneous sphere). Instead the maximum threshold δc,max = 2/3
+corresponds to q → ∞ (peaked profile in C). Increasing q, larger are the pressure gradients, and therefore,
+the threshold value is higher.
+Remarkably, the relative deviation between the thresholds for the different profiles in Fig.13 with
+the same q is within 2%. It was found for the first time in [76] and was shown that different profiles with
+the same q (shape around the peak of the compaction function) have the same thresholds within a small
+deviation.
+Figure 13. Left panel: Threshold values δc in terms of q for the case of w = 1/3. Green points correspond to
+Eq.80, red points to Eq.81 with λ = 0 and blue to Eq.81 with λ = 1. Right panel: Threshold values δc in
+terms of q for different values of w corresponding to the polynomial profile of Eq.80.
+In [77] were performed simulations of PBH formation in the case of a perfect fluid with w ∈ (0, 1]. The
+functional behaviour of δc in terms of q for different w’s is roughly similar as is shown in the left panel of
+Fig.13 (the case with fixed w = 1/3), but quantitatively the values are different. It is clear that increasing w,
+the gradients will be larger and therefore, the threshold increases since pressure gradient will be stronger.
+The limits q → 0 and q → ∞ limits for the general case in terms of w are both amenable to further analysis.
+• The case q → 0 corresponds to a C that becomes approximately constant over a wide range of scales.
+Simulations, in this case, becomes difficult due to the presence of conical singularities [77]. To solve
+this issue, in [77] was used a modified profile of Eq.80 to subtract the mass excess beyond r  rm and
+fulfil that at the boundaries the FLRW background is recovered. In Fig.14 is shown the numerical
+values of δc(q → 0) in terms of w, which shows a strong dependence in w. As is expected, for w → 0
+the threshold δc → 0.
+• The case of large q → ∞ corresponds to the case of a sharply peaked for the compaction function.
+For this kind of profiles, the pressure gradients acting against the gravitational collapse are maximal,
+and hence the compaction function should be maximal too. Analytically it is shown from Eq.48 that
+C(rm) < f(w) (at super-horizon scales). As was proved in [72] numerically, δc,max → f(w) in the
+case of radiation w = 1/3. The intuition is that the saturation should persist to larger values of w
+31 of 58
+because larger values of w also imply larger pressures that fight against the collapse. Therefore, for
+w ≥ 1/3, the compaction function of a peaked profile must also saturate the bound f(w). It was
+verified numerically in [73]. This behaviour is not anymore true for w < 1/3. Something obvious in
+the case of dust w = 0, since f(0) = 0.6, but δc(w = 0) = 0 always for any profile. This is shown in
+the left panel of Fig.14. It should be taken into account that beyond q > 40, simulations do not obtain
+the threshold with enough resolution. This is the reason why the numerical value of the threshold
+for w = 1/3 does not exactly coincide with f(1/3) . One expects that in the asymptotic limit, q → ∞
+should match with f(1/3) as was pointed out in [72] with the same argument.
+Figure 14. Left panel:Threshold δc in terms of w for q → 0. Right panel: Threshold δc in terms of w for
+q → ∞, in particular has been able to perform simulation up to q = 40. The red line corresponds to the
+analytical case f(w), where the black dots correspond to the numerical simulations in the region where
+δc(q → ∞) 6= f(w) as shown in [77]. The blue dashed line corresponds to f(w) on that region.
+It is interesting also to notice the difference between consider K(r) and ζ(r˜). As we have seen in section
+4, there is a non-linear relation between ζ and C, which leads to some differences between the thresholds
+obtained for both profiles. Consider for instance a Gaussian profile in both cases, i.e, K(r) = A e
+−(r/rm)
+2
+and ζ(r) = µ e
+−(r/rm)
+2
+. Due to the non-linear relation between C and ζ at super-horizon scales, the δm,ζ
+(for this example let’s call δm,K and δm,ζ
+for both profiles) depends non-linearly on µ as,
+δm,K = f(w)Ar
+2
+me
+−1
+,
+δm,ζ = 4 f(w)(e − µ)µe
+−2
+. (87)
+Due to this, the qζ value in the case of the fluctuation ζ is dependent also on its amplitude µ and w,
+qζ =
+e
+2
+(e − 2µ)
+(e − µ)(e
+2 − 6 f(w)µ + 6 f(w)µ2)
+, (88)
+when for the K(r) in this example is just q = 1. A plot on the thresholds δc for both profiles can be found in
+Fig.15 for different w’s. Although both profiles are Gaussian, they have a different δc due to the non-linear
+relation with ζ(r˜). The threshold for ζ(r˜) is higher than K(r) since the shape around the compaction
+function is sharper, which means a larger q, as can be observed in the bottom panel of the subplot in Fig.15.
+It also has an implication for the PBH mass, as we will see in the next subsection.
+32 of 58
+Figure 15. Thresholds δc in terms of w for two profiles. Red dots corresponds to the Gaussian with K(r),
+and blue dots with ζ(r˜) instead. The top-subplot is the critical amplitude µc of the profile in ζ(r˜). The
+bottom-subplot is the value q of the critical profile ζ(r˜) for each w.
+A Gaussian family of profiles with ζ(r˜) = µe
+−(r/rm)
+2p
+was considered in [104] for estimation of
+PBH abundances taking into account the non-linearity of ζ(r˜) for w = 1/3. There was found a range of
+thresholds 0.442 < δc < 0.656 for 0.34 . p . 2.
+6.4. PBH masses
+Once the apparent horizon is formed, an excision technique following section 5.3 can be applied to
+remove the singularity. An example of the evolution of the PBH mass MPBH(t) for the profile of Eq.81
+with q = 1, λ = 0 and different amplitudes δm can be found in Fig. 16. The initial time of the curves
+corresponds to the initial mass of the PBH MPBH,i at the time of formation of the apparent horizon tAH.
+As can be seen in Fig.16, when the amplitudes δm increase the PBH mass will be higher.
+Figure 16. Evolution of the mass of the PBH for w = 1/3 after the formation of the apparent horizon for the
+profile of Eq.81 with q = 1 and λ = 0. The colour lines correspond to different values of initial amplitudes
+δm. The dashed line corresponds to the analytical fit using Eq.54. Threshold value δc = 0.49774 ± 2 · 10−5
+.
+33 of 58
+Figure 17. Top panel: Time evolution of the Hamiltonian constraint for different amplitude values δm
+during the excision procedure. Bottom panel: Numerical evolution of Ψ in time. The crossing point is
+around t/tm ≈ 37.5. The profile used is the same as in Fig.16.
+The amount of time needed until reach the stationary regime where the PBH mass remains constant
+could be substantial and therefore computationally expensive. As we have mentioned, to avoid that can
+be used Eq.54 to estimate the final mass of the PBH after the accretion process accurately.
+In order to find the domain in time where the approximation of Eq.54 is valid, in [73] was computed
+the ratio of the increment in time of the black hole mass with respect to the Hubble scale Ψ = M˙ /HM,
+which is predicted to be Ψ < 1 when the evolution of the PBH mass satisfies this regime. During the
+application of the excision technique, the Hamiltonian constraint is monotorized using Eq.72. In the
+simulations in [73,80] the constraint is fulfill until very late times, as is shown in Fig. 17. Nevertheless,
+it seems that the evolution of the mass was not affected substantially by the violation of the constraint.
+Interestingly, in the bottom panel of Fig.17 was observed a crossing for different evolutions of Ψ at a given
+time t
+∗
+. In Fig.18 is shown the evolution of MPBH(t) in time for different values of q and two different
+profiles. It is clear that as large is q less is the final PBH mass MPBH,f, since the pressure gradients are
+stronger and prevent accretion from the FLRW background. Notice the differences of MPBH(t) between
+the two profiles considered in the figure. Even with the same q, the values for the mass are different since
+the full shape of the profile will contribute to the final mass.
+34 of 58
+Figure 18. Top: Evolution of MPBH(t) for the profiles q = 1.5, q = 3 and q = 10. Dashed line corresponds
+to Eq.81 with λ = 0 and solid line to Eq.80. Bottom: Time evolution of the Hamiltonian constraint. In all
+cases δm − δc = 5 · 10−3
+.
+To get the parameters ta, Ma and F can be performed a non-linear fit using the function of Eq.54 with
+the data MPBH(t) coming from the simulations. The range of values to make the fit are those which fulfill
+Ψ . 0.1. The values of F that has been obtained in the literature making the non-linear fit have been in the
+range F ∈ [3.2, 3.8] (for the case of w = 1/3) in terms of the different profiles and amplitudes δm. Some
+indicative results regarding the accuracy of the fits done are: σmax ≈ 10−2
+(variance) sd
+(Ma) = 10−4.2
+,
+sd
+(ta) = 10−4.1 and sd
+(F) = 10−3.6, where sd
+is the standard deviation of the parameters. It is consistent
+with what already was stated in [139–141] that the numerical coefficient F must be O(1). In particular, in
+the case of the collapse of domain walls was found F ≈ 3.8 for large black holes[143].
+Interestingly, in [80] was quantified the effect of the accretion (from the FLRW background) to the
+grow of the PBH until reach the stationary regime, namely MPBH, f /MPBH,i
+, for the case w = 1/3. As
+was pointed out, the accretion should not be important for small PBHs, i.e, with δm near the δc. But the
+situation differs for relatively large PBHs. It can be seen precisely seen in Fig.19. The accretion can be
+significantly important for large δm.
+Sharp profiles, corresponding to large q, have larger pressure gradients and therefore the ratio
+MPBH,f/MPBH,i is smaller, even for large δm, since the gradients prevent the accretion. For low MPBH,f the
+ratio MPBH,f/MPBH,i should be small, as expected [7,79]. When MPBH,f ' MH, i.e. for PBHs with higher
+probability to form, was obtained MPBH,f ' 3MH. In comparison, a similar result was also found in the
+case of the collapse of a massless scalar field [138] and in [143,195] from BHs formed from the collapse of
+domain walls or vacuum bubbles, with a factor MPBH,f/MBH,i ≤ 2.
+35 of 58
+Figure 19. Accretion effect on the final PBH mass measured as the ratio MPBH,f/MPBH,i in terms of
+δm − δc(q) for different profiles with w = 1/3. Stars to Eq.81 with λ = 0, circles correspond to Eq.80 and
+triangles to Eq.84. The ratio MPBH,f/MPBH,i for PBHs with MPBH,f ' MH is shown in the subplot.
+An example of values of PBH mass for other values of w can be found in Fig.20, where is shown the
+ratio MPBH, f /MH using a Gaussian profile Eq.81 with q = 1 (λ = 0) for those PBHs MPBH, f /MH ≈ 1. The
+PBH mass MPBH, f
+is very sensitive to w as expected. When w increases, gradients are larger, preventing
+the accretion and the increase of the PBH mass. The ratio MPBH, f /MH is larger for smaller w at the same
+δm − δc, since the accretion is substantially higher when pressure gradients are decreased, as can be seen in
+the bottom panel of Fig.20. In this case, the values of F differ substantially from w = 1/3. In particular, for
+the set of values w ∈ [0.2, 1/3, 0.5, 0.7] it corresponds to F ≈ [7.2, 3.8, 2.0, 1.37] respectively, which already
+clearly indicates the substantial accretion for small w. Moreover, the time needed to reach the asymptotic
+regime of Eq.54 is much higher as smaller is w. For example, in the case of δm − δc = 10−2
+for w = 0.2
+and w = 0.5, was needed a time of order t/t0 v 104 and t/t0 v 103
+respectively to reach the asymptotic
+regime.
+36 of 58
+Figure 20. Top panel: Values of the final PBH mass in terms of MH for some values of w in terms of δm − δc.
+Bottom panel: Accretion effect on the final PBH mass for some values of w in terms of δm − δc. In both cases
+has been used the profile of Eq.81 with q = 1 and λ = 0.
+On the other hand, in [79] were made some analytical approximations regarding the maximum size
+of the PBHs fromed from hydrodynamical perturbations at the time of formation of the apparent horizon,
+in particular was found that:
+
+RPBH,i
+RH,i
+
+max
+=
+
+2
+1 + 3w
+3 
+3(1 + w)
+2(1 +
+√
+w
+ 3(1+w)
+1+3w
+w
+3/2. (89)
+This analytical result (derived for 0 < w ≤ 1) was verified numerically in the case of a radiation fluid
+in [80], where was also performed an extensive study on the values MPBH,i, RPBH,i and tAH for different
+profiles and amplitudes δm.
+To compute the value of the constant K in front the scaling law Eq.56 is needed to estimate the
+final mass of the black hole MPBH, f using perturbations with an amplitude near the critical regime, i.e,
+δ → δc. A range of 10−3 . δ − δc . 10−2
+is sufficient to estimate it, since the gravitational collapse of the
+fluctuations happens in the critical regime. Beyond that, the scaling law becomes deviated. In particular,
+for a radiation fluid can be taken directly the value γ = 0.357 [59,196] to obtain K from a given δm − δc (for
+other values of w check Fig.3 and the caption).
+In Fig.21 are shown the values of K for the profiles of Eq.80, Eq.81 and Eq.84 as an example on how
+changes K changes in terms of the profile. The value of the PBH mass MPBH,f (and therefore also K) is
+affected by the shape of the profile beyond the peak of C since the accretion process depends on the full
+shape of the fluctuation, in comparison with the threshold δc that as was pointed out in section 6.2 mainly
+depends on the shape around the compaction function peak.
+37 of 58
+Figure 21. Dependence of K as a function q for the profiles in Eq.80 (red), Eq.81 with λ = 0 (black), Eq.81
+with λ = 1 (blue) and Eq.84 (green). The parameters used for the profile Ctt(r) are q2 = 3, rj = 2rm1
+,
+Ctt(peak,2) = 0.3, and δ2 is obtained from Eq.86 using the previous values with and q1 = q.
+In the case of the profile Eq.80, K tends to ≈ 3.5 for large values of q. The value of K tend to increase
+as q decreases, as shown Fig.21. Numerically, in [80] was not able to obtain the final mass MPBH,f for
+profiles q . 0.5, due to conic singularities, as was already found in [77].
+On the other hand, in Fig.22 can be seen an explicit example of MPBH, f
+for a Gaussian profile (in both
+K(r) and ζ(r)) in terms of MH for large values of δm beyond the critical regime δm & 10−2 with w = 1/3.
+As can be observed in the subplot of Fig. 22, the scaling law deviates for the highest allowed values of δm
+to O(15% − 20%) for both cases. For this particular cases, the maximum allowed mass of the PBH formed
+is MPBH, f ≈ 3.7MH and MPBH, f ≈ 2.3MH respectively. It is expected in principle that this deviation
+from the scaling regime is not going to significantly modify the estimation of the PBH abundance, due
+to the unusualness of such perturbations since those PBHs with the higher probability to form are with
+MPBH, f ≈ MH. It is important to also notice that the masses generated with the profile ζ(r˜) are lower
+than those with K(r), since although they are both Gaussian, they have q > 1 and q = 1 respectively, and
+sharper profiles have less mass due to stronger pressure gradients, as we have seen in Fig.18.
+38 of 58
+Figure 22. Values of MPBHf
+/MH in terms of (δm − δc) for two Gaussian profiles in K(r) and ζ(r˜). Dark
+points corresponds to the numerical values for the profile in K(r). The solid red line corresponds to the
+scaling law behaviour with γ = 0.357, δc = 0.49774 for K = 6.03 (pointed out in [91]) and the blue solid line
+with the numerical value obtained in the review with K = 5.91. The absolute value of the relative deviation
+d respect the numerical values and the ones coming from the scaling law is shown in the subplot. The
+orange vertical line is the value δmax = 2/3. On the other hand, the green dots correspond to the case of the
+Gaussian profile in ζ. The solid green line is the scaling law with γ = 0.357, δc = 0.55257 and K = 3.98 (in
+[197] for this profile was given K ' 4.0). The vertical magenta line corresponds to the case δmax = 2/3 for
+this profile. In both cases w = 1/3.
+7. Analytical estimation for the threshold of PBH formation
+In this section, we review in detail the current analytical estimations used in the literature for the
+threshold of PBH formation from curvature fluctuations with an equation of state w. The first analytical
+estimation came from [67], where using a Jeans length approximation was shown that,
+δCarr = w . (90)
+Although this approximation is simply, it fulfill some properties: i) at w = 0 (dust) any curvature
+fluctuation should collapse, i.e, δc(w = 0) = 0. ii) as large as w pressure gradients are larger, so the
+threshold should be higher. This approximation was obtained assuming the argument that the size of an
+overdensity (that leads to PBH formation), at the maximum expansion, should be smaller than the particle
+horizon and larger than the Jean radius (Jeans criteria). In particular,
+RJ . Rmax . RPH, (91)
+where RPH v
+p
+3/8πρmax, RJ v csRPH. See also section 2 for a simple derivation.
+Later on, in [68] improved the previous estimation of [67] by using a sophisticated and interesting
+model (a three-zone model) of the collapse of a homogeneous overdense sphere surrounded by a thin
+underdense shell. We suggest the reader check [68] for more details on the model and assumptions done.
+The threshold estimation that they got was,
+δHYK =
+3(1 + w)
+5 + 3w
+sin2
+ π
+√
+w
+1 + 3w
+
+. (92)
+39 of 58
+It was also provided with an upper δ
++
+HYK and lower bound δ
+−
+HYK on δc, to take into the different ways to
+apply the relativistic Jeans criteria for this model.
+δ
++
+HYK =
+3(1 + w)
+5 + 3w
+sin 
+2π
+√
+w
+1 + 2
+√
+w + 3w
+
+. (93)
+δ
+−
+HYK =
+3(1 + w)
+5 + 3w
+sin 
+π
+√
+w
+1 +
+√
+w + 3w
+
+. (94)
+These previous estimations (in particular Eq.92) have been extensively used in the literature, but as was
+already noticed [67,68] these estimations are not profile dependent and therefore do not take into account
+the specific shape of the curvature fluctuation.
+7.1. Shape-dependent analytical estimation of the threshold for radiation fluid
+In [76] was pointed out and proved that, to a very good approximation, the threshold for the w = 1/3
+case only depends upon the curvature of the compaction function at its maximum, under the assumption
+of a central over-dense peak in the density distribution. It was used to build an analytical formula for
+the threshold with a dependence on the profile considered. The formula was accurate enough and only
+deviated 2% in comparison with numerical simulations.
+The main two ingredients of the procedure used in [76] were: i) parametrize the shape around the
+compaction function peak with a dimensionless parameter q ii) use the average of the critical compaction
+function. As was shown in [76] and as we have already mentioned, to a very good approximation, the
+threshold only depends on,
+q ≡ −
+r
+2
+m C
+00(rm)
+4 C(rm)
+, (95)
+which is a dimensionless measure of the curvature of C(r) at its maximum. This means that different
+profiles but with the same q value will have the same threshold upon a small deviation of < 2%.
+The next point is to define a “basis” (or fiducial set of curvature profiles) such that, by varying q, this
+set covers the whole range of interesting thresholds and shapes with q ∈ (0, ∞) while also being regular
+at r = 0 and having ρ
+0
+(r = 0, t) = 0. In [76], this basis was given in terms of the exponential functions
+Eq.81 (with λ = 0). Although it strictly does not satisfy regular conditions for q → 0 at r = 0, this limit
+was tested numerically with the polynomial basis of Eq.80.
+Taking into account this, the averaged critical compaction function integrated from r = 0 up to the
+peak r = rm is defined as,
+C¯
+c ≡
+3
+r
+3
+m
+Z rm
+0
+Cc(r)r
+2
+dr . (96)
+Introducing the profile considered into Eq.96, we can solve analytically the integral to get:
+C¯
+c =
+3
+2
+e
+1
+q q
+−1+ 5
+2q
+
+Γ
+
+5
+2q
+
+− Γ
+
+5
+2q
+,
+1
+q
+ δc, (97)
+40 of 58
+where Γ(x)
+4
+is the gamma function, Γ(x, y)
+5
+is the incomplete gamma function and we have used
+Cc(rm) ≡ δc. In the case of a radiation fluid, when q → ∞, it was confirmed numerically that δc(q → ∞) =
+f(w = 1/3) = 2/3 [72]. Taking into account this analytical limit into Eq.97, we get:
+C¯
+c(q → ∞) = 3
+5
+δc(q → ∞) = 2
+5
+. (98)
+The assumption done in [76] was to consider that C¯
+c is a profile-independent quantity, and therefore
+C¯
+c = 2/5 for any value of q. The assumption was tested extensively numerically for different profiles, and
+was found to be consistent with numerical simulations up to a small deviation of O(2%) in δc. Inverting
+Eq.97 in δc with C¯
+c = 2/5, we finally get the analytical threshold formula δc in terms of the specific profile
+q, in the case of a radiation fluid,
+δc(q) = 4
+15 e
+− 1
+q
+q
+1− 5
+2q
+Γ
+
+5
+2q
+
+− Γ
+
+5
+2q
+,
+1
+q
+. (99)
+This remarkable result in [76] was the first analytical estimation shown in the literature for the threshold
+of PBH formation, taking into account the shape of the fluctuation, with enough accuracy to be used for
+estimations of PBH abundances [92]. A plot of Eq.99 in terms of q can be found in Fig.23.
+Figure 23. Plot δc(q) of Eq.99.
+7.2. Generalization of the analytical threshold beyond radiation fluid
+Later on, the procedure used in [76] was generalized considering PBH formation within a perfect
+fluid with w ∈ (0, 1] on a FLRW background, and was found that the threshold averaged compaction
+function within a concentric sphere of radius rm(1 − α(w)) ≤ r ≤ rm, is, to a very good approximation,
+again universal in the case 1/3 ≤ w < 1. This was used to provide a new and improved analytical formula
+for the threshold that only depends upon the normalized second derivative of the compaction function at
+its maximum and the equation of state w. This formula was proved to be accurate at order 6% compared
+to numerical simulations and reproducing the same result for the case of radiation w = 1/3.
+4 The gamma function Γ(x) is defined as Γ(x) = R ∞
+0
+t
+z−1
+e
+−tdt
+5 The incomplete gamma function is defined as Γ(x, y) = R ∞
+y
+t
+x−1
+e
+−tdt
+41 of 58
+In [76], the basis profiles used were given in terms of the exponential functions; although that, since
+the boundary conditions at r = 0 are violated for q < 1/2, was considered the basis profile of Eq.80 instead.
+This set of profiles satisfies the appropriate boundary and regularity conditions.
+The critical compaction function, averaged within a spherical shell extending from radius [1− α(w)]rm
+to rm (the peak), is defined to be
+C¯
+c(w, profile) ≡
+3
+r
+3
+mV[α(w)]
+Z rm
+rm[1−α(w)]
+Cc(r)r
+2
+dr , (100)
+where V[α(w)] = α(w) [3 + (α(w) − 3)α(w)] and Cc(r) = C(r)
+
+
+
+C(rm)=δc
+. Inserting Eq.80 in Eq.100 yields
+C¯
+c(w, basis) = δc(w, q) g(q, w)
+h
+−F1(q) + (1 − α)
+3−2qF2(q, α)
+i
+, (101)
+with
+g(q, w) = 3(1 + q)
+α(2q − 3)[3 + α(α − 3)]
+, (102)
+F1(q) = 2F1
+
+1, 1 −
+5
+2(1 + q)
+, 2 −
+5
+2(1 + q)
+, −q
+
+, (103)
+and
+F2(q, w) = 2F1
+
+1, 1 −
+5
+2(1 + q)
+, 2 −
+5
+2(1 + q)
+, −q(1 − α)
+−2(1+q)
+
+, (104)
+where 2F1 is the hypergeometric function6
+.
+The key point is that as was shown numerically in [77] the dependence of the averaged critical
+compaction function on the profile shape is weak enough to be ignored, and therefore universal. Then,
+C¯
+c(w, profile) ' C¯
+c(w) . (105)
+Therefore, the analytic expression for the critical threshold value reads as:
+δc(w, q) = C¯
+c(w)
+g(q, w)
+1
+
+−F1(q) + (1 − α)
+3−2qF2(q, α)
+ . (106)
+The functions α(w) and C¯
+c(w) were found using two different procedures: i) a numerical double fit
+minimization using the numerical results of the thresholds for different profiles ii) and making a single
+numerical fit minimization using already the analytical result that δc(q → ∞) for w ≥ 1/3. Both procedures
+gave equivalent results. Therefore, the assumption of C¯
+c(w) being universal was found good enough
+and verified numerically for w & 1/3. This result verified the previous one obtained for a radiation fluid
+w = 1/3 in [76], where α = 1 and C¯
+c = 4. In particular, using the procedure i) was found,
+C¯
+c(w) = a + b Arctan(c wd
+) (107)
+α(w) = e + f Arctan(g wh
+), (108)
+6 The hypergeometric function is defined as 2F1(a, b, c, z) = ∑
+∞
+k=0
+(a)k
+(b)k
+(c)k
+z
+k
+k!
+42 of 58
+with a = −0.140381, b = 0.79538, c = 1.23593, d = 0.357491, e = 2.00804, f = −1.10936, g = 10.2801 and
+h = 1.113.
+instead, using the ii),
+C¯
+c(w) = i + j Arctan(p wl
+), (109)
+α(w) = m + t Arctan(r ws
+), (110)
+with i = −0.140381, j = 0.79538, p = 1.23593, l = 0.357491, m = 2.00804, t = −1.10936, r = 10.2801 and
+s = 1.113.
+7.3. A Comparison between analytical estimates
+In [77] was compared the analytical estimation obtained Eq.106 with the previous ones in the literature,
+i.e, Eq.90,92. In Fig.24 is shown the comparison. The solid lines in Fig.24 show these approximations; the
+symbols with error bars show δc(w) from numerical simulations of the profiles of Eq.80 with q = 0.015,
+q = 0.1, q = 1 and q = 30. The dotted and dashed curves, which describe significantly better the result of
+the numerical simulations, show the result of inserting Eqs.107 and 108, or Eqs.109 and 110, in the Eq.106.
+In both cases, Eq.106 (as well as the simulations) exceeds even the upper bound claimed by [68] at even
+lower w as q increases, which are Eqs.93,94.
+Figure 24. Dependence of threshold δc on w when the initial profile is given by Eq.81 with q = 30, q = 1,
+q = 0.1, q = 0.015 and λ = 0 in all the cases (q = 0 would be a homogeneous sphere). The solid lines with
+dots and error bars show the results of the numerical simulations. The green and blue curves show the
+minimal and maximal bounds of δc from [68], in particular Eq.94 and Eq.93 respectively. The magenta line
+shows the approximation for δCarr of Eq.90. The black curve shows δHYK from Eq.92. The other curves
+show the approximation (Eq.106) in which δc depends both on w and q. Finally, the dotted curves uses
+Eqs.109 and 110 in Eq.106 whereas the dashed curves use Eqs.107 and 108 in Eq.106.
+As can be observed, the discrepancy of the estimations Eq.90,92 for the case of small w is as large as
+50% for the case q = 0.1. This is the limit that was considered successful and optimal for the approximations
+on which Eq.92 is based. This deviation is even bigger than the one found earlier because Eq.92 was
+compared with a Gaussian profile (Eq.81 with q = 1 and λ = 0). Actually, in the case w < 0.15 the
+solid black curve in Fig.24 does give a satisfactory description of the simulations with q = 1. However,
+the top-hat profile with q → 0, which is the one used in the analytic estimations of [68], is quite better
+43 of 58
+approximated by q  1. For q = 0.1, the formula Eq.92 does not describe the simulations particularly well,
+and the discrepancy at w < 1/3 is even worse when q = 0.015 is taken. It was claimed in [77] that this
+disagreement seems to suggest that the supposed agreement shown in Fig.3 of [68] is a result of numerical
+coincidences, with no physics implications.
+Finally, the polynomial basis profile of Eq.80 fulfills regularity conditions for q → as we have pointed
+out before, something not fulfilled with the exponential basis Eq.81 (with λ = 0). Precisely, this lead in
+previous literature [72] to infer that the minimum threshold for PBH formation (in the case of a radiation
+fluid) must coincide to the estimation of [68], i.e, δc,min(w = 1/3) = δHYK(w = 1/3) ≈ 0.41. In [72], was
+possible to compute δc with q = 0.1 as smaller value using Eq.81 (with λ = 0), since as was indicated there,
+the profiles were too sharp. This actually looks related to the fact that the exponential profile Eq.81 does
+not satisfy regularity conditions at r → 0 for q < 0.5. Instead, in the case of using the polynomial profile
+Eq.80 it allows to do simulations even to smaller values in q, up to q = 0.01, as were done in [76]. Therefore
+this leads to the conclusion in [76] that, for a radiation fluid, the correct range of values for the threshold is
+0.4 ≤ δc ≤ 2/3, and therefore the minimum value was lower than δHYK. Indeed, the generalization of δc in
+w already indicates that the minimum threshold should not correspond necessarily to the one of δHYK.
+8. Other scenarios of PBH formation
+In this review paper, we have mainly focused on the study of PBH formation from the spherical
+collapse of primordial density perturbations, which is currently the case most studied in the literature and
+with more results and applications [32]. Although that, many other mechanisms and scenarios could have
+led to black holes formed in the very early Universe [9]. In this last section, we try to briefly enumerate
+other scenarios beyond the ones considered in this review.
+The case w = 0 is very special as the threshold of PBH formation, for an infinitely long matter
+domination era, is 0. Thus a study of abundances, where the Universe is matter-dominated for a finite
+time, differs a lot from the case of radiation. Some works have considered this scenario with scalar
+fields type [198–203], specially taking into account the oscillatory behavior of scalar field during the
+reheating. Recently in [204] were performed simulations in full GR using scalar fields to modulate the
+perturbation and the expanding dust background of the Universe, showing that the PBH mass grows
+beyond the self-similar limit MPBH ∝ H−1
+, at least initially. The dust collapse has also been studied in a
+more oriented perfect fluid scenario [205]. The PBH formation has also been considered in the context of
+the LTB (Lemaitre-Tolman-Bondi) model [206,207]. In [208] was studied the effect of inhomogeneity on
+PBH formation in the matter-dominated era and its consequences on the PBH production. On the other
+hand, in[209,210] was studied the non-spherical effects and spins for PBH formation in the case of dust
+dominated Universe, showing it could have a significant effect.
+A non-spherical effect, in principle, could dramatically change the threshold value and PBH mass
+[211]. Some analytical estimations taking into account an ellipsoidal collapse were done in the past,
+showing that the effect could be important [206,212]. However, in [213], for the first time in the literature,
+was performed the first numerical simulation in 3 + 1 spacetime (beyond spherical symmetry) for PBH
+formation from the collapse of curvature fluctuations, with a small (perturbative) non-sphericity initial
+condition (with a radiation fluid). The main conclusion was that the effect of ellipticity on the threshold
+for PBH formation is negligible in the standard scenario of PBH formation in the radiation-dominated
+Universe. This situation could dramatically change if it is considered an equation of state different from
+radiation as indicated in [213]. In particular, for a matter-dominated Universe, the effect of any sphericity
+could be important [205,209,210]. Another possibility is the inclusion of angular momentum to analyze
+the spin generation to PBHs; some analytical estimations have been done [214], but still are necessary
+44 of 58
+numerical simulations to test those arguments. Recently has also been considered analytically PBH
+formation with an anisotropic perfect fluid [215].
+The usual scenario of the collapse of cosmological density perturbations considers a constant equation
+of state w (mainly w = 1/3 in the literature). But the Universe has a thermal history where the equation of
+state is not necessarily constant, i.e, w(t). A particular (and very popular) example applied to the PBH
+scenario is the QCD epoch [216–219]. During the QCD phase transition, the equation of state w could have
+been softened. Looking at the result of the simulations in Fig.24 it is already clear that the threshold δc will
+be reduced, and therefore, makes the formation probability of PBHs exponentially more likely. Several
+works have addressed this scenario with progressive refinements [216,220–225], specially with the new
+calculations regarding lattice QCD [226,227]. However, numerical simulations are still needed to fully
+verify the effect on how much could change the threshold, PBH mass and mass function modifying the
+equation of state in time.
+A bit more different mechanism of PBH formation comes from the collapse of Q-balls and Oscillons,
+which are features of supersymmetric extensions of the standard model [228]. Specific realizations of
+those ideas are done throughout theory motivated scalar field potentials, e.g, the axion-monodromy
+potential [229]. The mechanism for PBH formation of all these cases is naively similar: small number
+densities of defects lead to large fluctuations relative to the background density. These fluctuations become
+gravitationally bound and collapse to form black holes once the relic density has come to dominate. Finally,
+the relics decay due to some instabilities. Precisely, it has been argued that some solitonic type solutions
+like Q-balls and Oscillons could produce a significant fraction of dark matter in the form of PBHs [230–234],
+without relying on any spectrum of density perturbations.
+On the other hand, scalar force instability can lead to a growth of structures and formation of halos of
+interacting particles (even on a radiation dominated Universe) [235–239]. Actually, in [238] was theorized
+that these structures could have collapsed and formed PBHs, but later on, it was realized that they should
+remain as virialized dark matter [239]. Precisely, in [240] it was shown that the radiative cooling due to
+the scalar radiation allows those halos to collapse into black holes. This was shown with a simple model
+with fermions interacting via Yukawa interaction. The general relativistic formulation of the interaction
+between a Fermi gas and a scalar field in cosmology has been carefully studied recently in detail in [241].
+All these mechanisms could have small or large spins in terms of their formation evolution and the
+process of radiative cooling, as was pointed out in [211]. Another proposal is the one in [242], where the
+dilution of heavy quarks produced during inflation, which get confined by QCD flux tubes after horizon
+re-entry, could have led to PBH production.
+Another mechanism is through the collapse of domain walls. Domain walls are topological defects
+that may form when a discrete symmetry is spontaneously broken in the very early Universe [243,244].
+Several works have addressed this scenario and have shown the possibility to form PBHs and with
+astrophysical consequences [245–249]. Another possibility comes from the collapse of cosmic strings
+[250–252], which are 1 + 1 topological defects that are predicted beyond the Standard Model and could
+have lead to production of PBHs [253–259].
+Similarly, it was also shown that vacuum bubbles could lead to a successful channel for PBH
+production or also been involved in related mechanisms [195,260–266]. They could have been formed
+during the inflationary epoch through a nucleation process. After inflation and depending on their size,
+these bubbles could collapse or even collide, forming black holes [179,193,246,267,268].
+Other results has been also pointed out in the context of modified gravity, in particular in [269]
+was studied the PBH production in G-inflation and also in [270] was studied with the inclusion of a
+Gauss-Bonnet term. In [271] were considered the effects on the threshold in Eddington-inspired-Born-Infeld
+gravity.
+45 of 58
+Finally, a new mechanism appeared in [272], where PBHs could have been formed from the collapse
+of primordial CDM isocurvature fluctuations.
+9. Conclusions
+In this review, we have focused on explaining in detail the process of PBH formation from the collapse
+of curvature fluctuations under spherical symmetry and its numerical implementation through a particular
+numerical technique. Specifically, we have seen that numerical simulations are essential to capture the
+correct and full-non linear behaviour of the collapse and formation of the PBHs. It leads to a better
+and accurate determination of the threshold of PBH formation and its masses compared to analytical
+estimations, something essential for the precise analysis of PBH abundances. In this review, we have seen
+a simple and efficient numerical procedure based on pseudospectral methods that allow us to fully solve
+the non-linear gravitational collapse of those perturbations and obtain the needed values of the threshold
+and PBH mass in the range of practical interest.
+Two aspects in the literature have been remarkable important for the development of the field: i)
+the results found from numerical simulations about the critical scaling regime for the PBH mass ii) and
+the analytical estimations for the threshold of PBH formation. Both allow us to estimate the abundances
+of PBHs and constraint them. In particular, we have seen that the threshold and PBH mass are both
+dependent on the specific shape of the curvature fluctuation considered, and it’s crucial to take this into
+account for the precise analysis of PBH abundances instead of using a constant threshold or PBH mass
+value. Moreover, we have seen that the gravitational collapse is highly dependent on the equation of state
+of the fluid w. As large is w, smaller is the mass of the PBHs and the accretion from the FLRW background,
+but higher the threshold.
+It is interesting to mention that the compaction function, firstly used in [70] years ago, has become
+nowadays essential. Not only for the definition of the threshold of PBH formation but also to obtain an
+analytical estimation of it, using its average.
+There is still a lot of effort to be done in other directions and to consider different scenarios of
+PBH formation, as the ones already pointed out in section 8. Future theoretical developments and the
+implementation of numerical simulations to test and check those scenarios could lead to new possibilities
+for PBHs to account for dark matter and update the abundance estimations. In particular, it would be
+interesting to compare the results already pointed out in this review in other scenarios.
+We hope that in the next few years, several scientific results in this and other directions will help to
+fully understand and constrain the PBH scenario and its consequences in our Universe, especially taking
+into account future gravitational waves observations.
+Funding: AE is currently supported by "bourse de post-doctorat" from Université Libre de Bruxelles (ULB), and
+was supported by contract PID2019-106515GB-I00/AEI/10.13039/501100011033 (Spanish Ministry of Science and
+Innovation).
+Abbreviations
+PBHs: Primordial Black Holes
+DM: Dark matter
+FLRW: Friedman-Lemaître-Robertson-Walker
+GR: General relativity
+46 of 58
+CMB: Cosmic Microwave Background
+LIGO: Laser Interferometer Gravitational-Wave Observatory
+BH: Black Hole
+NANOGrav: North American Nanohertz Observatory for Gravitational Waves

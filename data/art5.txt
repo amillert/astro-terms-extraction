@@ -1,3939 +1,830 @@
-The Role of Lookahead and Approximate Policy Evaluation in Policy Iteration
-with Linear Value Function Approximation
-Anna Winnicki,1 Joseph Lubars, 1 Michael Livesay, 2 R. Srikant 1
-1 University of Illinois at Urbana-Champaign Department of Electrical Engineering
-2 Sandia National Laboratories
-annaw5@illinois.edu, lubars2@illinois.edu, mlivesa@sandia.gov, rsrikant@illinois.edu
-Abstract
-When the sizes of the state and action spaces are large, solving MDPs can be computationally prohibitive even if the
-probability transition matrix is known. So in practice, a number of techniques are used to approximately solve the dynamic programming problem, including lookahead, approximate policy evaluation using an m-step return, and function
-approximation. In a recent paper, (Efroni et al. 2019) studied
-the impact of lookahead on the convergence rate of approximate dynamic programming. In this paper, we show that these
-convergence results change dramatically when function approximation is used in conjunction with lookout and approximate policy evaluation using an m-step return. Specifically,
-we show that when linear function approximation is used to
-represent the value function, a certain minimum amount of
-lookahead and multi-step return is needed for the algorithm
-to even converge. And when this condition is met, we characterize the finite-time performance of policies obtained using
-such approximate policy iteration. Our results are presented
-for two different procedures to compute the function approximation: linear least-squares regression and gradient descent.
-1 Introduction
-Policy iteration and variants of policy iteration (Bertsekas
-2019, 2011; Bertsekas and Tsitsiklis 1996) that solve dynamic programming problems rely on computations that are
-infeasible due to the sizes of the state and action spaces in
-modern reinforcement learning problems. As a remedy to
-this “curse of dimensionality,” several state of the art algorithms (Silver et al. 2017a,b; Mnih et al. 2016) employ return
-for policy evaluation, lookahead using tree search, function
-approximation, and gradient descent to compute the function approximation, see ((Bertsekas 2019) for a definition of
-these terms).
-The recent work in (Efroni et al. 2019) considers a variant
-of policy iteration that utilizes lookahead and approximate
-policy evaluation using an m-step return. As stated in the
-motivation in (Efroni et al. 2019), we note that lookahead
-can be approximated well in practice using Monte Carlo
-Tree Search (MCTS) (Kocsis and Szepesvari 2006; Browne ´
-et al. 2012) even though in theory, it has exponential complexity (Shah, Xie, and Xu 2020). Motivated by policy iteration, the algorithm in (Efroni et al. 2019) estimates the
-value function associated with a policy and aims to improve
-the policy at each step. Policy improvement is achieved by
-obtaining the “greedy” policy in the case of policy iteration
-or a lookahead policy in the work of (Efroni et al. 2019),
-which involves applying the Bellman operator several times
-to the current iterate before obtaining the greedy policy. The
-idea is that the application of the Bellman operator several
-times gives a more accurate estimate of the optimal value
-function. Then, similar to policy iteration, the algorithm in
-(Efroni et al. 2019) aims to evaluate the new policy. The
-algorithm in (Efroni et al. 2019) uses an m-step return to
-compute the value function associated with a policy, i.e., it
-applies the Bellman operator associated with the policy m
-times.
-The work of (Efroni et al. 2019) establishes that a lookahead can significantly improve the rate of convergence if one
-uses the value function computed using lookahead in the approximate policy evaluation step. Our main interest is understanding how these convergence results change when the
-state-space is very large and one has to resort to function approximation of the value function. Our contributions are as
-follows:
-1. We examine the impact of lookahead and m-step return
-on approximate policy iteration with linear function approximation. We do not need to evaluate an approximate
-value function for all the states at each iteration but can
-simply evaluate it at some states. Since we use function
-approximation, we need different proof techniques than
-in (Efroni et al. 2019) and one consequence of this is that
-the finite-time performance bounds that we obtain for the
-algorithm require that the sum of lookahead and the number of steps in the m-step return is sufficiently large. We
-demonstrate through an extension of a counter example
-in (Tsitsiklis and van Roy 1994) that such a condition is
-necessary for convergence with function approximation
-unlike the tabular setting in (Efroni et al. 2019).
-2. Our first results mentioned above assume that one solves
-a least-squares problem at each iteration to obtain the
-weights associated with the feature vectors in the function approximation of the value function. We then obtain
-finite-time performance bounds for a more practical and
-widely-used scheme where one step of gradient descent
-is used to update the weights of the value function approximation at each iteration.
-3. The sufficient condition on the minimum amount of
-arXiv:2109.13419v1 [cs.LG] 28 Sep 2021
-lookahead and return for convergence does not depend on
-the size of the state space but depends on the feature vectors used for function approximation. Additionally, our
-results indicate that the approximation error of our algorithm can be improved if the feature vectors can represent
-the value function well. While neural networks are not
-linear function approximators, recent results motivated
-by the NTK (neural tangent kernel) analysis of neural
-networks suggest that they can be approximated as linear combinations of basis functions (Jacot, Gabriel, and
-Hongler 2018; Cao and Gu 2019). Thus, our results can
-potentially shed light on why the combination of the representation capability of neural networks and tree-search
-methods work well in practice, although further work is
-necessary to make this connection precise.
-4. We extend our results to the case where the m-step return
-is replaced by an approximation of TD-learning, as in the
-work of (Efroni et al. 2019). These results can be found
-in Appendix F and Appendix G.
-5. We complement our theoretical results with experiments
-on the same grid world problem as in (Efroni et al. 2019).
-These experiments are presented in a later section and in
-Appendix H.
-In addition to the work of (Efroni et al. 2019), there is a
-long history of other work on approximate policy iteration.
-However, these other works typically do not model the tree
-search processes (lookahead and m-step return) in conjunction with function approximation and gradient descent as we
-have done in this paper. We will compare our results to some
-of these prior works in a later section.
-2 Preliminaries
-We consider a Markov Decision Process (MDP), which is
-defined to be a 5-tuple (S, A, P, R, α). The finite set of
-states of the MDP is S. There exists a finite set of actions associated with the MDP A. Let Pij (a) be the probability of transitioning from state i to state j when taking action a ∈ A. We denote by sk the state of the MDP
-and by ak the corresponding action at time k. We associate with state sk and action ak a non-deterministic reward
-r(sk, ak) ∈ [0, 1]∀sk ∈ S, ak ∈ A. We assume that the
-rewards are uniformly bounded. Our objective is to maximize the cumulative discounted reward with discount factor
-α ∈ (0, 1),
-P∞
-i=0 α
-k
-r(sk, ak).
-Towards this end, we associate with each state s ∈ S a
-deterministic policy µ(s) ∈ A which prescribes an action
-to take. For every policy µ and every state s ∈ S we define
-J
-µ(s) as follows:
-J
-µ
-(s) := E[
-X∞
-i=0
-α
-k
-r(sk, µ(sk))].
-We define the optimal reward-to-go J
-∗
-as J
-∗
-(s) :=
-min
-µ
-J
-µ(s).The objective is to find a policy µ that maximizes
-J
-µ(s) for all s ∈ S. Towards the objective, we associate
-with each policy µ a function Tµ : R
-n → R
-n where for
-J ∈ R
-n, the sth component of TµJ is
-(TµJ)(s) = r(s, µ(s)) + α
-X
-|S|
-j=1
-psj (µ(s))J(j),
-for all s ∈ S. If function Tµ is applied m times to vector
-J ∈ R
-|S|
-, we call the result T
-m
-µ J. We say that T
-m
-µ J is the
-m- return corresponding to J or the “return,” when J and m
-are understood.
-Similarly, we define the Bellman operator T : R
-|S| →
-R
-|S| with the sth component of T J being
-(T J)(s) = max
-a
-(
-r(s, a) + α
-X
-|S|
-j=1
-psj (a)J(j)
-)
-. (1)
-The policy corresponding to the T operator is defined as the
-greedy policy. If function T is applied H times to vector
-J ∈ R
-|S|
-, we call the result - T
-HJ - the H-step “lookahead” corresponding to J. The greedy policy corresponding
-to T
-HJ is called the H-step lookahead policy, or the lookahead policy, when H is understood. More precisely, given
-an estimate J of the value function, the lookahead policy is
-the policy µ such that Tµ(T
-H−1J) = T(T
-H−1J).
-It is well known that each time the Bellman operator is
-applied to a vector J to obtain T J, the following holds:
-kT J − J
-∗
-k∞ ≤ α kJ − J
-∗
-k∞ .
-Thus, applying T to obtain T J gives a better estimate of the
-value function than J.
-The Bellman equations state that the vector J
-µ is the
-unique solution to the linear equation
-J
-µ = TµJ
-µ
-. (2)
-Additionally, we have that J
-∗
-is a solution to
-J
-∗ = T J∗
-.
-Note that every greedy policy w.r.t. J
-∗
-is optimal and vice
-versa (Bertsekas and Tsitsiklis 1996).
-We will now state several useful properties of the operators T and Tµ. Consider the vector e ∈ R
-|S| where
-e(i) = 1∀i ∈ 1, 2, . . . , |S|. We have:
-T(J + ce) = T J + αce, Tµ(J + ce) = TµJ + αce. (3)
-Operators T and Tµ are also monotone:
-J ≤ J
-0 =⇒ T J ≤ T J0
-, TµJ ≤ TµJ
-0
+Correlating galaxy shapes and initial conditions: observational study
+We find that galaxy angular momenta determined from shapes of spiral galaxies correlate with
+the initial tidal field in the galaxy’s neighborhood. Explicitly, we find that the galaxies tend to
+be preferentially face on (edge on) oriented when the major (minor) axis of the initial tidal field is
+aligned with the line of sight. Because tidal-torque theory predicts vanishing of this kind of signal, the
+observed correlation suggests non-linear origin. This correlation is statistically significant even after
+considering the number of observables investigated. Our result provides motivation for considering
+galaxy shape information in the efforts aiming to reconstruct initial conditions in the Universe.
+I. INTRODUCTION
+Galaxy surveys have been instrumental in enhancing
+our understanding of the Universe [1–4]. Beyond the
+traditional analyses, it is useful to think about how to
+extract additional information from the large number of
+galaxies that will be discovered in the following years
+[5, 6].
+One of the suggestions has been using measurements
+of galaxy angular momenta, that can extend our understanding of physics at megaparsec scales [7–9]. Such measurements can aid with reconstruction of the initial conditions (ICs) in the Universe [7, 8] and help to constrain
+neutrino masses [10], primordial gravitational waves [11],
+primordial non-Gaussianity [12] and chirality violations
+in the early Universe [9]. Better knowledge of initial matter distribution in the local volume would also aid studies
+of galaxy formation.
+In our current understanding, the dark matter haloes
+acquire angular momenta from the inhomogeneous tidal
+field that torques the non-spherical protohalo early on
+[13–17]. At late times, interactions with the nearby large
+scale structure notably complicate the picture [16–37].
+Despite these late time effects, it turns out that the
+direction of the halo angular momentum retains a significant amount of the initial information [9]. Naturally,
+we can not directly measure angular momenta of dark
+matter haloes. Fortunately, spins*1 of galaxies tend to be
+correlated with spins of their dark matter haloes [38, 39],
+and so there is a potential to use measurements of galaxy
+spins to probe the initial conditions in the local Universe.
+It seems that the amplitude of the dark matter halo’s
+angular momentum also retains information about the
+*1 As a shorthand, here and in what follows we use “spin” to specifically only refer to the direction of the angular momentum of a
+halo/galaxy, ignoring its amplitude.
+initial conditions [40] (but see [16, 39]). However, in this
+work we only consider the angular momenta directions,
+especially given the experimental cost involved in determining the amplitudes of galaxy angular momenta.
+The prospect that measurements of galaxy spins might
+help with the reconstruction of the initial conditions in
+the Universe requires an observational verification. We
+made a first step in this direction in [41], where we found
+a correlation between the galaxy spins of a sample of
+about 15000 galaxies and initial conditions reconstructed
+from positions of a larger sample of galaxies [42]. Unfortunately, due to the limited number of galaxies we could
+only confirm this correlation with a ∼ 3σ confidence. To
+achieve this result, we combined a set of galaxies for
+which integral field spectroscopy data is available with
+a set of spiral galaxies with known senses of rotation of
+their spiral arms.
+At least in principle we have access to a significantly
+larger dataset of galaxy spins. Assuming that each spiral
+galaxy forms a thin disk with its spin pointing perpendicularly to the plane of the disk, we can utilize shape
+measurements of spiral galaxies to determine their spins
+up to a so-called four-fold degeneracy (see below) [7].
+Shape measurements of spiral galaxies, as a proxy for
+their spins, are thus potentially useable as an additional
+handle on the initial conditions of the Universe. In this
+paper we investigate to what extent such a proposition
+is viable by studying correlations between galaxy spin
+components determined solely from galaxy shapes and
+observables derived from the initial density field as measured using a traditional reconstruction technique. In
+contrast with [41], we trade a somewhat lower signal per
+galaxy (due to the four-fold degeneracy) for a larger number of galaxies. Unlike the previous studies such as [43],
+we study correlations of galaxy shapes with observables
+derived from initial, not late time, density field.
+This paper is organized as follows: In § II we describe how to determine galaxy spins from the galaxy
+shape measurements and discuss the four-fold degenerarXiv:2111.12578v1 [astro-ph.CO] 24 Nov 2021
+2
+acy. Then we explain how we quantify correlations between galaxy spins and the initial conditions and list the
+observables built from the initial conditions we consider
+in this work. In § III we introduce the data used and in
+§ IV we present our results. We conclude with discussion
+in § V.
+We use indices i, j, k, l to denote components of vectors
+and tensors in three dimensions.
+II. THEORY
+In this section we introduce the thin disk approximation that we use to connect measurements of galaxy
+shapes and their angular momenta. Then we describe
+how we quantify correlations between galaxy spins and
+various observables built from the initial conditions, before listing all such observables considered in this work.
+A. Spins from shapes
+Measuring the full 3D vector of galaxy angular momentum requires integral field spectroscopy, which is experimentally costly and can at the present only be obtained
+for several thousands of galaxies [44, 45]. Using an approximation in which spiral galaxies are considered to be
+thin disks allows us to use images of spiral galaxies to
+infer information about their angular momenta [23, 43].
+Currently, tens of thousands of such images are available.
+In this thin-disk approximation, matter is assumed to
+be circling around the galaxy center in the plane of the
+disk, implying that the galaxy angular momentum vector
+is perpendicular to the plane of the galaxy. This plane
+can be, up to a two-fold degeneracy, determined from the
+position angle α and axis ratio R of the galaxy image.
+Additional two-fold degeneracy then arises because from
+α and R alone we are unable to determine whether the
+galaxy spin points towards or away from the observer.
+The unit spin vector of such a galaxy in the local spherical coordinate frame (Lr, Lθ, Lφ) can be determined
+through [46]
+|Lr| = R
+Lθ/Lφ = tan α, (1)
+where the four-fold degeneracy prevents us from determining the signs of Lr and Lθ (and thus Lφ) from the
+galaxy image alone.
+In the equatorial Cartesian coordinates, the unit spin
+vector can be then determined from the right ascension
+and declination of the galaxy through [43]
+L~ = L~ R + L~
+T , (2)
+where we defined
+L~ R ∝ Lr (sin θ cos φ,sin θ sin φ, cos θ)
+L~
+T ∝ Lθ (cos θ cos φ, cos θ sin φ, − sin θ)
++Lφ (− sin φ, cos φ, 0) (3)
+and θ = π/2−DEC and φ = RA. Because of the four-fold
+degeneracy, signs of L~ R,T are ambiguous. Notice that in
+general neither of the vectors L~ R,T has unit norm.
+By default we consider spiral galaxies to be infinitely
+thin disks and use (1). To test for systematic effect of this
+assumption, we also consider non-zero intrinsic flatness p
+of the spiral galaxies, where we replace R in (1) with
+R → s
+max (R2 − p
+2, 0)
+1 − p
+2
 . (4)
-3 Least Squares Function Approximation
-Algorithm
-Our algorithm is described in Algorithm 1. The algorithm
-is an approximation to policy iteration. At each iteration index, say, k, we have an estimate of the value function, which
-we denote by Jk. To obtain Jk+1, we perform a lookahead
-to improve the value function estimate at a certain number
-of states (denoted by Dk) which can vary with each iteration. For example, Dk could be chosen as the states visited
-when performing a tree search to approximate the lookahead
-Algorithm 1: Least Squares Function Approximation Algorithm
-Input: J0, m, H, feature vectors {φ(i)}i∈S , φ(i) ∈ R
-d
-and
-subsets Dk ⊆ S, k = 0, 1, . . . . Here Dk is the set of states
-at which we evaluate the current policy at iteration k.
-1: Let k = 0.
-2: Let µk+1 be such that
-
-T
-HJk − Tµk+1 T
-H−1Jk
-
-
-∞
-≤
-ε.
-3: Compute Jˆµk+1 (i) = T
-m
-µk+1
-T
-H−1
-(Jk)(i)+wk+1(i) for
-i ∈ Dk.
-4: Choose θk+1 to solve
-min
-θ
+Experimentally, p of spiral galaxies has been measured
+to be ∼ 0.1 − 0.2 [47].
+B. Quantifying correlations
+In this section we give an overview of how we quantify correlations between measurements of galaxy spins
+as represented by L~ R,T and the initial conditions. In all
+cases, the initial conditions are represented by either a
+vector Vi or a rank-two tensor Mij constructed from the
+second derivatives of the initial density ρini, gravitational
+potential φini, or both.
+Considering first the rank-two variables of the form
+Mij , we can form three scalar combinations
+LRMLR ≡
 X
-i∈Dk
+ij
+LRiMijLRj (5)
+LTMLT ≡
+X
+ij
+LT iMijLT j (6)
+LTMLR ≡
+X
+ij
+LT iMijLRj , (7)
+where for future convenience we suppressed the index
+structure on the left hand side. Given the four-fold degeneracy in determining L~
+T and L~ R, the last combination
+can not be evaluated using the shape data alone. On the
+other hand, LRMLR and LTMLT are invariant with respect to this degeneracy and can be used to study the
+correlations between galaxy spins and initial conditions.
+With vector variables Vi the situation is slightly more
+complicated, as the naive combinations L~ R,T ·V~ are again
+indeterminate due to the uncertainty in the sign of L~ R,T .
+We can form an invariant quantity by taking the absolute
+value of the scalar product,
+|LRV | ≡
+
+
+
+
+
+X
+i
+LRiVi
+
+
+
+
+
+(8)
+|LT V | ≡
+
+
+
+
+
+X
+i
+LT iVi
+
+
+
+
+
+, (9)
+which can be used to study the correlation of L~ R,T with
+the initial conditions. Notice that more information is
+available when we are able to break the degeneracy [41].
+3
+For each variable V of the form LαMLα or |LαV | with
+α ∈ {R, T} we then evaluate the average hVi over the
+galaxies in our sample. To determine the probability of
+observing such hVi in case of uncorrelated spins L~ R,T and
+initial conditions (as represented by Mij / Vi), we calculate V for many mock galaxy catalogs in which the galaxy
+positions are kept fixed but we randomly shuffle the parameters α, R that determine the galaxy spins L~ R,T . As
+a result, we get the mean and standard deviation V¯, σV
+of this random mock distribution, which allows us to calculate the statistical significance of the detected excess
+correlation
+S =
+
+hVi − V¯
+
+
+σV
+. (10)
+Notice it is incorrect to shuffle the vectors L~
+T ,R themselves.
+C. Functions of initial conditions
+In this section we introduce variables Mij , Vi we use to
+characterize the initial conditions and which we correlate
+with the galaxy spins described by L~ R,T .
+It has been shown in both simulations [9] and observations [41] that galaxy spins correlate with the vector
+field L~ IC defined in terms of the smoothed initial density
+ρ
+r
+ini and gravitational potential φ
+r
+ini as
+L
+IC
+i =
+X
+jkl
+ijk ∂jlφ
+r
+ini ∂lkρ
+r
+ini. (11)
+The superscript r symbolizes the fields have been
+smoothed on scale r ∼ O(h
+−1Mpc). The unit norm vector field LˆIC = L~ IC/|L
+IC| is then the first observable built
+from the initial conditions we correlate with the galaxy
+spins.
+It has long been understood that tidal field in the vicinity of a protohalo plays a crucial role in determining the
+halo’s spin [15]. This motivates us to pick the unit traceless local shear tensor Tˆ [8] as our second variable. It is
+built from the shear tensor, defined as
+Tij = ∂ijφ
+r
+ini, (12)
+by first subtracting the trace
+T˜
+ij = Tij −
+δij
+3
+X
+k
+Tkk (13)
+and then normalizing
+Tˆ
+ij =
+T˜
+q
+ij
+P
+ij T˜2
+ij
+. (14)
+The tidal-torque theory [13–17] predicts that the correlation hLαT Lˆ
+αi should vanish [8]: Assuming Gaussian
+initial conditions, initial perturbation φini and its reverse −φini are equally likely. However, the observable
+hLαT Lˆ
+αi is not invariant under the operation φini →
+−φini as Tˆ
+ij changes sign but the quadratic form Lα,iLα,j
+does not. Physically, tidal-torque theory predicts equal
+alignments of galaxy spins with major and minor principal axes of Tˆ, which leads to cancellations in hLαT Lˆ
+αi.
+Because vanishing of hLαT Lˆ
+αi is a realistic possibility,
+we also consider correlations with the second power of Tˆ.
+One can expect similar sensitivity to the second derivative of the initial density field, which can serve as a proxy
+for the protohalo’s moment of inertia [29, 41]. We thus
+also investigate correlations with first and second power
+of ˆIij , defined similarly to Tˆ
+ij but with φ
+r
+ini in (12) replaced by ρ
+r
+ini.
+Finally, tidal-torque theory provides theoretical arguments that the galaxy spins should preferentially orient
+with the intermediate principal axis Lˆφ
+0
+of the shear tensor Tˆ [7]. In the limit where the tensor ˆI can be used
+as a proxy for the protohalo moment of inertia, the same
+arguments can be used to justify expectation of correlation of galaxy spins with the intermediate principal axis
+Lˆρ
+0
+of ˆI. The two unit vectors Lˆφ,ρ
+0
+are then the last
+two observables built from the initial conditions that we
+consider in this work.
+Overall, we study correlations with seven objects
+constructed from the initial conditions: four matrices
+T , ˆ
 
-(Φθ)(i) − Jˆµk+1 (i)
+Tˆ
 2
 ,
-where Φ is a matrix whose rows are the feature vectors.
-5: Jk+1 = Φθk+1.
-6: Set k ← k + 1. Go to 2.
-process. During the lookahead process, we note that we will
-also obtain a H-step lookahead policy, which we denote by
-µk+1. We obtain estimates of J
-µk+1 (i) for i ∈ Dk, which
-we call Jˆµk+1 (i). To obtain the estimate of the J
-µk+1 (i), we
-perform a m-step return with policy µk+1, and obtain the
-estimate of T
-m
-µk+1
-T
-H−1Jk(i) for i ∈ Dk. We model the approximation errors in lookahead and return by adding noise
-to the output of these steps. In order to estimate the value
-function for states not in Dk, we associate with each state
-i ∈ S a feature vector φ(i) ∈ R
-d where typically d << |S|.
-The matrix comprised of the feature vectors as rows is denoted by Φ. We obtain estimates of T
-m
-µ T
-H−1Jk for states
-in Dk and use those estimates to find the best fitting θ ∈ R
-d
-,
-i.e.,
-min
-θ
-X
-i∈Dk
-
-(Φθ)(i) − Jˆµk+1 (i)
+ˆI, 
+ˆI
 2
-.
-Our algorithm then computes θk+1. It uses the θk+1 to obtain Jk+1 = Φθk+1. The process then repeats. Note that to
-estimate the value function associated with policy µk+1, we
-compute T
-m
-µk+1
-T
-H−1Jk(i) for i ∈ Dk. Another alternative
-is to instead compute T
-m
-µk+1
-Jk(i). It was shown in (Efroni
-et al. 2019) that the former option is preferable because it
-has a certain contraction property. Thus, we have chosen to
-use this computation in our algorithm as well. However, we
-show in Appendix B that the algorithm also converges with
-the second option if m is chosen to be sufficiently large.
-To analyze the above algorithm, we make the following
-assumption which states that we explore sufficient number
-of states during the policy evaluation phase at each iteration.
-Assumption 1. For each k ≥ 0, rank {φ(i)}i∈Dk = d.
-We assume that the noise, wk, is bounded:
-Assumption 2. For some ε
-0 > 0, kwkk∞ ≤ ε
+and three vectors Lˆφ
 0
-,
-We also assume that the rewards are bounded.
-Assumption 3. r(i, u) ∈ [0, 1] ∀i, u.
-Using Assumption 1, Jk+1 can be written as
-Jk+1 = Φθk+1 (5)
-= Φ(Φ>
-Dk ΦDk
-)
-−1Φ
->
-Dk
-Pk
-| {z }
-=:Mk+1
-Jˆµk+1
-, (6)
-where ΦDk
-is a matrix whose rows are the feature vectors of
-the states in Dk and Pk is a matrix of zeros and ones such
-that PkJˆµk+1 is a vector whose elements are a subset of the
-elements of Jµk+1 corresponding to Dk.
-Written concisely, our algorithm is as follows:
-Jk+1 = Mk+1(T
-m
-µk+1
-T
-H−1Jk + wk), (7)
-where µk+1 is defined in step 2 of the algorithm. Note that
-wk(i) for i /∈ Dk does not affect the algorithm, so for convenience we can define wk(i) = 0 for i /∈ Dk.
-Now we will state our theorem which characterizes the
-role of lookahead (H) and return (m) on the convergence of
-approximate policy iteration with function approximation.
-Theorem 1. Suppose that m and H satisfy m + H − 1 >
-log(δ1)/ log(1/α), where
-δ1 := sup
-k
-kMkk∞ = sup
-k
-
-Φ(Φ>
-Dk ΦDk
-)
-−1Φ
->
-Dk
-Pk
-
-
-∞
-,
-then
-lim sup
-k→∞
-kJ
-µk − J
-∗
-k∞ ≤
-cm,H
-(1 − α)(1 − αH−1)
-,
-where
-cm,H := 2α
-H
- αm+αm+H−1
-1−α
-δ1 + δ2 + δ1ε
+,Lˆρ
 0
-1 − αm+H−1δ1
-+
-1
-1 − α
-+ kJ0k∞
-!
-+ ε
-and δ2 := supk,µk
-kMkJ
-µk − J
-µk k∞ .
-The proof of Theorem 1 is subsumed by the proof of Theorem 2 (presented in the next section) with minor modifications. Therefore, we will outline the modifications after the
-proof of Theorem 2 and in Appendix A.
-Theorem 1 can be used to make the following observation: how close Jµk
-is to J
-∗ depends on four factors – the
-representation power of the feature vectors and the feature
-vectors themselves (δ2, δ1), the amount of lookahead (H),
-the extent of the return (m) and the approximation in the
-policy determination and policy evaluation steps (ε and ε
+,LˆIC. We correlate them with either L~ R or L~
+T , which leads to 14 combinations to study for each of the smoothing scales we
+consider. Because we talk about the initial conditions,
+all these variables are evaluated at the Lagrangian positions of the galaxies.
+III. DATA
+In this section we present the data used in this work.
+We start by describing the initial conditions as reconstructed by the ELUCID collaboration and then introduce the data used to determine angular momenta and
+positions of galaxies.
+A. Initial conditions
+The initial density field ρini used in this work was obtained by the ELUCID collaboration, extended details
+about their methodology can be found in [42, 48].
+They first created a catalog of galaxy groups from the
+Sloan Digital Sky Survey (SDSS) data [49] and then estimated mass of each group via a luminosity-based abundance matching. After correcting for peculiar velocities,
+they only retained groups in the Northern Galactic Cap,
+redshift range 0.01 ≤ z ≤ 0.12 and with masses above
+1012M. The space was then tessellated according to
+4
+which galaxy group was the closest. Within the resulting
+sub-volumes, particles were placed randomly, in accordance with the expected density profile for halo of given
+mass. This particle distribution represents today’s density field.
+In the second step of the reconstruction, ELUCID collaboration determined the best fit initial conditions by
+repeatedly running a Particle-Mesh (PM) dynamics code
+in a Hamiltonian Monte Carlo fashion. For each random
+set of initial conditions, the PM code was used to calculate the corresponding value of today’s density field. This
+density field was compared with that determined from
+the SDSS data and their relative closeness was quantified using a predefined measure. As the PM code is inaccurate on small scales, before comparison both density
+fields were smoothed on a scale of 4 Mpc/h. Iteratively
+probing the space of initial conditions then allowed ELUCID to find the initial conditions that best describe the
+local galaxy data.
+From the best fit ρini, we use the Poisson equation to
+calculate the initial gravitational potential φini.
+In [41] we found that with Elucid ICs, galaxy spins are
+best predicted when smoothing the initial conditions with
+r ∼ 3 Mpc/h. In this work we consider this smoothing
+scale, together with r ∼ 2 Mpc/h and r ∼ 4 Mpc/h to
+allow for the possibility of a potentially different optimal
+smoothing scale for the observables studied here.
+B. Galaxy shapes
+Galaxy data used in this work were obtained by SDSS
+[4, 44] and we downloaded them from CasJobs*2. First
+we use the Galaxy Zoo classifications [50] to select only
+spiral galaxies. For each such galaxy we obtain its right
+ascension, declination, redshift, position angle and axis
+ratio. As our default combination, for the position angle
+and axis ratio we use results of the fit of the de Vaucouleurs profile to the galaxy images obtained using the
+green SDSS filter. For systematic checks we also investigate other choices. As in our previous work, we only
+consider galaxies for which the closest Elucid halo was
+at least 1012M to avoid regions with poorly determined
+ICs.
+For each galaxy, we calculate the vectors L~ R,T according to (3). The redshift and sky position then allows us to
+find each galaxy’s three-dimensional Euclidian position.
+Using the simulation ran from the optimal ICs, we then
+find the galaxy’s inverse displacement, which we use to
+calculate the Lagrangian position of the galaxy.
+Our fiducial catalog contains 50361 galaxies in the volume in which Elucid provides the initial conditions.
+*2 https://skyserver.sdss.org/CasJobs/
+TABLE I. Significances S of excess correlations in terms of
+number of standard deviations.
+Smoothing scale r
+2 h
+−1Mpc 3 h
+−1Mpc 4 h
+−1Mpc
+LRT Lˆ R 5.5 6.4 6.6
+LT T Lˆ T 0.9 0.6 0.3
+LR(Tˆ)
+2LR 4.8 4.0 2.9
+LT (Tˆ)
+2LT 2.5 2.7 2.7
+LRILˆ R 1.3 3.0 4.4
+LT ILˆ T 1.4 1.1 0.6
+LR(Iˆ)
+2LR 0.9 1.9 3.3
+LT (Iˆ)
+2LT 0.2 0.3 0.9
+|LRL
+φ
 0
-).
-Further, by examining cm,H one can see that lookahead and
-return help mitigate the effect of feature vectors and their
-ability to represent the value functions. We note that (Efroni
-et al. 2019) also consider a version of the algorithm where
-in Step 3, T
-m
-µk
-T
-H−1Jk is replaced by T
-m
-µk
-Jk. We obtain a
-performance bound for this algorithm with function approximation in Appendix B under the assumption that m is large.
-3.1 Counter-Example
-Even though, in practice, Jµk
-is what we are interested in,
-the values Jk computed as part of our algorithm should
-(a) µ
-a
-(b) µ
-b
-Figure 1: An example illustrating the necessity of the condition in Theorem 1
-not go to ∞ since the algorithm would be numerically unstable otherwise. In Appendix C, we provide a bound on
-kJk − J
-∗k∞ when m + H − 1 is sufficiently large as in
-Theorem 1. In this subsection, we show that, when this condition is not satisfied, Jk can become unbounded.
-The example we use is depicted in Figure 1. There are
-two policies, µ
-a
-and µ
-b
-and the transitions are deterministic
-under the two policies. The rewards are deterministic and
-only depend on the states. The rewards associated with states
-are denoted by r(x1) and r(x2), with r(x1) > r(x2). Thus,
-the optimal policy is µ
-a
-. We assume scalar features φ(x1) =
-1 and φ(x2) = 2.
-We fix H = 1. The MDP follows policy µ
-a when:
-Jk(x1) > Jk(x2) =⇒ θk > 2θk.
-Thus, as long as θk > 0, the lookahead policy will be µb.
-We will now show that θk increases at each iteration when
-δ1α
-m+H−1 > 1. We assume that θ0 > 0 and Dk = {1, 2}
-∀k. A straightforward computation shows that δ1 =
-6
-5
-. At
-iteration k+1,suppose µk+1 = µ
-b
-, our Jˆµk+1 (i)for i = 1, 2
-are as follows:
-Jˆµk+1 (1) = r(x1) +
-mX−1
-i=1
-r(x1)α
-i + 2α
-mθk
-Jˆµk+1 (2) = r(x2) +
-mX−1
-i=1
-r(x2)α
-i + 2α
-mθk.
-Thus, from Step 4 of Algorithm 1:
-θk+1 = arg min
-θ
-X
-2
-i=1
-
-(Φθ)(i) − Jˆµk+1 (i)
+| 3.8 3.4 2.6
+|LT L
+φ
+0
+| 1.6 2.3 1.6
+|LRL
+ρ
+0
+| 1.1 1.5 2.1
+|LT L
+ρ
+0
+| 0.2 0.7 0.4
+|LRL
+IC | 2.3 2.8 2.2
+|LT L
+IC | 0.0 1.1 2.0
+IV. RESULTS
+In Fig. 1 we show our main result - excess correlation
+between the galaxy spins L~ R,T inferred from the galaxy
+shapes and various observables built from the initial conditions. We summarize the detection significances S in
+Table I. To estimate the error bars, we shuffled R and
+α total of 40000 times, which is enough to converge the
+results to below 0.05 standard deviation.
+The strongest correlation we find is with the tidal
+tensor Tˆ, which is significant for all three investigated
+smoothing scales r. We also see strong excess correlation between the galaxy spins and 
+Tˆ
 2
-=⇒ θk+1 =
-Pm−1
-i=1 α
-i
-r(x1)
+smoothed with
+r = 2 h
+−1Mpc and r = 3 h
+−1Mpc and ˆI smoothed with
+r = 4 h
+−1Mpc. No other correlations reach 4σ significance.
+We perform several tests to check for systematics. First
+we repeat the calculations assuming all galaxies have intrinsic flatness p = 0.1. This does not lead to any significant change in the results and neither does assuming p = 0.2. As an alternative study of the effect of
+the galaxy thickness, we uniformly redistribute all R in
+the interval [0, 1] while keeping their original ordering
+[8]. Simultaneously we perform the same procedure on
+α. Typical detection significance after this “isotropizing”
+rearrangement increases slightly, and no significance decreases by more than ∼ 0.1 standard deviation. Similar
+situation repeats when we use axis ratios and position angles from fits to the images obtained with the red SDSS
+filter: overall increase of the significances, with decreases
+of no more than ∼ 0.15 standard deviations.
+The most dramatic change is observed when we use
 5
-+
-2
-Pm−1
-i=1 α
-i
-r(x2)
-5
-+
-6α
-mθk
-5
-=⇒ θk+1 >
-6
-5
-α
-mθk.
-Thus, since θ0 > 0 and H = 1, when 6
-5
-α
-m+H−1
-θk =
-δ1α
-m+H−1 > 1, θk goes to ∞.
-3.2 Numerical Results
-In this section, we study the convergence behavior of our
-algorithm, including the impact of the choice of feature vectors. We present some of our experimental results; for our
-complete set of results, refer to Appendix H.
-As in (Efroni et al. 2018a) and (Efroni et al. 2019), we
-assume a deterministic grid world problem played on an
-N × N grid. The states are the squares of the grid and the
-actions are {’up’, ’down’, ’right’, ’left’, and ’stay’}, which
-move the agent in the prescribed direction, if possible. In
-each experiment, a goal state is chosen uniformly at random
-to have a reward of 1, while every other state has a fixed
-reward drawn uniformly from [−0.1, 0.1]. For our experiments, N = 25 and α = 0.9. We implemented Algorithm 1
-for two particular choices of feature vector:
-1. Random feature vectors (dimension 20): each entry of the
-matrix Φ is an independent N (0, 1) random variable.
-2. Designed feature vectors: the feature vector for a state
-whose coordinates are (x, y) is [x, y, d, 1]T
-, where d is
-the number of steps required to reach the goal from state
-(x, y).
-For each choice of feature vectors, we varied H and m
-while keeping the other parameter constant at H = 3 or
-m = 3, and plotted the error kJk − J
-∗k∞ for each iteration
-k, averaged over ten trials for each value of H and m. As
-seen in Figure 2, although Jk diverges for small values of H
-and m, for sufficiently large values of m+H, the value function converges to a region around the optimal solution. Recall that our theorems suggest that the amount of lookahead
-and return depends on the choice of the feature vectors. Our
-experiments support this observation as well. The amount of
-lookahead and m-step return required is high (often over 30)
-for random feature vectors, but we are able to significantly
-reduce the amount required by using the designed feature
-vectors which better represent the states.
-4 Gradient Descent Algorithm
-Solving the least-squares problem in Algorithm 1 involves
-a matrix inversion, which can be computationally difficult if
-the dimension of the feature vectors is large. So we propose
-an alternative algorithm which performs one step of gradient
-descent at each iteration, where the gradient refers to the
-gradient of the least-squares objective in (4). The gradient
-descent-based algorithm is presented in Algorithm 2.
-In order to present our main result for the gradient descent
-version of our algorithm, we define θ
-µk for any policy µk as
-follows:
-θ
-µk
-:= arg min
-θ
-1
-2
-kΦDk
-θ − PkJ
-µk k
-2
-2
-. (9)
-In other words, θ
-µk represents the function approximation
-of J
-µk . We also define another quantity ˜θ
-µk which will be
-used in the proof of the theorem:
-˜θ
-µk
-:= arg min
-θ
-1
-2
-
-ΦDk
-θ − Pk(T
-m
-µk
+L
+R
+ˆ
+T L
+R
+L
 T
-H−1Jk−1 + wk)
-
-
-2
-2
-= arg min
-θ
-1
-2
-
-ΦDk
-θ − Pk(T
-m
-µk
+ˆ
+T L
 T
-H−1Φθk−1 + wk)
-
-
-2
-2
-.
-Thus, ˜θ
-µk represents the function approximation of the estimate of J
-µk obtained from the m-step rollout.
-We now present our main result:
-Figure 2: (Top) For random feature vectors, as m and H
-increase, the value Jk eventually stops diverging. (Bottom)
-For designed feature vectors, a smaller amount of lookahead
-and m-step return are needed to prevent Jk from diverging.
-Theorem 2. Suppose that Assumptions 1-3 hold and further,
-γ, m, and H satisfy
-α
-0 + (1 + α
-0
-)α
-m+H−1
-δ
-0
-1 < 1,
-where
-α
-0
-:= sup
-k
-
-I − γΦ
->
-Dk ΦDk
-
-
-2
-, and
-δ
-0
-1
-:= sup
-k
-kΦk∞
-
-
-
-
-
-Φ
->
-Dk ΦDk
-−1
-Φ
->
-Dk
-Pk
-
-
-
-
-∞
-.
-Then
-lim sup
-k→∞
-kJ
-µk − J
-∗
-k∞ ≤
-cm,H,γ
-(1 − α)(1 − αH−1)
-,
-where
-cm,H,γ := 2α
-H
-"
-kΦk∞ um,H,γ + δ
-0
-2
-#
-+ ε,
-where
-δ
-0
-2
-:= sup
-k,µk
-kΦθ
-µk − J
-µk k∞ , C :=
-σmin,Φ
-1 − α
-+ 2σmin,Φδ
-0
-2 and
-um,H,γ
-:=
-α
-0C + (1 + α
-0
+L
+R
+(
+ˆT
 )
-h
-α
-m δ
-0
-1
-kΦk∞
-
-1+α
-H−1
-1−α + α
-H−1
-δ
-0
 2
-!
-+ ε
-0
-i
-1 −
-
-α0 + (1 + α0)αm+H−1δ
-0
-1
-
-+ sup
-k,µk
-kθ
-µk k∞ + kθ0k .
-Algorithm 2: Gradient Descent Algorithm
-Input: θ0, m, H, feature vectors {φ(i)}i∈S , φ(i) ∈ R
-d
-, and
-Dk, which is the set of states for which we evaluate the
-current policy at iteration k.
-1: k = 0, J0 = Φθ0.
-2: Let µk+1 be such that
-
+L
+R
+L
 T
-HJk − Tµk+1 T
-H−1Jk
-
-
-∞
-≤
-ε.
-3: Compute Jˆµk+1 (i) = T
-m
-µk+1
-T
-H−1Jk(i) + wk+1(i) for
-i ∈ Dk.
-4:
-θk+1 = θk − γ∇θc(θ; Jˆµk+1 ) (8)
-where
-c(θ; Jˆµk+1 ) := min
-θ
-1
-2
-X
-i∈Dk
-
-(Φθ)(i) − Jˆµk+1 (i)
-2
-.
-5: Jk+1 = Φθk+1.
-6: Set k ← k + 1. Go to 2.
-Note that by choosing a step-size γ that is sufficiently
-small, one can ensure that the condition on α
-0
-is satisfied.
-Proof. The proof of Theorem 2 is somewhat involved, so we
-outline the steps of the proof before each step of the proof.
-Step 1
-In this step, since θk+1 is obtained by taking a step of gradient descent towards ˜θ
-µk+1 beginning from θk, we will show
-the following property:
-
-
-
-θk+1 − ˜θ
-µk+1
-
-
-
-∞
-≤ α
-0
-
-
-
-θk − ˜θ
-µk+1
-
-
-
-∞
-.
-Proof of Step 1: Recall that the iterates in Equation (8) can
-be written as follows:
-θk+1 = θk − γ∇θc(θ; Jˆµk+1 )
-= θk − γ
-
-Φ
->
-Dk ΦDk
-θk − Φ
->
-Dk
-Pk(T
-m
-µk+1
-T
-H−1Jk
-+ wk)
-
-.
-Since
-0 = ∇θc(θ; Jˆµk+1 )|
-θ˜µk+1
-= Φ>
-Dk ΦDk
-˜θ
-µk+1 − Φ
->
-Dk
-Pk(T
-m
-µk+1
-T
-H−1Jk + wk),
-we have the following:
-θk+1 = θk − γ
-
-Φ
->
-Dk ΦDk
-θk − Φ
->
-Dk ΦDk
-˜θ
-µk+1
-− Φ
->
-Dk
-Pk(T
-m
-µk+1
-T
-H−1Jk + wk)
-+ Φ>
-Dk
-Pk(T
-m
-µk+1
-T
-H−1Jk + wk)
-
-= θk − γΦ
->
-Dk ΦDk
-(θk − ˜θ
-µk+1 ).
-Subtracting ˜θ
-µk+1 from both sides gives:
-θk+1 − ˜θ
-µk+1 = θk − ˜θ
-µk+1 − γΦ
->
-Dk ΦDk
-(θk − ˜θ
-µk+1 )
-= (I − γΦ
->
-Dk ΦDk
-)(θk − ˜θ
-µk+1 ).
-Thus,
-
-
-
-θk+1 − ˜θ
-µk+1
-
-
-
-∞
-=
-
-
-(I − γΦ
->
-Dk ΦDk
-)(θk − ˜θ
-µk+1 )
-
-
-
-∞
-=
-
-(I − γΦ
->
-Dk ΦDk
+(
+ˆT
 )
-
-
-∞
-
-
-
-θk − ˜θ
-µk+1
-
-
-
-∞
-≤
-
-(I − γΦ
->
-Dk ΦDk
+2
+L
+T
+L
+R
+ˆ
+IL
+R
+L
+T
+ˆ
+IL
+T
+L
+R
+(
+ˆI
 )
-
-
 2
-
-
-
-θk − ˜θ
-µk+1
-
-
-
-∞
-≤ sup
-k
-
-I − γΦ
->
-Dk ΦDk
-
-
-2
-| {z }
-=:α0
-
-
-
-θk − ˜θ
-µk+1
-
-
-
-∞
-.
-Step 2 Using the previous step in conjunction with contraction properties of the Bellman operators, we will show the
-following:
-kθk − θ
-µk k∞
-≤
-
-α
-0 + (1 + α
-0
-)α
-m+H−1
-δ
-0
-1
-
-kθk−1 − θ
-µk−1 k∞ + α
-0C
-+ (1 + α
-0
+L
+R
+L
+T
+(
+ˆI
 )
-h
-α
-m δ
-0
-1
-kΦk∞
-
-1 + α
-H−1
-1 − α
-+ α
-H−1
-δ
-0
 2
-!
-+ ε
+L
+T
+|L
+R
+ˆL
+φ
 0
-i
-.
-We will iterate over k to get a bound on kθk − θ
-µk k∞ that
-does not depend on k.
-Proof of Step 2
-We have the following:
-kθk − θ
-µk k∞ ≤
-
-
-
-θk − ˜θ
-µk
-
-
-
-∞
-+
-
-
-
-˜θ
-µk − θ
-µk
-
-
-
-∞
-≤ α
+|
+|L
+T
+ˆL
+φ
 0
-kθk−1 − θ
-µk k∞ + α
+|
+|L
+R
+ˆL
+ρ
 0
-
-
-
-˜θ
-µk − θ
-µk
-
-
-
-∞
-+
-
-
-
-˜θ
-µk − θ
-µk
-
-
-
-∞
-≤ α
+|
+|L
+T
+ˆL
+ρ
 0
-kθk−1 − θ
-µk−1 k∞
-+ α
+|
+|L
+R
+ˆLIC|
+|L
+T
+ˆLIC
+−3×10 |
+−3
+−2×10−3
+−1×10−3
 0
-kθ
-µk − θ
-µk−1 k∞
-+ (1 + α
-0
-)
-
-
-
-˜θ
-µk − θ
-µk
-
-
-
-∞
-(10)
-In order to further bound (10), we introduce the following
-lemmas:
-Lemma 1.
-kθ
-µk−1 − θ
-µk k∞ ≤
-σmin,Φ
-1 − α
-+ 2σmin,Φδ
-0
+10−3
+2×10−3
+3×10−3
+4×10−3
+Excess over random, hVi −
+¯V
+2 h
+−1Mpc 3 h
+−1Mpc 4 h
+−1Mpc
+FIG. 1. Excess correlations of galaxy spins with various vectors and tensors derived from the initial conditions. Different colors
+represent different smoothing scales r used to calculate the vectors and tensors.
+galaxy shapes obtained by fitting the exponential profile
+to the galaxy images, instead of the de Vaucouleurs one.
+The detection significance of LRT Lˆ R, the observable we
+detect with the highest significance, drops by almost a
+full standard deviation and for the three smoothing scales
+ends up in the 4.9 – 5.7 σ range. The other correlations
+are only changed within ±0.2σ.
+We take 5.7σ as a conservative estimate of the maximal discovered correlation. Because of the look-elsewhere
+effect, it is not possible to claim a 5.7σ detection of correlation between the galaxy shapes and the initial condition
+given we investigate 42 different variables (listed in Table I). The overall detection significance can be bounded
+from below by calculating the probability of finding 5.7σ
+or larger effect among 42 independent observations. It is
+P = 1 −
+Z 5.7
+−5.7
+exp(−x
+2/2)
+√
+2π
+dx
+42
+= 5 × 10−7
+, (15)
+which corresponds to ∼ 5σ.
+Correlations between the variables increase the detection significance, so to get a better estimate we take the
+covariance of the various observables V into account. We
+estimate this covariance from the random reshuffling of
+R and α we used earlier to calculate σ
 2
-| {z }
-=:C
-,
-where σmin,Φ is the smallest singular value in the singular
-value decomposition of Φ.
-Lemma 2.
-
-
-
-θ
-µk − ˜θ
-µk
-
-
-
-∞
-≤
-δ
-0
-1
-ε
-0
-kΦk∞
-+ α
-m δ
-0
-1
-kΦk∞
-
-1 + α
-H−1
-1 − α
-+ α
-H−1
-δ
-0
-2
-!
-+ α
-m+H−1
-δ
-0
-1 kθ
-µk−1 − θk−1k∞ .
-The proofs of these lemmas can be found in Appendix D
-and Appendix E. Using lemmas 1 and 2 in (10), we have:
-kθk − θ
-µk k∞
-≤ α
-0
-kθk−1 − θ
-µk−1 k∞ + α
-0C + (1 + α
-0
-)
-"
-δ
-0
-1
-ε
-0
-kΦk∞
-+ α
-m δ
-0
-1
-kΦk∞
-
-1 + α
-H−1
-1 − α
-+ α
-H−1
-δ
-0
-2
-!
-+ α
-m+H−1
-δ
-0
-1 kθ
-µk−1 − θk−1k∞
-#
-≤
-
-α
-0 + (1 + α
-0
-)α
-m+H−1
-δ
-0
-1
-
-kθk−1 − θ
-µk−1 k∞ + α
-0C
-+ (1 + α
-0
-)
-h
-α
-m δ
-0
-1
-kΦk∞
-
-1 + α
-H−1
-1 − α
-+ α
-H−1
-δ
-0
-2
-!
-+ ε
-0
-i
-.
-Iterating over k, we get that for all k,
-kθk − θ
-µk k∞
-≤
-α
-0C + (1 + α
-0
-)
-h
-α
-m δ
-0
-1
-kΦk∞
-
-1+α
-H−1
-1−α + α
-H−1
-δ
-0
-2
-!
-+ ε
-0
-i
-1 −
-
-α0 + (1 + α0)αm+H−1δ
-0
-1
-
-| {z }
-=:um,H,γ
-+ sup
-k,µk
-kθ
-µk k∞ + kθ0k , (11)
-where we have used the fact that α
-0 + (1+α
-0
-)α
-m+H−1
-δ
-0
-1 <
-1 from the assumption in the statement of Theorem 2 and
-the fact that kJ
-µ0 k∞ ≤ 1/(1 − α) due to Assumption 3.
-Step 3
-Since Jk = Φθk and Φθ
-µk is the best approximation in R
-d
-of J
-µk , we will show the following bounds:
-kJ
-µk − Jkk∞ ≤ kΦk∞ kθk − θ
-µk k∞ + δ
-0
-2
-.
-Using the previous step, we will get a bound on
-kJ
-µk − Jkk∞ that does not depend on k.
-Proof of Step 3
-kJ
-µk − Jkk∞
-= kΦθk − J
-µk k∞ (12)
-≤ kΦθk − Φθ
-µk k∞ + kΦθ
-µk − J
-µk k∞
-≤ kΦk∞ kθk − θ
-µk k∞ + δ
-0
-2
-≤ kΦk∞
-"
-um,H,γ + sup
-k,µk
-kθ
-µk k∞ + kθ0k
-#
-+ δ
-0
-2
-| {z }
-=:pm,H,γ
-, (13)
-where the last step follows from applying our bound for
-kθk − θ
-µk k∞ in (11).
-Step 4
-We will establish the following bound on Tµk+1 T
-H−1J
-µk
-using the contraction property of Bellman operators and
-property in (3):
-Tµk+1 T
-H−1J
-µk ≤ 2α
-H kJ
-µk − Jkk∞ e + T
-H−1J
-µk + εe
-≤ T
-H−1J
-µk + 2α
-Hpm,H,γe + εe,
-where the last inequality above follows from the definition
-of pm,H,γ in the previous step. Using properties in (3) and
-monotonicity, we will repeatedly apply Tµk+1 to both sides
-and take limits to obtain the following:
-J
-µk+1 − T
-H−1J
-µk ≤
-cm,H,γe
-1 − α
-.
-Proof of Step 4
-Tµk+1 T
-H−1J
-µk = Tµk+1 T
-H−1J
-µk − Tµk+1 T
-H−1Jk
-+ Tµk+1 T
-H−1Jk
-(a)
-≤ α
-H kJ
-µk − Jkk∞ e + Tµk+1 T
-H−1Jk
-≤ α
-H kJ
-µk − Jkk∞ e + T
-HJk + εe
-= α
-H kJ
-µk − Jkk∞ e + T
-HJk − T
-HJ
-µk
-+ T
-HJ
-µk + εe
-(b)
-≤ 2α
-H kJ
-µk − Jkk∞ e + T
-HJ
-µk + εe
-≤ 2α
-H kJ
-µk − Jkk∞ e + T
-H−1J
-µk + εe
-≤ T
-H−1J
-µk + 2α
-Hpm,H,γe + εe.
-The rest of the proof is similar to the arguments in (Bertsekas and Tsitsiklis 1996), (Bertsekas 2019); however, we
-have to explicitly incorporate the role of lookahead (H) in
-the remaining steps of the proof.
-Suppose that we apply the Tµk+1 operator ` − 1 times to
-both sides. Then, due to monotonicity and the fact Tµ(J +
-ce) = Tµ(J)+αce, for any policy µ, we have the following:
-T
-`
-µk+1
-T
-H−1J
-µk ≤ α
-`−1
-cm,H,γe + T
-`−1
-µk+1
-T
-H−1J
-µk
-.
-Using a telescoping sum, we get the following inequality:
-T
-j
-µk+1
-T
-H−1J
-µk − T
-H−1J
-µk ≤
-X
-j
-`=1
-α
-`−1
-cm,H,γe.
-Taking the limit as j → ∞ on both sides, we have the
-following:
-J
-µk+1 − T
-H−1J
-µk ≤
-cm,H,γe
-1 − α
-.
-The rest of proof is straightforward. Subtract J
-∗
-from both
-sides of the previous inequality and using the contraction
-property of T, we get
-J
-µk+1 − J
-∗ ≤ α
-H−1
-kJ
-µk − J
-∗
-k∞ e +
-cm,H,γe
-1 − α
-.
-Iterating over k, we get Theorem 2.
-Remark 1. As mentioned earlier, the proof of Theorem 1 is
-essentially a special case of Theorem 2 with small modifications. The proof of Theorem 1 skips Steps 1 and 2 and instead
-uses techniques in Lemma 3 (see Appendix A) to obtain an
-analogous result to Step 3. The rest of the proof (Steps 4-6)
-follows except with pm,H (defined in the proof of Theorem
-1) in place of pm,H,γ as defined in Step 3.
-5 Related Work
-In the introduction, we compared our results to those in
-(Efroni et al. 2019). Now, we compare our work to other
-papers in the literature. It is worth noting that (Efroni et al.
-2019) builds on a lot of ideas in (Efroni et al. 2018a). The
-role of lookahead and return in improving the performance
-of RL algorithms has also been studied in a large number
-of papers including (Moerland, Broekens, and Jonker 2020;
-Efroni, Ghavamzadeh, and Mannor 2020; Tomar, Efroni,
-and Ghavamzadeh 2020; Efroni et al. 2018b; Springenberg et al. 2020; Deng et al. 2020). The works of (Baxter,
-Tridgell, and Weaver 1999; Veness et al. 2009; Lanctot et al.
-2014) explore the role of tree search in RL algorithms. However, to the best of our knowledge, the amount of lookahead
-and return needed as a function of the feature vectors has not
-been quantified in prior works.
-Approximate policy iteration is a well studied topic, see
-(Bertsekas and Tsitsiklis 1996; Bertsekas 2019; Puterman
-and Shin 1978; Lesner and Scherrer 2015), for example.
-However, since their models do not involve a scheme for approximating the value function at each iteration, the role of
-the depth of lookahead (H) and return (m) cannot be quantified using their works. It is important to note that our work is
-different from least squares policy iteration (LSPI), which is
-a common means of obtaining function approximation parameters from value function estimates. While one of our
-algorithms used least squares estimates, our work more importantly analyzes the use of lookahead and m-step return,
-which are employed prior to the least squares step of the algorithm.
-The works of (Bertsekas 2011) and (Bertsekas 2019) also
-study a variant of policy iteration wherein a greedy policy is
-evaluated approximately using feature vectors at each iteration. These papers also provides rates of convergence as well
-as a bound on the approximation error. However, our main
-goal is to understand the relations between function approximation and lookahead/return which are not considered in
-these other works.
-6 Conclusion
-We show that a minimum threshold for the lookahead and
-corresponding policy return must be met for algorithms with
-function approximation based approximate policy iteration
-to converge. In particular, we show that if one uses function approximation in conjunction with an m-step return
-of an H-step lookahead policy without the T
-H−1
-factor in
-the iterates, the m + H must be sufficiently large. Our results have been derived for two different implementations of
-the function approximation algorithm: by solving the least
-squares problem or by one step of gradient descent of the
-least squares objective in each iteration.
-As mentioned in the introduction, it would be interesting
-to extend our work to study neural network based function
-approximation. Additionally, for problems with a terminal
-state, it would be interesting to consider cases where the
-value function of a given policy is estimated using a full
-rollout which provides an unbiased estimate as in (Tsitsiklis
-2002).
-7 Acknowledgements
-The research presented here was supported in part by a
-grant from Sandia National Labs 1
-and the NSF Grants CCF
-1934986, CCF 1704970, ONR Grant N00014-19-1-2566,
-NSF/USDA Grant AG 2018-67007-28379, and ARO Grant
-W911NF-19-1-0379.
-1
-Sandia National Laboratories is a multimission laboratory
-managed and operated by National Technology & Engineering Solutions of Sandia, LLC, a wholly owned subsidiary of Honeywell
-International Inc., for the U.S. Department of Energy’s National
-Nuclear Security Administration under contract DE-NA0003525.
-This paper describes objective technical results and analysis. Any
-subjective views or opinions that might be expressed in the paper
-do not necessarily represent the views of the U.S. Department of
-Energy or the United States Government.
-References
-Baxter, J.; Tridgell, A.; and Weaver, L. 1999. TDLeaf(lambda): Combining Temporal Difference Learning with Game-Tree
-Search. CoRR, cs.LG/9901001.
-Bertsekas, D. 2011. Approximate policy iteration: a survey and some new methods. Journal of Control Theory and Applications,
-9: 310–335.
-Bertsekas, D.; and Tsitsiklis, J. 1996. Neuro-dynamic Programming. Athena Scientific. ISBN 9781886529106.
-Bertsekas, D. P. 2019. Reinforcement learning and optimal control. Athena Scientific Belmont, MA.
-Browne, C.; Powley, E.; Whitehouse, D.; Lucas, S.; Cowling, P.; Rohlfshagen, P.; Tavener, S.; Perez Liebana, D.; Samothrakis,
-S.; and Colton, S. 2012. A Survey of Monte Carlo Tree Search Methods. IEEE Transactions on Computational Intelligence
-and AI in Games, 4:1: 1–43.
-Cao, Y.; and Gu, Q. 2019. Generalization bounds of stochastic gradient descent for wide and deep neural networks. Advances
-in Neural Information Processing Systems, 32: 10836–10846.
-Deng, H.; Yin, S.; Deng, X.; and Li, S. 2020. Value-based Algorithms Optimization with Discounted Multiple-step Learning
-Method in Deep Reinforcement Learning. In 2020 IEEE 22nd International Conference on High Performance Computing and
-Communications; IEEE 18th International Conference on Smart City; IEEE 6th International Conference on Data Science and
-Systems (HPCC/SmartCity/DSS), 979–984.
-Efroni, Y.; Dalal, G.; Scherrer, B.; and Mannor, S. 2018a. Beyond the One Step Greedy Approach in Reinforcement Learning.
-CoRR, abs/1802.03654.
-Efroni, Y.; Dalal, G.; Scherrer, B.; and Mannor, S. 2018b. Multiple-Step Greedy Policies in Online and Approximate Reinforcement Learning. arXiv:1805.07956.
-Efroni, Y.; Dalal, G.; Scherrer, B.; and Mannor, S. 2019. How to Combine Tree-Search Methods in Reinforcement Learning.
-arXiv:1809.01843.
-Efroni, Y.; Ghavamzadeh, M.; and Mannor, S. 2020. Online Planning with Lookahead Policies. Advances in Neural Information
-Processing Systems, 33.
-Jacot, A.; Gabriel, F.; and Hongler, C. 2018. Neural tangent kernel: Convergence and generalization in neural networks. arXiv
-preprint arXiv:1806.07572.
-Kocsis, L.; and Szepesvari, C. 2006. Bandit Based Monte-Carlo Planning. volume 2006, 282–293. ISBN 978-3-540-45375-8. ´
-Lanctot, M.; Winands, M. H. M.; Pepels, T.; and Sturtevant, N. R. 2014. Monte Carlo Tree Search with Heuristic Evaluations
-using Implicit Minimax Backups. arXiv:1406.0486.
-Lesner, B.; and Scherrer, B. 2015. Non-Stationary Approximate Modified Policy Iteration.
-Mnih, V.; Badia, A. P.; Mirza, M.; Graves, A.; Lillicrap, T. P.; Harley, T.; Silver, D.; and Kavukcuoglu, K. 2016. Asynchronous
-Methods for Deep Reinforcement Learning. CoRR, abs/1602.01783.
-Moerland, T. M.; Broekens, J.; and Jonker, C. M. 2020. A Framework for Reinforcement Learning and Planning.
-arXiv:2006.15009.
-Puterman, M.; and Shin, M. C. 1978. Modified Policy Iteration Algorithms for Discounted Markov Decision Problems. Management Science, 24: 1127–1137.
-Shah, D.; Xie, Q.; and Xu, Z. 2020. Non-Asymptotic Analysis of Monte Carlo Tree Search. arXiv:1902.05213.
-Silver, D.; Hubert, T.; Schrittwieser, J.; Antonoglou, I.; Lai, M.; Guez, A.; Lanctot, M.; Sifre, L.; Kumaran, D.; Graepel, T.;
-Lillicrap, T. P.; Simonyan, K.; and Hassabis, D. 2017a. Mastering Chess and Shogi by Self-Play with a General Reinforcement
-Learning Algorithm. CoRR, abs/1712.01815.
-Silver, D.; Schrittwieser, J.; Simonyan, K.; Antonoglou, I.; Huang, A.; Guez, A.; Hubert, T.; Baker, L.; Lai, M.; Bolton, A.;
-et al. 2017b. Mastering the game of go without human knowledge. Nature, 550(7676): 354–359.
-Springenberg, J. T.; Heess, N.; Mankowitz, D.; Merel, J.; Byravan, A.; Abdolmaleki, A.; Kay, J.; Degrave, J.; Schrittwieser, J.;
-Tassa, Y.; et al. 2020. Local search for policy iteration in continuous control. arXiv preprint arXiv:2010.05545.
-Sutton, R. S.; and Barto, A. G. 2018. Reinforcement Learning: An Introduction. The MIT Press, second edition.
-Tomar, M.; Efroni, Y.; and Ghavamzadeh, M. 2020. Multi-step Greedy Reinforcement Learning Algorithms. arXiv:1910.02919.
-Tsitsiklis, J. N. 2002. On the convergence of optimistic policy iteration. Journal of Machine Learning Research, 3(Jul): 59–72.
-Tsitsiklis, J. N.; and van Roy, B. 1994. Feature-Based Methods For Large Scale Dynamic Programming. In Machine Learning,
-59–94.
-Veness, J.; Silver, D.; Uther, W.; and Blair, A. 2009. Bootstrapping from Game Tree Search. 1937–1945.
-A Proof of Theorem 1
-Proof. Consider policies µk and µk+1, where µ0 can be taken to be any arbitrary policy. We have the following:
-Tµk+1 T
-H−1J
-µk = Tµk+1 T
-H−1J
-µk − Tµk+1 T
-H−1Jk
-+ Tµk+1 T
-H−1Jk
-(a)
-≤ α
-H kJ
-µk − Jkk∞ e + Tµk+1 T
-H−1Jk
-≤ α
-H kJ
-µk − Jkk∞ e + T
-HJk + εe
-= α
-H kJ
-µk − Jkk∞ e (14)
-+ T
-HJk − T
-HJ
-µk + T
-HJ
-µk + εe
-(b)
-≤ 2α
-H kJ
-µk − Jkk∞ e + T
-HJ
-µk + εe
-≤ 2α
-H kJ
-µk − Jkk∞ e + T
-H−1J
-µk + εe, (15)
-where e is the vector of all 1s, (a) and (b) follow from the contraction property of T
-H and Tµk+1 and the last inequality follows
-from standard arguments using the monotonicity properties and the definition of T: specifically, note that
-T Jµ = min
-µ0
-Tµ0J
-µ ≤ TµJ
-µ = J
-µ
-,
-and repeatedly apply T to both sides of the inequality and use monotonocity to obtain T
-`J
-µ ≤ T
-`−1J
-µ for all ` and all policies
-µ.
-We can further bound kJ
-µk − Jkk as follows:
-Lemma 3.
-kJ
-µk − Jkk ≤ α
-m+H−1
-δ1 kJk−1 − J
-µk−1 k∞
-+
-α
-m + α
-m+H−1
-1 − α
-δ1 + δ2 + δ1ε
-0
-.
-Proof.
-kJ
-µk − Jkk =
-
-Mk(T
-m
-µk
-T
-H−1Jk−1 + wk) − J
-µk
-
-
-∞
-≤
-
-MkT
-m
-µk
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ kMkwkk∞
-≤
-
-MkT
-m
-µk
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ kMkk∞ kwkk∞
-≤
-
-MkT
-m
-µk
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ1ε
-0
-=
-
-MkT
-m
-µk
-T
-H−1Jk−1 − MkJ
-µk + MkJ
-µk − J
-µk
-
-
-∞
-+ δ1ε
-0
-≤
-
-MkT
-m
-µk
-T
-H−1Jk−1 − MkJ
-µk
-
-
-∞
-+ kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ kMkk∞
-
-T
-m
-µk
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-m kMkk∞
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ sup
-k,µk
-kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-m kMkk∞
-
-T
-H−1Jk−1 − J
-∗ + J
-∗ − J
-µk
-
-
-∞
-+ sup
-k,µk
-kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-m kMkk∞
-
-T
-H−1Jk−1 − J
-∗
-
-
-∞
-+ α
-m kMkk∞ kJ
-∗ − J
-µk k∞ + sup
-k,µk
-kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-m+H−1
-kMkk∞ kJk−1 − J
-∗
-k∞ +
-α
-m
-1 − α
-kMkk∞ + sup
-k,µk
-kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-m+H−1
-kMkk∞ kJk−1 − J
-µk−1 + J
-µk−1 − J
-∗
-k∞ +
-α
-m
-1 − α
-kMkk∞ + sup
-k,µk
-kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-m+H−1
-kMkk∞ kJk−1 − J
-µk−1 k∞ +
-α
-m + α
-m+H−1
-1 − α
-kMkk∞ + sup
-k,µk
-kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-m+H−1
-δ1 kJk−1 − J
-µk−1 k∞ +
-α
-m + α
-m+H−1
-1 − α
-δ1 + δ2 + δ1ε
-0
-.
-Iterating over k we get that for all k,
-kJ
-µk − Jkk∞
-≤
-αm+αm+H−1
-1−α
-δ1 + δ2 + δ1ε
-0
-1 − αm+H−1δ1
-+
-1
-1 − α
-+ kJ0k∞
-| {z }
-=:pm,H
-, (16)
-where we have used the assumption α
-m+H−1
-δ1 < 1 and the fact that kJ
-µ0 k∞ ≤ 1/(1 − α) due to Assumption 3.
-Putting (15) and (16) together, we have the following:
-Tµk+1 T
-H−1J
-µk ≤
-"
-2α
-H
-
-pm,H
-+ ε
-#
-| {z }
-=:cm,H
-e + T
-H−1J
-µk
-. (17)
-The rest of the proof is similar to the arguments in (Bertsekas and Tsitsiklis 1996), (Bertsekas 2019); however, we have to
-explicitly incorporate the role of lookahead (H) in the remaining steps of the proof.
-Suppose that we apply the Tµk+1 operator ` − 1 times to both sides. Then, due to monotonicity and the fact Tµ(J + ce) =
-Tµ(J) + αce, for any policy µ, we have the following:
-T
-`
-µk+1
-T
-H−1J
-µk ≤ α
-`−1
-cm,He + T
-`−1
-µk+1
-T
-H−1J
-µk
-.
-Using a telescoping sum, we get the following inequality:
-T
-j
-µk+1
-T
-H−1J
-µk − T
-H−1J
-µk ≤
-X
-j
-`=1
-α
-`−1
-cm,He.
-Taking the limit as j → ∞ on both sides, we have the following:
-J
-µk+1 − T
-H−1J
-µk ≤
-cm,He
-1 − α
-.
-Rearranging terms and subtracting J
-∗
-from both sides, we get the following:
-J
-µk+1 − J
-∗ ≤ T
-H−1J
-µk − J
-∗ +
-cm,He
-1 − α
-= T
-H−1J
-µk − T
-H−1J
-∗ +
-cm,He
-1 − α
-≤ α
-H−1
-kJ
-µk − J
-∗
-k∞ e +
-cm,He
-1 − α
-.
-Since J
-∗ ≤ J
-µk+1
-, we have the following:
-kJ
-µk+1 − J
-∗
-k∞ ≤ α
-H−1
-kJ
-µk − J
-∗
-k∞ +
-cm,H
-1 − α
-. (18)
-Iterating over k and taking limits, we get Theorem 1.
-B A Modified Least Squares Algorithm
-Suppose Step 3 of Algorithm 1 is changed to Jˆµk+1 (i) = T
-m
-µk+1
-(Jk)(i) + wk+1(i) for i ∈ Dk. Then, it is still possible to
-get bounds on the performance of the algorithm when m is sufficiently large. With this modification to the algorithm, when
-Assumptions 1, 2, and 3 hold, we have the following:
-Theorem 3. Suppose that m satisfies m > log(δ1)/ log(1/α), where
-δ1 := sup
-k
-kMkk∞ = sup
-k
-
-Φ(Φ>
-Dk ΦDk
-)
-−1Φ
->
-Dk
-Pk
-
-
-∞
-,
-then
-lim sup
-k→∞
-kJ
-µk − J
-∗
-k∞ ≤
-c˜m,H
-(1 − α)(1 − αH−1)
-,
-where
-c˜m,H := 2α
-H
- αm
-1−α
-δ1 + δ2 + δ1ε
-0
-1 − αmδ1
-+
-1
-1 − α
-+ kJ0k∞
-!
-+ ε
-and δ2 := supk,µk
-kMkJ
-µk − J
-µk k∞ .
-The proof of Theorem 3 is as follows:
-Proof. Consider policies µk and µk+1, where µ0 can be taken to be any arbitrary policy. We have the following:
-Tµk+1 T
-H−1J
-µk = Tµk+1 T
-H−1J
-µk − Tµk+1 T
-H−1Jk + Tµk+1 T
-H−1Jk
-(a)
-≤ α
-H kJ
-µk − Jkk∞ e + Tµk+1 T
-H−1Jk
-≤ α
-H kJ
-µk − Jkk∞ e + T
-HJk + εe
-= α
-H kJ
-µk − Jkk∞ e + T
-HJk − T
-HJ
-µk + T
-HJ
-µk + εe
-(b)
-≤ 2α
-H kJ
-µk − Jkk∞ e + T
-HJ
-µk + εe
-≤ 2α
-H kJ
-µk − Jkk∞ e + T
-H−1J
-µk + εe, (19)
-where e is the vector of all 1s, (a) and (b) follow from the contraction property of T
-H and Tµk+1 and the last inequality follows
-from standard arguments using the monotonicity properties and the definition of T: specifically, note that
-T Jµ = min
-µ0
-Tµ0J
-µ ≤ TµJ
-µ = J
-µ
-,
-and repeatedly apply T to both sides of the inequality and use monotonocity to obtain T
-`J
-µ ≤ T
-`−1J
-µ for all ` and all policies
-µ.
-We can further bound kJ
-µk − Jkk as follows:
-kJ
-µk − Jkk =
-
-Mk(T
-m
-µk
-Jk−1 + wk) − J
-µk
-
-
-∞
-≤
-
-MkT
-m
-µk
-Jk−1 − J
-µk
-
-
-∞
-+ kMkwkk∞
-≤
-
-MkT
-m
-µk
-Jk−1 − J
-µk
-
-
-∞
-+ kMkk∞ kwkk∞
-≤
-
-MkT
-m
-µk
-Jk−1 − J
-µk
-
-
-∞
-+ δ1ε
-0
-=
-
-MkT
-m
-µk
-Jk−1 − MkJ
-µk + MkJ
-µk − J
-µk
-
-
-∞
-+ δ1ε
-0
-≤
-
-MkT
-m
-µk
-Jk−1 − MkJ
-µk
-
-
-∞
-+ kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ kMkk∞
-
-T
-m
-µk
-Jk−1 − J
-µk
-
-
-∞
-+ kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ δ1
-
-T
-m
-µk
-Jk−1 − J
-µk
-
-
-∞
-+ kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-mδ1 kJk−1 − J
-µk k∞ + sup
-k,µk
-kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤ α
-mδ1 kJk−1 − J
-µk k∞ + δ2 + δ1ε
-0
-≤ α
-mδ1 kJk−1 − J
-µk−1 + J
-µk−1 − J
-µk k∞ + δ2 + δ1ε
-0
-≤ α
-mδ1 kJk−1 − J
-µk−1 k∞ + α
-mδ1 kJ
-µk−1 − J
-µk k∞ + δ2 + δ1ε
-0
-≤ α
-mδ1 kJk−1 − J
-µk−1 k∞ +
-α
-mδ1
-1 − α
-+ δ2 + δ1ε
-0
-Iterating over k we get that for all k,
-kJ
-µk − Jkk∞ ≤
-αm
-1−α
-δ1 + δ2 + δ1ε
-0
-1 − αmδ1
-+
-1
-1 − α
-+ kJ0k∞
-| {z }
-=:pm
-, (20)
-where we have used the assumption α
-mδ1 < 1 and the fact that kJ
-µ0 k∞ ≤ 1/(1 − α) due to Assumption 3.
-Putting (19) and (20) together, we have the following:
-Tµk+1 T
-H−1J
-µk ≤
-"
-2α
-Hpm + ε
-#
-| {z }
-=:˜cm,H
-e + T
-H−1J
-µk
-.
-The rest of the proof follows from the proof of Theorem 1 with c˜m,H instead of cm,H and we get the current theorem.
-C Proof of Proposition 1
-In the following proposition, we present a bound on the difference between Jk and J
-∗
-.
-Proposition 1. When α
-m+H−1
-δ1 < 1, lim supk→∞ kJk − J
-∗k ≤ rm,H
-1−qm,H
-,
-where qm,H := δ1α
-m+H−1 +
-
-1 + δ1α
-m
-
-α
-H−1
-and rm,H :=
-1 + δ1α
-m
-
-
-α
-H−1pm,H +
-cm,H
-1−α
-!
-+ δ2 + δ1ε
-0
-, where cm,H
-is defined in (17) and pm,H is defined in (16). The proof is as follows.
-Proof.
-kJk+1 − J
-∗
-k∞ = kJk+1 − J
-µk+1 + J
-µk+1 − J
-∗
-k∞
-≤ kJk+1 − J
-µk+1 k∞ + kJ
-µk+1 − J
-∗
-k∞
-≤
-
-
-Mk+1T
-m
-µk+1
-T
-H−1Jk − J
-µk+1
-
-
-
-∞
-+ δ1ε
-0 + kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-=
-
-
-Mk+1T
-m
-µk+1
-T
-H−1Jk − Mk+1J
-µk+1 + Mk+1J
-µk+1 − J
-µk+1
-
-
-
-∞
-+ kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-≤
-
-
-Mk+1T
-m
-µk+1
-T
-H−1Jk − Mk+1J
-µk+1
-
-
-
-∞
-+ kMk+1J
-µk+1 − J
-µk+1 k∞ + kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-≤ kMk+1k∞
-
-
-
-T
-m
-µk+1
-T
-H−1Jk − J
-µk+1
-
-
-
-∞
-+ kMk+1J
-µk+1 − J
-µk+1 k∞ + kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-≤ δ1α
-m
-
-T
-H−1Jk − J
-µk+1 
-
-∞
-+ δ2 + kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-= δ1α
-m
-
-T
-H−1Jk − J
-∗ + J
-∗ − J
-µk+1 
-
-∞
-+ δ2 + kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-≤ δ1α
-m
-
-T
-H−1Jk − J
-∗
-
-
-∞
-+ δ1α
-m kJ
-∗ − J
-µk+1 k∞ + δ2 + kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-≤ δ1α
-m+H−1
-kJk − J
-∗
-k∞ + δ1α
-m kJ
-∗ − J
-µk+1 k∞ + δ2 + kJ
-µk+1 − J
-∗
-k∞ + δ1ε
-0
-= δ1α
-m+H−1
-kJk − J
-∗
-k∞ +
-
-1 + δ1α
-m
-
-kJ
-∗ − J
-µk+1 k∞ + δ2 + δ1ε
-0
-(c)
-≤ δ1α
-m+H−1
-kJk − J
-∗
-k∞ +
-
-1 + δ1α
-m
-
-
-α
-H−1
-kJ
-µk − J
-∗
-k∞ +
-cm,H
-1 − α
-!
-+ δ2 + δ1ε
-0
-≤ δ1α
-m+H−1
-kJk − J
-∗
-k∞ +
-
-1 + δ1α
-m
-
-
-α
-H−1
-(kJ
-µk − Jkk∞ + kJk − J
-∗
-k∞) + cm,H
-1 − α
-!
-+ δ2 + δ1ε
-0
-=
-
-δ1α
-m+H−1 +
-
-1 + δ1α
-m
-
-α
-H−1
-!
-kJk − J
-∗
-k∞ +
-
-1 + δ1α
-m
-
-
-α
-H−1
-kJ
-µk − Jkk∞ +
-cm,H
-1 − α
-!
-+ δ2 + δ1ε
-0
-(d)
-≤
-
-δ1α
-m+H−1 +
-
-1 + δ1α
-m
-
-α
-H−1
-!
-kJk − J
-∗
-k∞ +
-
-1 + δ1α
-m
-
-
-α
-H−1
-pm,H +
-cm,H
-1 − α
-!
-+ δ2 + δ1ε
-0
-= qm,H kJk − J
-∗
-k∞ + rm,H,
-where qm,H := δ1α
-m+H−1 +
-
-1 +δ1α
-m
-
-α
-H−1
-and rm,H :=
-1 +δ1α
-m
-
-
-α
-H−1pm,H +
-cm,H
-1−α
-!
-+ δ2 + δ1ε
-0
-. Note that pm,H
-is defined in (16) and cm,H is defined in (17). Additionally, (c) follows from (18) and (d) follows from (16). Iterating over k,
-we get Proposition 1.
-D Proof of Lemma 1
-Proof.
-1
-1 − α
-≥ kJ
-µk − J
-µk+1 k∞
-=
-
-
-
-J
-µk − Φθ
-µk −
-
-J
-µk−1 − Φθ
-µk−1 + Φθ
-µk−1 − Φθ
-µk
-
-
-
-∞
-≥ kJ
-µk−1 − Φθ
-µk−1 + Φθ
-µk−1 − Φθ
-µk k∞ − δ
-0
-2
-≥ kΦθ
-µk−1 − Φθ
-µk k∞ − 2δ
-0
-2
-≥
-1
-σmin,Φ
-kθ
-µk−1 − θ
-µk k∞
-=⇒
-σmin,Φ
-1 − α
-+ 2σmin,Φδ
-0
-2
-| {z }
-=:C
-≥ kθ
-µk−1 − θ
-µk k∞ ,
-where σmin,Φ is the smallest singular value in the singular value decomposition of Φ.
-E Proof of Lemma 2
-Proof. From assumption 1, we have that ΦDk
-is of rank d. Thus, we have the following:
-θ
-µk − ˜θ
-µk =
-
-Φ
->
-Dk ΦDk
-−1
-Φ
->
-Dk
-(PkJ
-µk − Pk(T
-m
-µk
-T
-H−1Jk−1 + wk))
-=
-
-Φ
->
-Dk ΦDk
-−1
-Φ
->
-Dk
-Pk(J
-µk − (T
-m
-µk
-T
-H−1Φθk−1 + wk))
-=⇒
-
-
-
-θ
-µk − ˜θ
-µk
-
-
-
-∞
-≤
-
-
-
-
-
-Φ
->
-Dk ΦDk
-−1
-Φ
->
-Dk
-Pk
-
-
-
-
-∞
-
-J
-µk − (T
-m
-µk
-T
-H−1Φθk−1 + wk)
-
-
-∞
-≤
-
-
-
-
-
-Φ
->
-Dk ΦDk
-−1
-Φ
->
-Dk
-Pk
-
-
-
-
-∞
-
-J
-µk − T
-m
-µk
-T
-H−1Φθk−1
-
-
-∞
-+
-δ
-0
-1
-ε
-0
-kΦk∞
-≤ α
-m sup
-k
-
-
-
-
-
-Φ
->
-Dk ΦDk
-−1
-Φ
->
-Dk
-Pk
-
-
-
-
-∞
-
-J
-µk − T
-H−1Φθk−1
-
-
-∞
-+
-δ
-0
-1
-ε
-0
-kΦk∞
-(21)
-We now obtain a bound for
-
-J
-µk − T
-H−1Φθk−1
-
-
-∞
-as follows:
-
-J
-µk − T
-H−1Φθk−1
-
-
-∞
-=
-
-J
-µk − J
-∗ + J
-∗ − T
-H−1Φθk−1
-
-
-∞
-≤ kJ
-µk − J
-∗
-k∞ +
-
-J
-∗ − T
-H−1Φθk−1
-
-
-∞
-≤ kJ
-µk − J
-∗
-k∞ + α
-H−1
-kJ
-∗ − Φθk−1k∞
-≤
-1
-1 − α
-+ α
-H−1
-kJ
-∗ − Φθk−1k∞
-≤
-1
-1 − α
-+ α
-H−1
-kJ
-∗ − J
-µk−1 + J
-µk−1 − Φθk−1k∞
-≤
-1
-1 − α
-+ α
-H−1
-
-kJ
-∗ − J
-µk−1 k∞ + kJ
-µk−1 − Φθk−1k∞
-
-≤
-1 + α
-H−1
-1 − α
-+ α
-H−1
-kJ
-µk−1 − Φθk−1k∞
-=
-1 + α
-H−1
-1 − α
-+ α
-H−1
-kJ
-µk−1 − Φθ
-µk−1 + Φθ
-µk−1 − Φθk−1k∞
-=
-1 + α
-H−1
-1 − α
-+ α
-H−1
-kJ
-µk−1 − Φθ
-µk−1 k∞ + α
-H−1
-kΦθ
-µk−1 − Φθk−1k∞
-≤
-1 + α
-H−1
-1 − α
-+ α
-H−1
-δ
-0
-2 + α
-H−1
-kΦk∞ kθ
-µk−1 − θk−1k∞ . (22)
-Putting 21 and 22 together gives the following:
-
-
-
-θ
-µk − ˜θ
-µk
-
-
-
-∞
-≤
-δ
-0
-1
-ε
-0
-kΦk∞
-+ α
-m δ
-0
-1
-kΦk∞
-
-1 + α
-H−1
-1 − α
-+ α
-H−1
-δ
-0
-2
-!
-+ α
-m+H−1
-δ
-0
-1 kθ
-µk−1 − θk−1k∞ .
-F TD-Learning Approximation
-We consider the variant of approximate policy iteration studied in (Efroni et al. 2019). We define the following operator with
-parameter λ ∈ (0, 1):
-T
-µ
-λ
-J = (1 − λ)
-X∞
-j=0
-λ
-j
-(Tµ)
-j+1J
-= J + (1 − γλP µ
-)
-−1
-(TµJ − J), (23)
-Algorithm 3: TD-Learning Approximation Algorithm
-Input: J0, m, H, λ, feature vectors {φ(i)}i∈S , φ(i) ∈ R
-d
-and subsets Dk ⊆ S, k = 0, 1, . . . . Here Dk is the set of states at
-which we evaluate the current policy at iteration k.
-1: Let k = 0.
-2: Let µk+1 be such that
-
-T
-HJk − Tµk+1 T
-H−1Jk
-
-
-∞
-≤ ε.
-3: Compute Jˆµk+1 (i) = T
-m
-µk+1
-T
-H−1
-(Jk)(i) + wk+1(i) for i ∈ Dk.
-4: Choose θk+1 to solve
-min
-θ
-X
-i∈Dk
-
-(Φθ)(i) − Jˆµk+1 (i)
-2
-,
-where Φ is a matrix whose rows are the feature vectors.
-5: Jk+1 = Φθk+1.
-6: Set k ← k + 1. Go to 2.
-where P
-µ is the state transition matrix corresponding policy µ. This operator is an estimator of the T D − λ operator in (Sutton
-and Barto 2018).
-The full return (m = ∞) is often desired in practice but is impossible to obtain for some MDPs. It is possible to instead
-obtain an estimate of a full return for any policy µk with the operator in equation (23) T
-µk
-λ
-parameterized by λ ∈ (0, 1). Using
-the T
-µk
-λ
-operator to obtain an estimate for J
-µk , our modified algorithm is given in Algorithm 3.
-As was the case with our main algorithm, we make Assumption 1, Assumption 2 and Assumption 3. Using Assumption 1,
-we can succinctly write our iterates as follows:
-Jk+1 = Mk+1(T
-µk+1
-λ
-T
-H−1Jk + wk+1). (24)
-We will now state a theorem that characterizes the role of λ in the convergence of our algorithm:
-Theorem 4. When δ1cλα
-H−1 < 1, where δ1 is defined in Theorem 1 and cλ := 1−λ
-λ(1−λα)
-,
-lim sup
-k→∞
-kJ
-µk − J
-∗
-k∞ ≤
-c˜m,H
-(1 − α)(1 − αH−1)
-,
-where c˜m,H := 2α
-H
-δ1cλ
-
-1+αH−1
-1−α
-
-+δ2+δ1ε
-0
-1−δ1cλαH−1 +
-1
-1−α + kJ0k∞
-
-+ ε, and δ2 is defined in Theorem 1.
-The proof of Theorem 4 is as follows:
-Proof. Consider the following sequences:
 V
-i
-k
-:= (1 + λ + . . . + λ
-i
+. We then simulate random draws from a Gaussian distribution with
+this covariance. We find that draws where any variable
+deviates by more than 5.7σ from its expected value occur with probability 2 × 10−7
+, which translates into our
+final estimate of the significance ∼ 5.2σ. Had we started
+with the maximal local significance 6.6σ we see when the
+results are based on fits of the de Vaucouleurs profile,
+we would obtain a proportionally larger global detection
+significance.
+Finally, we looked at the correlations in four bins in
+either redshift (Fig. 2) or halo mass (as estimated by
+ELUCID, Fig. 3) for the smoothing length r = 4 h
+−1Mpc,
+where we see the most significant detection. We see mild
+trends in some of the observables, but given the large
+number of investigated data points it is expected to see
+dependencies just by pure chance and we do not pursue
+this issue further. We thus mainly use these splits as
+an additional systematic check. Given all redshift and
+halo mass bins lead to generally consistent results, we
+have checked that our results are not dominated by any
+outlier. These splits also serve as a rough check on the
+size of our error bars.
+V. DISCUSSION
+In this work we studied correlations between directions of galaxy angular momenta determined from galaxy
+shapes (axis ratios and position angles) and various observables built from the initial density and gravitational
+potential.
+We found a statistically significant correlation between
+the radial component of the galaxy spin L~ R and the tidal
+field in the vicinity of the protohalo (specifically the unit
+traceless shear tensor Tˆ). Physically this correspond to
+galaxies being preferentially oriented face on (edge on)
+in places where the major (minor) axis of the tidal field
+aligns with the line of sight. The detection was significant
+6
+L
+R
+ˆ
+T L
+R
+L
+T
+ˆ
+T L
+T
+L
+R
+(
+ˆT
 )
-−1X
-i
-j=0
-λ
-j
-(T
-µk
+2
+L
+R
+L
+T
+(
+ˆT
 )
-j+1(T
-H−1Jk−1 − J
-µk
+2
+L
+T
+L
+R
+ˆ
+IL
+R
+L
+T
+ˆ
+IL
+T
+L
+R
+(
+ˆI
 )
-z
-i
-k
-:= V
-i
-k − J
-µk
-.
-First, we get bounds on V
-i
-k
-. We have the following:
-J
-µk −
-
+2
+L
+R
+L
 T
-H−1Jk−1 − J
-µk
-
-
-∞
-e ≤ T
-H−1Jk−1 − J
-µk ≤ J
-µk +
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-e
-=⇒ (1 + λ + . . . + λ
-i
+(
+ˆI
 )
-−1X
-i
-j=0
-λ
-j
-(T
-µk
+2
+L
+T
+|L
+R
+ˆL
+φ
+0
+|
+|L
+T
+ˆL
+φ
+0
+|
+|L
+R
+ˆL
+ρ
+0
+|
+|L
+T
+ˆL
+ρ
+0
+|
+|L
+R
+ˆLIC|
+|L
+T
+ˆLIC
+−6×10 |
+−3
+−4×10−3
+−2×10−3
+0
+2×10−3
+4×10−3
+6×10−3
+8×10−3
+Excess over random, hVi −
+¯V
+FIG. 2. Testing the redshift evolution. The black points correspond to the results obtained using all galaxies, already shown
+in Fig. 1. Each blue point represents results derived with a quarter of the galaxies, split based on their redshift. The darker
+the blue point, the further the galaxies are (i.e. the lightest/darkest blue points represent the results obtained using only the
+25% closest/furthest galaxies). All with r = 4 h
+−1Mpc.
+L
+R
+ˆ
+T L
+R
+L
+T
+ˆ
+T L
+T
+L
+R
+(
+ˆT
 )
-j+1(J
-µk −
-
+2
+L
+R
+L
 T
-H−1Jk−1 − J
-µk
-
-
-∞ | {z }
-:=ελ
-e) − J
-µk
-≤ z
-i
-k ≤ (1 + λ + . . . + λ
-i
+(
+ˆT
 )
-−1X
-i
-j=0
-λ
-j
-(T
-µk
+2
+L
+T
+L
+R
+ˆ
+IL
+R
+L
+T
+ˆ
+IL
+T
+L
+R
+(
+ˆI
 )
-j+1(J
-µk +
-
+2
+L
+R
+L
 T
-H−1Jk−1 − J
-µk
-
-
-∞
-e) − J
-µk
-=⇒ (1 + λ + . . . + λ
-i
+(
+ˆI
 )
-−1X
-i
-j=0
-λ
-j
-(T
-µk
-)
-j+1(J
-µk − ελe) − J
-µk ≤ z
-i
-k
-≤ (1 + λ + . . . + λ
-i
-)
-−1X
-i
-j=0
-λ
-j
-(T
-µk
-)
-j+1(J
-µk + ελe) − J
-µk
-=⇒ −(1 + λ + . . . + λ
-i
-)
-−1X
-i
-j=0
-λ
-jα
-j+1ελe ≤ z
-i
-k ≤ (1 + λ + . . . + λ
-i
-)
-−1X
-i
-j=0
-λ
-jα
-j+1ελe
-=⇒
-
-z
-i
-k
-
-
-∞
-≤ (1 + λ + . . . + λ
-i
-)
-−1X
-i
-j=0
-λ
-jα
-j+1ελ.
-Taking limits since norm is a continuous function, we have the following using a “continuity” argument:
-kJk − J
-µk k∞ =
-
-Mk(T
-µk
-λ
+2
+L
 T
-H−1Jk + wk) − J
-µk
-
-
-∞
-+ δ1ε
+|L
+R
+ˆL
+φ
 0
-≤
-
-MkT
-µk
-λ
+|
+|L
 T
-H−1Jk − J
-µk
-
-
-∞
-+ δ1ε
+ˆL
+φ
 0
-≤
-
-MkT
-µk
-λ
+|
+|L
+R
+ˆL
+ρ
+0
+|
+|L
 T
-H−1Jk − J
-µk
-
-
-∞
-+ kMkJ
-µk − J
-µk k∞ + δ1ε
+ˆL
+ρ
 0
-≤ kMkk∞
-
+|
+|L
+R
+ˆLIC|
+|L
 T
-µk
-λ
-T
-H−1Jk − J
-µk
-
-
-∞
-+ δ2 + δ1ε
+ˆLIC
+−6×10 |
+−3
+−4×10−3
+−2×10−3
 0
-≤ δ1
-
-T
-µk
-λ
-T
-H−1Jk − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-= δ1 lim
-i
-
-V
-i
-k − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-= δ1 lim
-i
-
-z
-i
-k
-
-
-∞
-+ δ2 + δ1ε
-0
-≤ δ1
-ελ(1 − λ)
-λ(1 − λα)
-+ δ2 + δ1ε
-0
-= δ1
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-(1 − λ)
-λ(1 − λα)
-+ δ2 + δ1ε
-0
-.
-We now have the following:
-kJk − J
-µk k ≤ δ1
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-1 − λ
-λ(1 − λα)
-| {z }
-=:cλ
-+δ2 + δ1ε
-0
-(25)
-= δ1cλ
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-(26)
-= δ1cλ
-
-T
-H−1Jk−1 − J
-∗ + J
-∗ − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-≤ δ1cλ
-
-T
-H−1Jk−1 − J
-∗
-
-
-∞
-+ δ1cλ kJ
-∗ − J
-µk k∞ + δ2 + δ1ε
-0
-≤ δ1cλα
-H−1
-kJk−1 − J
-∗
-k∞ +
-δ1cλ
-1 − α
-+ δ2 + δ1ε
-0
-= δ1cλα
-H−1
-kJk−1 − J
-µk−1 + J
-µk−1 − J
-∗
-k∞ +
-δ1cλ
-1 − α
-+ δ2 + δ1ε
-0
-≤ δ1cλα
-H−1
-kJk−1 − J
-µk−1 k∞ + δ1cλ
-1 + α
-H−1
-1 − α
-
-+ δ2 + δ1ε
-0
-.
-When we iterate over k, we get the following for all k:
-kJ
-µk − Jkk∞ ≤
-δ1cλ
-
-1+α
-H−1
-1−α
-
-+ δ2 + δ1ε
-0
-1 − δ1cλαH−1
-+
-1
-1 − α
-+ kJ0k∞
-| {z }
-=:pm,H,λ
-,
-when δ1cλα
-H−1 < 1.
-The rest of the proof follows from the proof of Theorem 1 with pm,H,λ instead of pm,H and we get Theorem 4
-G TD-Learning Approximation - A Special Case
-When the λ in our TD-learning algorithm is very small, we may obtain better bounds using an alternative proof technique. Note
-that in this case, T
-µk+1
-λ
-can be seen as an approximation to the T
-µk+1 operator. We have the following result that is tailored
-towards small λ :
-Proposition 2. When zλα
-H−1 < 1, where zλ := (δ1δ3α + δ1δ3 + α), δ3 :=
-
-(I − γλP µk )
-−1 − I
-
-
-∞
-, and δ1, δ2 are defined
-in Theorem 1:
-lim sup
-k→∞
-kJ
-µk − J
-∗
-k∞ ≤
-c
-0m,H
-(1 − α)(1 − αH−1)
-,
-where c
-0m,H := 2α
-H
-zλ
-
-1+αH−1
-1−α
-
-+δ2+δ1ε
-0
-1−zλαH−1 +
-1
-1−α + kJ0k∞
-
-+ ε.
-The proof of Proposition 2 is as follows:
-Proof. Note that our iterates can be re-written as follows:
-Jk+1 = Mk+1
-T
-H−1Jk + (I − γλP µk+1 )
-−1
-(T
-µk+1 T
-H−1Jk − T
-H−1Jk) + wk
-!
-.
-We have the following bounds:
-kJ
-µk − Jkk∞ =
-
-
-
-
-
-Mk
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1) + wk
-!
-− J
-µk
-
-
-
-
-
-∞
-≤
-
-
-
-
-
-Mk
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1)
-!
-− J
-µk
-
-
-
-
-
-∞
-+ δ1ε
-0
-=
-
-
-
-
-
-Mk
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1)
-!
-− MkJ
-µk + MkJ
-µk − J
-µk
-
-
-
-
-
-∞
-+ δ1ε
-0
-≤
-
-
-
-
-
-Mk
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1)
-!
-− MkJ
-µk
-
-
-
-
-
-∞
-+ kMkJ
-µk − J
-µk k∞ + δ1ε
-0
-≤
-
-
-
-
-
-Mk
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1)
-!
-− MkJ
-µk
-
-
-
-
-
-∞
-+ δ2 + δ1ε
-0
-≤ kMkk∞
-
-
-
-
-
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1)
-!
-− J
-µk
-
-
-
-
-
-∞
-+ δ2 + δ1ε
-0
-≤ δ1
-
-
-
-
-
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1)
-!
-− J
-µk
-
-
-
-
-
-∞
-+ δ2 + δ1ε
-0
-≤ δ1
-
-
-
-
-
-
-T
-H−1Jk−1 + (I − γλP µk
-)
-−1
-(T
-µk T
-H−1Jk−1 − T
-H−1Jk−1)
-!
-− T
-µk T
-H−1Jk−1
-
-
-
-
-
-∞
-+
-
-T
-µk T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-= δ1
-
-
-
-
-(I − γλP µk
-)
-−1 − I
-hT
-µk T
-H−1Jk−1 − T
-H−1Jk−1
-i
-
-
-∞
-+
-
-T
-µk T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-≤ δ1
-
-(I − γλP µk
-)
-−1 − I
-
-
-∞
-
-T
-µk T
-H−1Jk−1 − T
-H−1Jk−1
-
-
-∞
-+
-
-T
-µk T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-= δ1
-
-(I − γλP µk
-)
-−1 − I
-
-
-∞ | {z }
-=:δ3
-
-T
-µk T
-H−1Jk−1 − J
-µk + J
-µk − T
-H−1Jk−1
-
-
-∞
-+
-
-T
-µk T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-(27)
-= δ1δ3
-
-T
-µk T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ1δ3
-
-J
-µk − T
-H−1Jk−1
-
-
-∞
-+
-
-T
-µk T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-(28)
-≤ δ1δ3α
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ1δ3
-
-J
-µk − T
-H−1Jk−1
-
-
-∞
-+ α
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-= (δ1δ3α + δ1δ3 + α)
-| {z }
-=:zλ
-
-T
-H−1Jk−1 − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-(29)
-= zλ
-
-T
-H−1Jk−1 − J
-∗ + J
-∗ − J
-µk
-
-
-∞
-+ δ2 + δ1ε
-0
-≤ zλ
-
-T
-H−1Jk−1 − J
-∗
-
-
-∞
-+ zλ kJ
-∗ − J
-µk k∞ + δ2 + δ1ε
-0
-≤ zλα
-H−1
-kJk−1 − J
-∗
-k∞ +
-zλ
-1 − α
-+ δ2 + δ1ε
-0
-= zλα
-H−1
-kJk−1 − J
-µk−1 + J
-µk−1 − J
-∗
-k∞ +
-zλ
-1 − α
-+ δ2 + δ1ε
-0
-≤ zλα
-H−1
-kJk−1 − J
-µk−1 k∞ + zλ
-1 + α
-H−1
-1 − α
-
-+ δ2 + δ1ε
-0
-.
-When we iterate over k, we get the following for all k:
-kJ
-µk − Jkk∞ ≤
-zλ
-
-1+α
-H−1
-1−α
-
-+ δ2 + δ1ε
-0
-1 − zλαH−1
-+
-1
-1 − α
-+ kJ0k∞
-| {z }
-=:˜pm,H,λ
-,
-when zλα
-H−1 < 1.
-The rest of the proof follows from the proof of Theorem 1 with p˜m,H,λ in place of pm,H and we get Proposition 2.
-H Additional Numerical Experiments
-In this appendix, we test our algorithms on a grid world problem, using the same grid world problem as in (Efroni et al. 2019).
-For our simulations, we assume a deterministic grid world problem played on an N ×N grid. The states are the squares of the
-grid and the actions are {’up’, ’down’, ’right’, ’left’, and ’stay’}, which move the agent in the prescribed direction, if possible.
-In each experiment, a goal state is chosen uniformly at random to have a reward of 1, while each other state has a fixed reward
-drawn uniformly from [−0.1, 0.1]. Unless otherwise mentioned, for the duration of this section, N = 25 and α = 0.9.
-In order to perform linear function approximation, we prescribe a feature vector for each state. In this section, we focus on
-three particular choices:
-1. Random feature vectors: each entry of the matrix Φ is an independent N (0, 1) random variable
-2. Designed feature vectors: the feature vector for a state whose coordinates are (x, y) is [x, y, d, 1]T
-, where d is the number of
-steps required to reach the goal from state (x, y)
-3. Indicator vectors: the feature vector for each state i is a N2
--dimensional indicator vector where only the i-th entry is nonzero
-The random feature vectors represent features which are not necessarily representative of their states. Empirically, although
-our algorithm will still converge, it will require a large amount of lookahead. By contrast, the designed feature vectors are better
-able to represent the value function with fewer features, and less lookahead is required.
-We test Algorithm 1 in each of our experiments, using a starting state of J0 = θ0 = 0. All plots in this section graph an
-average over 20 trials, where each trial has a fixed random choice of Dk, the set of states used for policy evaluation. Error bars
-show the standard deviation of the mean. The code used to produce these graphs is included in the supplementary material.
-H.1 The effect of m and H on convergence
-In Figure 2, we showed how H and m affect convergence of the iterates Jk to J
-∗
-. When m and H are small, the value of
-Jk sometimes diverges. If the value diverges for even one trial, then the average over trials of kJk − J
-∗k∞ also increases
-exponentially with k. However, if the average converges for all trials, then the plot is relatively flat. The m or H required for
-convergence depends on the parameter δ1 defined in Theorem 1. Over 20 trials, the average value of δ1 for each of our choices
-of feature vectors are 30.22, 16.29, and 1.0, respectively. As showed through a counter-example in the main body of the paper,
-in general, one needs m + H − 1 > log(δ1)/ log(1/α) for convergence. However, in specific examples, it is possible for
-convergence to for smaller values of m + H. For example, in our grid word model, log(16.29)
-log(1/0.9) ≈ 26.5, but we will observe that
-such a large amount of m + H is not required for convergence.
-In Figure 2, it is difficult to see how H and m affect the probability of divergence, as a function of the representative
-states chosen to be sampled. Therefore, we introduce Figure 3. These plots show the proportion of trials in which the distance
-kJk − J
-∗k∞ exceeded 105
-after 30 iterations of our algorithm. As expected, the algorithm never diverges for indicator vectors,
-as our algorithm is then equivalent to the tabular setting. The designed feature vectors clearly require a much smaller amount
-of lookahead or m-step return, well below the amount predicted by the average δ1 of 16.29. However, no matter the choice of
-feature vectors, we will eventually prevent our algorithm from diverging with a large enough value of H + m.
-H.2 Convergence to the optimal policy
-In Theorem 1, we show that as H increases, we converge to a policy µk that is closer to the optimal policy. In this section,
-we experimentally investigate the role of m and H on the final value of kJ
-µk − J
-∗k∞. The results can be found in Figure
-4. As predicted by theory, we do get closer to the optimal policy as H increases. However, increasing m does not help past a
-certain point, which is also consistent with the theory. Indeed, although µk is approaching the optimal policy µ
-∗
-as H increases,
-the iterates Jk are not converging to J
-∗ due to error induced by function approximation. Increasing m improves the policy
-evaluation, but cannot correct for this inherent error from approximating the value function.
-(a) Varying H (b) Varying m
-Figure 3: We plot the probability that kJk − J
-∗k∞ diverges as a function of H and m. For the first plot, m = 3 and for the
-second plot, H = 3. In both cases, the algorithm never diverges once H + m is large enough, though a smaller amount of
-lookahead or m-step return are needed for the designed feature vectors.
-(a) Varying H (b) Varying m
-Figure 4: We plot the final value of kJ
-µk − J
-∗k∞ after 30 iterations. For the first plot, m = 3 and for the second plot, H = 3.
-As H increases, the final policy improves. With large enough H, we obtain the optimal policy. However, past a certain point,
-increasing m is not helpful for finding a better policy.
+2×10−3
+4×10−3
+6×10−3
+8×10−3
+Excess over random, hVi −
+¯V
+FIG. 3. Testing the halo mass dependence. As Fig. 2, only galaxies are split into bins according to the halo mass (as
+determined by ELUCID). Lighter blue represents galaxies in lighter haloes.
+7
+at the 5.5σ – 6.6σ level when we use galaxy shape parameters determined from the de Vaucouleurs fit to the SDSS
+galaxy images, the largest significance was found when
+smoothing the initial conditions with r = 4 h
+−1Mpc.
+With shape parameters determined from the exponential
+fit to the galaxy images, the detection significance drops
+to 4.9σ – 5.7σ. Considering the look-elsewhere effect, we
+estimate the global detection significance at 5.2σ.
+We explain above that the tidal-torque theory predicts
+vanishing hLRT Lˆ Ri. As this theory is based on the first
+order perturbation theory described by the Zeldovich approximation, detection reported in this paper suggests
+we are detecting a non-perturbative effect. This complements earlier reports pointing out limitations of the
+tidal-torque theory (e.g. [16, 51]).
+When smoothing with r = 4 h
+−1Mpc, we also find correlation with the unit traceless inertia tensor ˆI, with local
+significance of 4.4σ. Interestingly, at about 2.8σ significance we detect correlation with the spin galaxy proxy
+LˆIC. This is comparable to what was found in [41] with a
+smaller number of galaxies, though with access to additional information that allowed us to break the four-fold
+degeneracy.
+In general, excess signals are compatible when using either L~ R or L~
+T , galaxy spin vectors parallel and tangential
+to the line of sight. The error bars are always larger for
+correlations including L~
+T , which is understandable given
+that the position angle α acts as an additional source of
+uncertainty.
+The initial conditions as provided by ELUCID are increasingly uncertain on smaller and smaller scales. It
+is unclear whether our detection is limited by this uncertainty, or by other factors, such as the late time evolution
+of the galaxy spins.
+Overall, we have shown that galaxy shapes of spiral
+galaxies, explicitly the axis ratios of their images, provide additional information about the initial conditions.
+It is thus possible that including the galaxy shape measurements in the reconstruction efforts such as described
+in [48, 52–56] might improve the process of reconstruction of the initial conditions in the Universe, though this
+prospect warrants further investigation in simulations.

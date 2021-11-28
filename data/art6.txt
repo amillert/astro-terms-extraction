@@ -1,1252 +1,1564 @@
-arXiv:2109.13415v1 [eess.SY] 28 Sep 2021
-Safety-Critical Control Synthesis for Unknown Sampled-Data Systems via Control
-Barrier Functions
-Luyao Niu, Hongchao Zhang, and Andrew Clark
-Abstract— As the complexity of control systems increases,
-safety becomes an increasingly important property since safety
-violations can damage the plant and put the system operator in
-danger. When the system dynamics are unknown, safety-critical
-synthesis becomes more challenging. Additionally, modern systems are controlled digitally and hence behave as sampled-data
-systems, i.e., the system dynamics evolve continuously while the
-control input is applied at discrete time steps. In this paper,
-we study the problem of control synthesis for safety-critical
-sampled-data systems with unknown dynamics. We overcome
-the challenges introduced by sampled-data implementation and
-unknown dynamics by constructing a set of control barrier
-function (CBF)-based constraints. By satisfying the constructed
-CBF constraint at each sampling time, we guarantee the
-unknown sampled-data system is safe for all time. We formulate
-a non-convex program to solve for the control signal at each
-sampling time. We decompose the non-convex program into
-two convex sub-problems. We illustrate the proposed approach
-using a numerical case study.
+CERN-TH-2021-202
+General Analytical Conditions for Inflaton Fragmentation: Quick and Easy Tests for its Occurrence
+Understanding the physics of inflaton condensate fragmentation in the early Universe is crucial as the existence of fragments in the form of non-topological solitons (oscillons or Q-balls) may potentially modify the
+evolution of the post-inflation Universe. Furthermore, such fragments may evolve into primordial black holes
+and form dark matter, or emit gravitational waves. Due to the non-perturbative and non-linear nature of the
+dynamics, most of the studies rely on numerical lattice simulations. Numerical simulations of condensate fragmentation are, however, challenging, and, without knowing where to look in the parameter space, they are likely
+to be time-consuming as well. In this paper, we provide generic analytical conditions for the perturbations of an
+inflaton condensate to undergo growth to non-linearity in the cases of both symmetric and asymmetric inflaton
+potentials. We apply the conditions to various inflation models and demonstrate that our results are in good
+agreement with explicit numerical simulations. Our analytical conditions are easy to use and may be utilised
+in order to quickly identify models that may undergo fragmentation and determine conditions under they do so,
+which can guide subsequent in-depth numerical analyses.
 I. INTRODUCTION
-Safety-critical cyber-physical systems (CPSs) are found
-in applications such as autonomous vehicles and advanced
-manufacturing. The safety property is typically formulated
-as forward invariance of a given safe set. Safety violations
-could lead to severe damage to the controlled plant or danger
-to human operators [1]. Control synthesis for safety-critical
-CPSs has been extensively studied in existing literature when
-the models of the CPSs are known [2]–[4].
-Several factors may cause safety violations of the plant
-even when the nominal controller is designed to be safe. One
-challenge is raised by the digital/discrete implementation of a
-continuous-time system with continuous input. In a practical
-digital implementation, the system state is only observable
-at each sampling time, and the control signal is applied in a
-zero-order hold (ZOH) manner during each sampling period.
-That is, the system is implemented as a sampled-data system.
-Another challenge is that the system models used to design
-controllers are not perfect in practice, and thus there exist
-uncertainties in the system model. Due to these uncertainties,
-the designed controller may fail to guarantee safety even if
-safety is guaranteed for the nominal plant.
-These two challenges have been studied separately. Safetycritical control synthesis has been studied for sampleddata system with known dynamics [5]–[7]. For unmodeled
-systems with continuous-time or discrete-time dynamics,
-L. Niu, H. Zhang, and A. Clark are with the Department of Electrical
-and Computer Engineering, Worcester Polytechnic Institute, Worcester, MA
-01609 USA. {lniu,hzhang9,aclark}@wpi.edu
-This work was supported by the National Science Foundation and the
-Office of Naval Research via grants CNS-1941670 and N00014-17-1-2946.
-safety-critical control synthesis has been studied by assuming
-the existence of a backup controller that ensures safety of
-the unknown system [8]–[10], or a well-calibrated model,
-e.g., a model learned using a Gaussian process [11]–[13].
-Although high-probability safety guarantees can be achieved
-by the methods described in [11]–[13], they suffer from a
-tradeoff between overly conservative learned model when
-faced with large uncertainty and the potential safety violation
-when failing to capture the true dynamics. To the best of our
-knowledge, jointly addressing these two challenges without
-prior knowledge of a safe backup controller or a wellcalibrated model has not been studied.
-In this paper, we study safety-critical control synthesis for
-a sampled-data system with unknown dynamics. We address
-the challenges introduced due to the sampled-data system
-and unknown dynamics by developing a set control barrier
-function (CBF) constraints at each sampling time. A CBF
-constraint is an inequality that is imposed on the control
-signal, whose satisfaction implies forward invariance. We
-estimate the constructed CBF constraints by bounding the
-reachable set during each sampling period and calculating
-an interval that contains the system dynamics, leveraging the
-Lipschitz continuity assumption on the system dynamics. By
-satisfying these CBF constraints at each sampling time, the
-system is guaranteed to be safe for all time. To summarize,
-this paper makes the following contributions.
-• We construct a CBF constraint for the unknown
-sampled-data system. We provide a sufficient condition
-for satisfying the CBF constraint by bounding the set
-of reachable states for each sampling period and calculating an interval which contains the unknown system
-dynamics.
-• We formulate a non-convex optimization problem subject to the constructed CBF constraints to calculate the
-ZOH control signal for each sampling period. We solve
-the non-convex optimization problem by proposing a
-two-stage approach which only involves convex programs.
-• We prove that the synthesized controller ensures the
-system is safe with respect to the given safe set.
-• We validate our proposed framework using a numerical
-case study on a DC motor. We show that our proposed
-approach ensures the safety of the DC motor.
-The remainder of this paper is organized as follows.
-We review the related work and preliminary background in
-Section II and Section III, respectively. The system model
-and problem formulation are presented in Section IV. We
-give the solution approach in Section V, and illustrate the
-proposed approach using a numerical case study in Section
-VI. Section VII concludes this paper.
-II. RELATED WORK
-Multiple approaches have been proposed for safety-critical
-control synthesis for CPSs with known dynamics, including
-Hamilton-Jacobi-Bellman-Isaacs (HJI) equation [14], mixedinteger program [15], and control barrier function (CBF) and
-control Lyapunov function (CLF) -based methodologies [2]–
-[4]. The CBF-based methods formulate a quadratic program
-to calculate the controller, assuming the system state remains
-unchanged during the discrete time interval.
-For sampled-data systems, CBF-based approaches have
-shown great success [5]–[7]. The authors of [5] and [7] focus
-on sampled-data systems with known dynamics. In [6], a
-sampled-data system with an additive disturbance is studied.
-In this work, we consider a sampled-data system with
-unknown dynamics. CBF-based methods normally require
-the knowledge of the system dynamics to calculate the CBF
-constraint. The unknown dynamics lead to a scenario where
-calculating the CBF constraints is not feasible, and thus
-makes the approaches proposed in [5]–[7] not applicable.
-Learning-based control algorithms have been proposed to
-address systems that contain unknown uncertainties. Recent
-works have demonstrated the success of CBF- and/or CLFbased method along with learning algorithms [10], [11], [16],
-[17]. This category of approaches leverages the forward invariance and stability properties provided by barrier functions
-and Lyapunov functions, respectively. However, they assume
-that there exists a well-calibrated model of the unknown
-system [13] and a safe backup controller to recover from
-failure [8]. Moreover, CBF-based learning approaches have
-to handle the tradeoff between the overly constrained learned
-model and failure to capture the true dynamics.
-Reachable set learning aims at learning the set of reachable
-states of the system so as to compute a controller that
-gives no intersection between the reachable states and the
-unsafe region [18]. The computation of reachable sets relies
-on numerically solving HJI equations, which incurs high
-computational complexity and poor scalability [19], [20]. A
-Gaussian Process based reachability analysis is proposed in
-[21] to compute the reachable set. Compared with forward
-reachable set computation, region-of-attraction focuses on
-computing the set of states starting from which the system is
-guaranteed to be safe [13]. These learning-based approaches
-focus on either continuous-time or discrete-time systems. In
-this work, we study safety-critical control synthesis for the
-unknown sampled-data system.
-III. PRELIMINARY BACKGROUND
-A. Control Barrier Function
-A continuous function α : [0, a) 7→ [0, ∞) belongs to class
-K if it is strictly increasing and α(0) = 0. A continuous
-function α : [−b, a) 7→ (−∞, ∞) is said to belong to
-extended class K if it is strictly increasing and α(0) = 0
-for some a, b > 0.
-Consider a continuous-time control-affine system
-x˙ t = f(xt) + g(xt)ut (1)
-where xt ∈ X ⊆ R
-n is the system state and ut ∈ U ⊆
-R
-m is input provided by the controller. Vector-valued and
-matrix-valued functions f(xt) and g(xt) are of appropriate
-dimensions. Let a safe set C be defined as
-C = {x ∈ X : h(x) ≥ 0}, (2)
-where h : X 7→ R is a continuously differentiable function.
-We say system (1) is safe with respect to C if xt ∈ C for all
-time t ≥ 0.
-CBF-based approaches have been used to guarantee safety
-of system (1) with respect to safe set C. We give the definition
-of zeroing CBF as follows.
-Definition 1 (Zeroing CBF (ZCBF) [2]). Consider a dynamical system (1) and a continuously differentiable function
-h : X 7→ R. If there exists a locally Lipschitz extended class
-K function α such that for all x ∈ X the following inequality
-holds
-sup
-u∈U 
-∂h(x)
-∂x f(x) + ∂h(x)
-∂x g(x)u + α(h(x))
-≥ 0,
-then function h is a ZCBF.
-In this paper, we focus on ZCBF. Extensions to higher
-relative degree CBFs are subject to our future work. A
-sufficient condition for the safety guarantee can be derived
-using ZCBF as follows.
-Lemma 1 ( [2]). Given a dynamical system (1) and a safe
-set (2) defined by some continuously differentiable function
-h : X 7→ R, if h is a ZCBF defined on X, then C is forward
-invariant.
-Using Lemma 1, one can solve for the controller at each
-time using a quadratic program [2]
-min
-u
-u
-⊤R(x)u + Q(x)
-⊤u (3a)
-s.t.
-∂h(x)
-∂x f(x) + ∂h(x)
-∂x g(x)u + α(h(x)) ≥ 0 (3b)
-u ∈ U (3c)
-where R(x) ∈ R
-m is positive definite and Q(x) ∈ R
-m.
-B. Notations
-Let x be a vector and f(x) be a vector-valued function,
-we use xj and fj (x) to denote their j-th component, respectively. Let A be a matrix. We use Ai,j to denote its
-element at i-th row and j-th column. Let xt be a vector
-at time t. We use xt,j to denote the j-th component of
-xt. Comparisons between vectors are implemented elementwise. Bold symbols are used to represent intervals.
-IV. PROBLEM FORMULATION
-Consider a continuous-time control-affine system in the
-form of (1). The system contains uncertainties and hence
-f(xt) and g(xt) are unknown. We define a feedback controller µ : X 7→ U to be a function that maps the system
-state to a control input. Given the current system state xt at
-time t and a feedback controller µ, we denote the system
-state at time t
-′
-as ϕ
-t
-′
-(xt, µ). The system is given a safe set
-as defined in (2).
-We consider the sampled-data implementation of system
-(1). That is, the system is sampled using a sampling period
-∆t. Only the system states xz∆t at the sampling time are
-known, where z = 0, 1, . . .. At each sampling time, a zeroorder hold (ZOH) feedback controller µ(xz∆t) is applied
-to system (1). In other words, ut = µ(xz∆t) for all t ∈
-[z∆t,(z + 1)∆t).
-We have a data set of system (1) as side information. Let
-K ∈ N and K ≥ 1. We denote a finite set of K samples
-of state-input pairs as RK = {(xtk
-, utk
-, xtk+1 )}
-K
-k=1 where
-xtk+1 = ϕ
-tk+1 (xtk
-, µ). Here µ represents a zero-order hold
-(ZOH) input ut = utk
-for all time t ∈ [tk, tk+1). We assume
-that h(xtk
-) ≥ 0 for all k = 1, . . . , K.
-In the following, we formally state our assumptions.
-Assumption 1. We assume that functions fj(x) and gj,s(x)
-are Lipschitz continuous with Lipschitz constants Lfj and
-Lgj,s , respectively, for all j = 1, . . . , n and s =
-1, . . . , m. The Lipschitz constants are known. We assume that
-supx∈C kf(x)k and supx∈C kg(x)k are given.
-Lipschitz continuity is a commonly made assumption for
-reachability and safety analysis [3], [10], [22]. The assumption on the bound of system dynamics is often seen in the
-worst-case safety analysis [13], [18].
-Assumption 2. We assume that the safe set C and control
-input set U are compact. Additionally, control input set U is
-convex.
-The problem studied in this work is as follows.
-Problem 1. Given a finite set of samples RK =
-{(xtk
-, utk
-)}
-K
-k=1 for some K ∈ N generated by implementing
-a given control input utk
-for all time t ∈ [tk, tk+1) to system
-(1) whose dynamics are unknown, synthesize a ZOH feedback
-controller µ such that system (1) is safe with respect to set
-C = {x : h(x) ≥ 0}.
-V. SOLUTION APPROACH
-Our solution approach leverages Lemma 1 to guarantee
-safety of the system. We first construct a CBF constraint
-for the unknown sampled-data system to ensure the safety.
-Then we calculate a bound for the unknown system dynamics
-to evaluate the constructed CBF constraint. Finally, we
-formulate an optimization problem to solve for the control
-signal at each sample time.
-A. Construction of CBF Constraints for Unknown Systems
-When the system model is known and the system state
-is observable for all time t ≥ 0, safety-critical synthesis
-can be achieved efficiently using quadratic program (3). We
-consider the sampled-data system with unknown dynamics,
-which makes it difficult to evaluate the constraint given
-in (3b). In this subsection, we construct a CBF constraint
-that can be evaluated at each sampling time for unknown
-sampled-data system to guarantee that (3b) holds for all time
-t ∈ [z∆t,(z + 1)∆t) for each sampling period z = 0, 1, . . .,
-and hence guarantee system safety.
-Inspired by [6], for any t ∈ [z∆t,(z + 1)∆t), we define
-e(xt, xz∆t, uz∆t) = ∂h(xz∆t)
-∂x [f(xz∆t) + g(xz∆t)uz∆t]
-+ α(h(xz∆t)) −
-∂h(xt)
-∂x [f(xt) − g(xt)uz∆t] − α(h(xt)).
-(4)
-The definition given in (4) models the difference between
-the CBF constraints evaluated at states xz∆t and xt when
-control input uz∆t is applied. Given (4), we have that
-∂h(xt)
-∂x f(xt) + ∂h(xt)
-∂x g(xt)ut + α(h(xt))
-=
-∂h(xz∆t)
-∂x f(xz∆t) + ∂h(xz∆t)
-∂x g(xz∆t)uz∆t
-+ α(h(xz∆t)) − e(xt, xz∆t, uz∆t) (5a)
-≥
-∂h(xz∆t)
-∂x f(xz∆t) + ∂h(xz∆t)
-∂x g(xz∆t)uz∆t
-+ α(h(xz∆t)) − max
-xt,xz∆t,uz∆t
-|e(xt, xz∆t, uz∆t)| (5b)
-If we can guarantee that the right-hand side of (5) is nonnegative, then safety of system (1) holds by Lemma 1. We
-define the following quantities:
-θ(u) =
-vuutXn
-j=1
-Lfj +
-Xm
-s=1
-Lgj,s |us|
-!2
-, Θ = max
-u∈U
-θ(u).
-(6)
-The existence of Θ is guaranteed by Assumption 2. In
-the following, we bound maxxt,xz∆t,uz∆t
-|e(xt, xz∆t, uz∆t)|
-from above to calculate a lower bound for (5).
-Lemma 2. Let Lα and Lh be the Lipschitz constants of
-functions α and h, respectively. Let Θ be defined as in (6).
-Then for any given xz∆t, xt, and uz∆t, we have
-|e(xt, xz∆t, uz∆t)| ≤ (LhΘ + Lα)kxz∆t − xtk2
-+ 2Lhkf(xz∆t) + g(xz∆t)uz∆tk2. (7)
-Proof. We bound |e(xt, xz∆t, uz∆t)| via
-|e(xt, xz∆t, uz∆t)|
-=
-
-
-
-∂h(xz∆t)
-∂x [f(xz∆t) + g(xz∆t)uz∆t] + α(h(xz∆t))
-−
-∂h(xt)
-∂x [f(xt) − g(xt)uz∆t] − α(h(xt))
-
-
- (8a)
-=
-
-
-
-∂h(xz∆t)
-∂x [f(xz∆t) + g(xz∆t)uz∆t]
-−
-∂h(xt)
-∂x [f(xz∆t) + g(xz∆t)uz∆t] + ∂h(xt)
-∂x [f(xz∆t)
-+ g(xz∆t)uz∆t] −
-∂h(xt)
-∂x [f(xt) + g(xt)uz∆t]
-+ α(h(xz∆t)) − α(h(xt))
-
-
- (8b)
-≤
-
-
-
+After inflation ends, a real scalar inflaton field starts to oscillate around the minimum of its potential. An attractive inflaton self-interaction may then result in growth of perturbations of the inflaton to non-linearity and, if non-topological
+soliton (NTS) solutions exist, which will be the case in the
+models we consider, subsequent fragmentation of the inflaton condensate1
+. The inflaton condensate fragments correspond to oscillons, which are spherically symmetric quasistable NTS [1]. The longevity of oscillons can be understood
+by the conservation of adiabatic charge [2].
+The study of inflaton condensate fragmentation has gained
+much attention partly due to the interesting consequences of
+the fragments. Examples include primordial black hole formation due to the statistics of fragments [3–5], gravitational
+wave signals associated with fragments [6–9], and changes in
+reheating dynamics which lead to a different cosmic evolution
+[10, 11].
+The evolution dynamics of the fragments often requires numerical lattice simulations due to the non-perturbative and
+non-linear nature. Most of the existing literature adapts numerical approaches and performs extensive lattice simulations. Numerical simulations are, however, often technically
+challenging and computationally demanding, and can obscure
+the underlying physics. Furthermore, without knowing where
+to look in the model parameter space, or if fragmentation is
+1
+It is important to distinguish between the growth of perturbations of a scalar
+field to non-linearity and condensate fragmentation. The latter requires that
+discrete NTS solutions exist, so that the condensate may break up into discrete NTS with vacuum between them. The condition for NTS to be possible in models that grow to non-linearity is that the scalars are sufficiently
+massive in the vacuum so that the energy per scalar in the NTS can be less
+than the mass of the scalar in the vacuum. This will be generally true of the
+potentials that we will consider.
+even possible in a given model, numerical studies can be timeconsuming. Having an analytical expression for the condition
+under which the condensate is likely to undergo non-linear
+growth and hence, if discrete NTS solutions exist, fragmentation, would be greatly beneficial for such in-depth numerical analyses. Such a condition could serve as a starting point
+of extensive numerical analyses, and it could also be used to
+quickly estimate the likelihood of fragmentation in a given
+model. We expect that NTS will exist in the models that
+we consider, therefore, in the following, we will consider the
+growth of perturbations to non-linearity and fragmentation to
+be equivalent.
+The aim of this paper is to provide general analytical conditions for perturbations of an inflaton condensate to grow to become non-linear and hence for inflaton condensate fragmentation to be possible. In Ref. [12] we studied the stability of an
+inflaton condensate, based on Ref. [1], for the case of a general
+symmetric potential. We obtained analytical conditions on the
+self-interaction couplings under which the condensate undergoes fragmentation. However, the method of Ref. [12] cannot
+be used when the potential is asymmetric. In this work, we
+generalise the analysis of Ref. [12] to encompass asymmetric
+potentials, thus allowing the condition for fragmentation to be
+determined for a wide range of inflaton potentials.
+In the next section, we develop an analytical framework for
+studying the growth of inflaton field perturbations and inflaton condensate fragmentation. We then provide the analytical
+conditions under which the condensate grows to non-linearity
+and fragments for both symmetric and asymmetric potentials.
+The main results of the paper are summarised in Sec. II D.
+In Sec. III, we apply our analytical results to four examples for which numerical results are available: the α-attractor
+T-model, the α-attractor E-model, Starobinsky’s R
+2 model,
+and the Palatini R
+2 model with a quadratic potential. In addition, we apply our results to a model which has not yet been
+studied numerically, Higgs Inflation with a general symmetrybreaking potential in both the metric and Palatini formulations, and we perform lattice simulations to test our analytical
+results. We show that our results are in good agreement with
+arXiv:2111.12474v1 [astro-ph.CO] 24 Nov 2021
+2
+numerical simulations in all cases, thus demonstrating their
+general effectiveness. We conclude in Sec. IV.
+II. GENERAL TREATMENT
+A. Inflaton condensate
+Consider a real scalar field Φ whose equation of motion2
+is
+given by
+Φ¨ +3HΦ˙ −
+∇
+2Φ
+a
+2
++VΦ = 0, (1)
+where the dot denotes the cosmic time derivative and VΦ ≡
+dV(Φ)/dΦ.
+In our analysis, we will be considering a potential that is
+close to a quadratic potential, so to a first approximation, the
+field will undergo coherent oscillations in a quadratic potential. We expect that any potential that is capable of supporting
+NTS solutions will be approximately quadratic at the minimum of its potential, as it is necessary for the scalars to have
+a non-zero mass in the vacuum in order for the NTS solutions
+to have a lower energy per scalar and so to be (meta)stable.
+Defining Φ = (a0/a)
+3/2φ, where we have assumed that the
+coherent oscillations start at a = a0, gives
+φ¨ −
+∇
+2φ
+a
+2
+= −
+∂U(φ)
+∂φ , (2)
+where
+∂U
+∂φ ≡
 
-∂h(xz∆t)
-∂x −
-∂h(xt)
-∂x 
-[f(xz∆t) + g(xz∆t)uz∆t]
-
-
-
-+
-
-
-
-∂h(xt)
-∂x [f(xz∆t) + g(xz∆t)uz∆t − f(xt) − g(xt)uz∆t]
-
-
-
-+ |α(h(xz∆t)) − α(h(xt))| (8c)
-where (8a) holds by definition given in (4), (8b) holds by
-adding and subtracting ∂h(xt)
-∂x [f(xz∆t) + g(xz∆t)uz∆t], and
-(8c) holds by triangle inequality.
-Since function h is continuously differentiable, we have
-that k
-∂h(x)
-∂x k ≤ Lh, where Lh is the Lipschitz constant of h.
-Hence we have that
-
-
-
+a
+a0
+3/2
+VΦ +∆Hφ, (3)
+with
+∆H ≡ −
+3
+2
 
-∂h(xz∆t)
-∂x −
-∂h(xt)
-∂x 
-[f(xz∆t) + g(xz∆t)uz∆t]
-
-
-
-≤ 2Lhkf(xz∆t) + g(xz∆t)uz∆tk2. (9)
-By the boundedness of ∂h(x)
-∂x and Proposition 3 in the
-Appendix, we have that
-
-
-
-∂h(xt)
-∂x [f(xz∆t) + g(xz∆t)uz∆t − f(xt) − g(xt)uz∆t]
-
-
-
-≤ LhΘkxz∆t − xtk2. (10)
-Due to Lipschitz continuity of α(·), we have that
-|α(h(xz∆t)) − α(h(xt))| ≤ Lαkxz∆t − xtk2. (11)
-Substituting (9) - (11) into (8c) yields the lemma.
-Using Lemma 2, we can construct a CBF constraint as
-∂h(xz∆t)
-∂x f(xz∆t) + ∂h(xz∆t)
-∂x g(xz∆t)uz∆t
-+ α(h(xz∆t)) − (LhΘ + Lα)kxz∆t − xtk2
-− 2Lhkf(xz∆t) + g(xz∆t)uz∆tk2 ≥ 0. (12)
-Using (5), we have that if (12) holds, then Lemma 1
-holds for all t ∈ [z∆t,(z + 1)∆t). However, since the
-system is unknown, we cannot compute xt and kf(xz∆t) +
-g(xz∆t)uz∆tk2, and thus we cannot calculate constraint (12).
-In the subsequent subsection, we address this challenge.
-B. Sufficient Condition for Satisfying CBF Constraint (12)
-Since we consider sampled-data systems, only system
-states at time z∆t with z = 0, 1, . . . are observable. Hence,
-xt in (12) is not known. Moreover, the term kf(xz∆t) +
-g(xz∆t)uz∆tk2 is not known since the system is unknown.
-In this subsection, we present how to estimate xt and
-kf(xz∆t)+g(xz∆t)uz∆tk2 to calculate the constructed CBF
-constraint given in (12).
-1) Estimate System State xt During Sampling Period:
-Although it is impractical to forward integrate the unknown
-dynamics to calculate xt, we can bound kxz∆t−xtk2. Using
-such bound and the observed system state xz∆t, we can
-bound xt during each sampling period. We define
-β = sup
-x∈C,u∈U
-(kf(x) + g(x)uk). (13)
-The existence of β is guaranteed by Assumption 2. We can
-now bound kxz∆t − xtk2 using the following proposition.
-Proposition 1. Let xt ∈ X and µ be a controller that
-specifies the control signal ut applied to system (1) for each
-time t ∈ [T, T + ∆t]. We have that
-
-ϕ
-t
-(xt, µ) − ϕ
-T
-(xt, µ)
-
-
+H˙ +
+3
 2
-≤
-kβk2
-Θ
-(e
-Θ∆t − 1), (14)
-where Θ is given in (6), and β is given in (13).
-Proof. By definition of ϕ
-t
-(x, µ), we have that
-
-ϕ
-t
-(xt, µ) − ϕ
-T
-(xt, µ)
-
-
+H
 2
-=
-
-
-
-Z t
-T
-(f(xτ ) + g(xτ )uτ ) dτ
-
-
-
-2
-(15a)
-≤
-
-
-
-Z t
-T
-{f(xτ ) + g(xτ )uτ − f(xT ) − g(xT )uτ } dτ
-
-
-
-2
-+
-
-
-
-
-Z t
-T
-(f(xT ) + g(xT )uτ ) dτ
-
-
-
-
-2
-(15b)
-≤
-Z t
-T
-θ(uτ )kxτ − xT k2 dτ + kβk2(t − T ). (15c)
-where (15a) holds by definition of ϕ
-t
-(xt, µ), (15b) holds by
-triangle inequality, and (15c) holds by Proposition 3 in the
-Appendix and (13).
-Applying Gr ¨onwall’s inequality [23] to (15) yields that
-
-ϕ
-t
-(xt, µ) − ϕ
-T
-(xt, µ)
-
-
-2
-≤
-Z t
-T
-θ(uτ )kxτ − xT k2 dτ + kβk2(t − T ) (16a)
-≤kβk2(t − T )
-+
-Z t
-T
-kβk2(t − T )θ(uτ ) exp Z t
-τ
-θ(ul) dl
 
-dτ (16b)
-≤kβk2(t − T ) + kβk2Θ
-Z t
-T
-(τ − T )e
-Θ(t−τ)
-dτ (16c)
-≤
-kβk2
-Θ
-(e
-Θ∆t − 1) (16d)
-where (16a) holds by (15), (16b) holds by Gr ¨onwall’s inequality [23], (16c) holds by (6) and calculating the inner
-integration, and (16d) holds by integration by parts and
-t ∈ [T, T + ∆t].
-Proposition 1 is closely related to [22, Thm 3.4]. In [22,
-Thm 3.4], an upper bound of the distance between two nonlinear systems is established for each time, while Proposition
-1 presents an upper bound of the distance between reachable
-states during a sampling period for the sampled-data system.
-By Proposition 1, we have that kxz∆t − xtk2 ≤
-kβk2
-Θ
-(e
-Θ∆t − 1). For a sampled-data system, state xz∆t can
-be observed. Therefore, we can calculate a bound for xt for
-all t ∈ [z∆t,(z + 1)∆t) for all non-negative integer z.
-2) Estimate the Unknown System Dynamics: In the following, we calculate a bound of kf(xz∆t) + g(xz∆t)uz∆tk2
-for the unknown system. We define
-γ(u, u′
-) = sup
-x∈C
-kg(x)kku − u
-′
-k2, (17)
-for all u, u′ ∈ U, and develop the following result.
-Proposition 2. Let xz∆t ∈ X, Θ be given in (6), and β be
-given in (13). We have the following relation:
-kf(xz∆t) + g(xz∆t)uz∆t − f(x) − g(x)uk2
-≤ θ(u)kxz∆t − xk2 + γ(uz∆t, u), (18)
-where γ(uz∆t, u) is defined in (17).
-Proof. We have that
-kf(xz∆t) + g(xz∆t)uz∆t − f(x) − g(x)uk2
-=kf(xz∆t) + g(xz∆t)u − f(x) − g(x)u
-− g(xz∆t)u + g(xz∆t)uz∆tk2 (19a)
-≤θ(u)kxz∆t − xk2 + kg(xz∆t)(uz∆t − utk
-)k2 (19b)
-≤θ(u)kxz∆t − xk2 + γ(uz∆t, u) (19c)
-where (19a) holds by adding and subtracting term
-g(xz∆t)utk
-, (19b) holds by triangle inequality and Proposition 3 in the Appendix, and (19c) holds by the fact that
-γ(uz∆t, utk
-) ≥ kg(xz∆t)(uz∆t − utk
-)k2.
-Proposition 2 implies that once the value of f(x) +g(x)u
-is known for some x ∈ X and u ∈ U, we are able
-to calculate the range of f(xz∆t) + g(xz∆t)uz∆t. In the
-following, we show how to construct f(x) + g(x)u so as
-to bound f(xz∆t) + g(xz∆t)uz∆t.
-Lemma 3. Let xtk
-, xtk+1 ∈ RK be two sample data points.
-We can construct a vector x˙ entry-wise as
-x˙ j
-.= fj(x) + (g(x)utk
-)j =
-xtk+1,j − xtk,j
-tk+1 − tk
-. (20)
-Then the system dynamics f(xz∆t) + g(xz∆t)uz∆t satisfies
-f(xz∆t) + g(xz∆t)uz∆t ∈ x˙
+. (4)
+In the case of a symmetric potential, V(Φ) = V(−Φ), the
+oscillatory behaviour of the scalar field can well be described
+by φ(t,x) = RcosΩ, where R and Ω are both functions of t
+and x. The inflaton condensate fragmentation in symmetric
+potentials is studied in Ref. [12]. For asymmetric potentials,
+V(Φ) 6= V(−Φ), however, the analysis of Ref. [12] cannot
+be applied as the choice of φ = RcosΩ does not capture the
+asymmetric feature. In the case of an asymmetric potential,
+we expect the amplitude of the oscillating field to be different
+at Ω = 0 and Ω = π. Assuming that the potential is dominated
+by a quadratic term, one may model this by considering
+φ = R(1+ε cosΩ) cosΩ, (5)
+where ε  1 parametrises the asymmetry of the potential. The
+form of ε can be determined once the potential is specified.
+2 Throughout the paper, we work in the Einstein frame with a canonically
+normalised kinetic term, unless otherwise stated.
+We explore the case of an asymmetric potential in more detail in Sec. II C. Note that the symmetric potential case corresponds to the ε → 0 limit. Thus, Eq. (5) may be used to
+describe the inflaton condensate motion for a generic form of
+potential.
+The equation of motion (2) can be expressed in terms of
+R = R(t,x) and Ω = Ω(t,x) as
+0 = R¨(1+ε cosΩ) cosΩ−2R˙Ω˙ (1+2ε cosΩ)sinΩ
+−RΩ¨ (1+2ε cosΩ)sinΩ−RΩ˙ 2
+(cosΩ+2ε cos(2Ω))
+−
+∇
+2R
+a
+2
+(1+ε cosΩ) cosΩ
 +
-
-θ(utk
-)kxz∆t−xtk
-k2+
-θ(utk
-)
-√
-nkβk2
-Θ
-
-e
-Θ(tk+1−tk) − 1
-
-+ γ(uz∆t, utk
-)
-
-[−1, 1]n
-, (21)
-where x˙ = [ ˙x, x˙] is a thin interval.
-Proof. By the mean value theorem, we have that there must
-exist a set of states {xτj ∈ R
-n
-: j = 1, . . . , n} such that
-τj ∈ (tk, tk+1) for all j and the j-th entry of xτj
-, denoted as
-xτj ,j , satisfies xτj ,j =
-xtk+1,j−xtk,j
-tk+1−tk
-. Given the set of states
-{xτj ∈ R
-n : j = 1, . . . , n}, we can construct x˙ entry-wise as
-x˙ = [ ˙x1, . . . , x˙ n]
-⊤, where x˙ j = xτj ,j for each j = 1, . . . , n.
-Let x˙ be constructed as (20). We define x˙ = [ ˙x, x˙]. Given
-x˙ , we then show that (21) holds as follows.
-f(xz∆t) + g(xz∆t)uz∆t
-∈x˙ + (θ(utk
-)kxz∆t − xk2 + γ(uz∆t, utk
-))[−1, 1]n
-(22a)
-=x˙ + (θ(utk
-)kxz∆t + xtk − xtk − xk2
-+ γ(uz∆t, utk
-))[−1, 1]n
-(22b)
-⊆x˙ + (θ(utk
-)kxz∆t − xtk
-k2 + θ(utk
-)kxtk − xk2
-+ γ(uz∆t, utk
-))[−1, 1]n
-, (22c)
-where (22a) holds by Proposition 2 and the fact that the
-sample data is generated using ZOH control input ut = utk
-for all t ∈ [tk, tk+1), (22b) holds by adding and subtracting
-term xtk
-, and (22c) holds by triangle inequality.
-We prove (21) using the following relation
-|xtk,j − xj | = |xtk,j − xτj ,j |
-≤
-kβk2
-Θ
-
-e
-Θ(tk+1−tk) − 1
-
-,
-where the equality holds by (20) and the inequality holds by
-Proposition 1. Therefore, we can bound kxtk − xk2 as
-kxtk − xk2 ≤
-√
-nkβk2
-Θ
-
-e
-Θ(tk+1−tk) − 1
-
-. (23)
-Combining (23) with (22) yields the lemma.
-Proposition 1 and Lemma 3 provides us the methods
-to estimate the CBF constraint given in (12). In the next
-subsection, we present an optimization problem subject to
-the CBF constraint for safety-critical synthesis.
-C. Safety-Critical Synthesis
-In this subsection, we first use Proposition 1 and Lemma
-3 to evaluate the CBF constraint given in (12). We show
-that the safety-critical synthesis using the evaluated CBF
-constraint is formulated as a non-convex program. We
-decompose the non-convex program to two convex subproblems, and present an efficient safety-critical synthesis.
-We define
-w(uz∆t, utk
-) = θ(utk
-)kxz∆t − xtk
-k2
+2(∇R·∇Ω)
+a
+2
+(1+2ε cosΩ)sinΩ
 +
-√
-nθ(utk
-)kβk2
-Θ
-
-e
-Θ(tk+1−tk) − 1
-
-+ γ(uz∆t, utk
-).
-Using Proposition 1 and Lemma 3, we have the following
-upper bound for e(xt, xz∆t, uz∆t) defined in (4).
-Theorem 1. Let x˙ ∈ R
-n be constructed as (20), 1 =
-[1, . . . , 1]⊤ ∈ R
-n, and
-E(∆t, uz∆t) = LhΘkβk2 + Lα
-Θ
-(e
-Θ∆t − 1)
-+2Lh max{kx˙+w(uz∆t, utk
-)1k2, kx˙−w(uz∆t, utk
-)1k2}.
-(24)
-Then |e(xt, xz∆t, uz∆t)| ≤ E(∆t, uz∆t) for all uz∆t ∈ U.
-Proof. The theorem follows from Lemma 2, Proposition 1,
-and Lemma 3.
-Using Theorem 1, we have the following result.
-Lemma 4. Let x˙ ∈ R
-n be constructed as (20) and 1 =
-[1, . . . , 1]⊤ ∈ R
-n. If a control signal u ∈ U satisfies the
-following set of relations
-∂h(xz∆t)
-∂x ( ˙x + w(uz∆t, utk
-)1) + α(h(xz∆t))
-− E(∆t, uz∆t) ≥ 0 (25a)
-∂h(xz∆t)
-∂x ( ˙x − w(uz∆t, utk
-)1) + α(h(xz∆t))
-− E(∆t, uz∆t) ≥ 0 (25b)
-then control signal u satisfies
-∂h(xz∆t)
-∂x (f(xz∆t) + g(xz∆t)u) + α(h(xz∆t)) ≥ 0.
-Proof. By Theorem 1, we have |e(xt, xz∆t, uz∆t)| ≤
-E(∆t, uz∆t). Therefore, if (25) holds, then
-∂h(xz∆t)
-∂x ( ˙x + w(u, utk
-)1) + α(h(xz∆t))
-− |e(xt, xz∆t, u)| ≥ 0 (26a)
-∂h(xz∆t)
-∂x ( ˙x − w(u, utk
-)1) + α(h(xz∆t))
-− |e(xt, xz∆t, u)| ≥ 0 (26b)
-Using Lemma 3, we have that
-∂h(xz∆t)
-∂x (f(xz∆t) + g(xz∆t)u)
-∈
-∂h(xz∆t)
-∂x [ ˙x − w(u, utk
-)), x˙ + w(u, utk
-))]. (27)
-Hence, (26) implies that
-∂h(xz∆t)
-∂x (f(xz∆t) + g(xz∆t)u) + α(h(xz∆t))
-− |e(xt, xz∆t, u)| ≥ 0
-Note that |e(xt, xz∆t, u)| ≥ 0. Therefore, the lemma holds.
-Motivated by Lemma 4, we can formulate the following
-optimization problem at each sampling time z∆t for all z
-min
-u
-u
-⊤R(xz∆t)u (28a)
-s.t.
-∂h(xz∆t)
-∂x ( ˙x + w(u, utk
-)1) + α(h(xz∆t))
-− E(∆t, u) ≥ 0 (28b)
-∂h(xz∆t)
-∂x ( ˙x − w(u, utk
-)1) + α(h(xz∆t))
-− E(∆t, u) ≥ 0 (28c)
-u ∈ U (28d)
-where R(xz∆t) ∈ R
-m is a positive definite matrix. According to (5) and Lemma 4, we have that if a control signal
-u ∈ U satisfying (28) at sampling time z∆t is implemented
-during sampling period [z∆t,(z + 1)∆t), then
-∂h(xt)
-∂x (f(xt) + g(xt)u) + α(h(xt)) ≥ 0
-holds for all time t ∈ [z∆t,(z + 1)∆t). Hence, we have the
-following safety guarantee.
-Theorem 2. Let u
-∗
-z∆t
-be the control signal that solves (28),
-then system (1) is safe for all time t ∈ [z∆t,(z + 1)∆t)
-by applying control signal u
-∗
-z∆t
-during sampling period t ∈
-[z∆t,(z + 1)∆t).
-Proof. Since u
-∗
-z∆t
-solves optimization problem (28), constraints (28b) and (28c) hold. By Theorem 1, we have that
-|e(xt, xz∆t, uz∆t)| ≤ E(∆t, uz∆t) for all uz∆t ∈ U. Thus,
-constraints (28b) and (28c) imply that
-∂h(xt)
-∂x (f(xt) + g(xt)u
-∗
-z∆t
-) + α(h(xt))
-− |e(xt, xz∆t, u∗
-z∆t
-)| ≥ 0.
-Furthermore, by the definition of e(xt, xz∆t, uz∆t) given in
-(4) and relation given in (5), we have that constraints
-∂h(xt)
-∂x (f(xt) + g(xt)u
-∗
-z∆t
-) + α(h(xt))
-− |e(xt, xz∆t, u∗
-z∆t
-)| ≥ 0
-holds for all t ∈ [z∆t,(z + 1)∆t). Finally, applying Lemma
-1 yields the desired result.
-By Theorem 2, safety-critical synthesis reduces to solving
-the optimization problem given in (28). We observe that
-the objective function (28a) is quadratic with respect to u.
-However, the constraints (28b) and (28c) are not convex with
-respect to u. Therefore, solving problem given in (28) is
-nontrivial. In the following, we present a two-stage approach
-to solve for control input uz∆t at each sampling time z∆t
-for all z = 0, 1, . . ..
-We define a slack variable p = w(u, utk
-). By Assumption
-2, we have p ∈ [0, p¯(utk
-)], where p¯(utk
-) = maxu∈U ku −
-utk
-k2. Then constraints (28b) and (28c) are rewritten as
-2Lhkx˙ + p1k2 −
-∂h(xz∆t)
-∂x p1 ≤
-∂h(xz∆t)
-∂x x˙
-+ α(h(xz∆t)) −
-LhΘkβk2 + Lα
-Θ
-(e
-Θ∆t − 1) (29a)
-2Lhkx˙ − p1k2 −
-∂h(xz∆t)
-∂x p1 ≤
-∂h(xz∆t)
-∂x x˙
-+ α(h(xz∆t)) −
-LhΘkβk2 + Lα
-Θ
-(e
-Θ∆t − 1) (29b)
-2Lhkx˙ + p1k2 +
-∂h(xz∆t)
-∂x p1 ≤
-∂h(xz∆t)
-∂x x˙
-+ α(h(xz∆t)) −
-LhΘkβk2 + Lα
-Θ
-(e
-Θ∆t − 1) (29c)
-2Lhkx˙ − p1k2 +
-∂h(xz∆t)
-∂x p1 ≤
-∂h(xz∆t)
-∂x x˙
-+ α(h(xz∆t)) −
-LhΘkβk2 + Lα
-Θ
-(e
-Θ∆t − 1) (29d)
-Here x˙ is constructed using (20). Since kx˙ − p1k2 is convex
-with respect to p and ∂h(xz∆t)
-∂x p1 is linear with respect to p,
-the set of constraints given by (29) is convex with respect to
-p. Thus, we can use the following convex program to solve
-for p at each sampling time z∆t
-min
-p
-1 (30a)
-s.t. p ∈ [0, p¯(utk
-)] (30b)
-constraints given by (29) (30c)
-Denote the solution to convex program (30) as p
-∗
-. Next, we
-solve for uz∆t using p
-∗
-. Using the definition of w(uz∆t, utk
-)
-and γ(uz∆t, utk
-), we define b
-∗ = p
-∗−θ(utk
-)kxz∆t−xtk √
-k2−
-nθ(utk
-)kβk2
-Θ
-
-e
-Θ(tk+1−tk) − 1
-
-. Then searching for uz∆t i
-equivalent to computing the intersection between U and a
-ball centered at utk with radius b
-∗
-. We characterize this
-solution procedure using the following lemma.
-Lemma 5. If a control signal u
-∗
-is feasible to (28), then
-p
-∗ = w(u
-∗
-, utk
-) solves (30). If there exists some p
-∗
-solves
-(30) and there exists some u
-∗ ∈ U that satisfies w(u
-∗
-, utk
-) =
-p
-∗
-, then u
-∗
-is a feasible solution to (28).
-Proof. We first prove that if a control signal u
-∗
-is feasible
-to (28), then there exists some p
-∗ = w(u
-∗
-, utk
-) such that p
-∗
-solves (30). Since u
-∗
-is a feasible solution to (28), constraints
-(28b) and (28c) hold. By the definition of E(∆t, u∗
-), we
-observe that p
-∗ = w(u
-∗
-, utk
-) satisfies constraints in (29).
-Moreover, constraint (30b) is met since u
-∗
-is feasible to (28)
-and thus u
-∗ ∈ U.
-Next, we prove that if there exists some p
-∗
-solves (30)
-and there exists some u
-∗ ∈ U that satisfies w(u
-∗
-, utk
-) = p
-∗
-,
-then u
-∗
-is a feasible solution to (28). Using the definition
-of E(∆t, u∗
-) and p
-∗ = w(u
-∗
-, utk
-), we have that constraints
-in (29) hold implies that (28b) and (28c) hold. Additionally,
-we have u
-∗ ∈ U. Therefore, u
-∗
-is a feasible solution to (28).
-Combining the arguments above yields the lemma.
-By Theorem 2 and Lemma 5, we can compute a control
-signal with safety guarantee at each sampling time efficiently.
-We conclude this section by discussing how the sampleddata implementation and unknown dynamics are incorporated in the proposed approach. To ensure that (28) is
-feasible, we need
-LhΘkβk2 + Lα
-Θ
-(e
-Θ∆t − 1) − α(h(xz∆t))
-≤
-∂h(xz∆t)
-∂x ( ˙x + w(u, utk
-)1) − 2Lh
-· max{kx˙ + w(u, utk
-)1k2, kx˙ − w(u, utk
-)1k2} (31a)
-LhΘkβk2 + Lα
-Θ
-(e
-Θ∆t − 1) − α(h(xz∆t))
-≤
-∂h(xz∆t)
-∂x ( ˙x − w(u, utk
-)1) − 2Lh
-· max{kx˙ + w(u, utk
-)1k2, kx˙ − w(u, utk
-)1k2} (31b)
-The sampled-data implementation is captured by the term
-LhΘkβk2+Lα
-Θ
-(e
-Θ∆t − 1) in (31). This term decreases when
-reducing the sampling period. When the sampling period
-approaches zero, we have LhΘkβk2+Lα
-Θ
-(e
-Θ∆t − 1) → 0
-since the sampled-data system approximates a continuoustime system controlled by continuous-time control signals.
-Additionally, reducing the sampling period ∆t is helpful
-when h(xz∆t) → 0. The reason is that as ∆t → 0, the lefthand side of (31) approaches zero, and thus convex program
-(30) has largest feasible region.
-The unknown system dynamics are captured by the terms
-x˙ + w(u, utk
-)1 and x˙ − w(u, utk
-)1 in (31). Reducing the
-sampling period will not make these terms vanish. However,
-we can make w(u, utk
-) approach zero as the data set
-RK asymptotically covers the safe set C. In this case, the
-interval derived in Lemma 3 approaches a thin interval that
-only contains the system dynamics. Additionally, the datadriven methods may also help to reduce the conservativeness
-introduced by unknown dynamics, which is subject to our
-future work.
-VI. NUMERICAL CASE STUDY
-0 20 40 60 80 100
-Sample Index
--2
--1
+R(∇
+2Ω)
+a
+2
+(1+2ε cosΩ)sinΩ
++
+R(∇Ω)
+2
+a
+2
+(cosΩ+2ε cos(2Ω)) + ∂U
+∂φ . (6)
+Multiplying the equation of motion (6) by sinΩ and averaging
+over coherent oscillations, we obtain
+Ω¨ +2R˙Ω˙ /R−2∇R·∇Ω/(a
+2R)−(∇
+2Ω)/a
+2 = 0. (7)
+Similarly, multiplying the equation of motion by cosΩ and
+averaging over oscillations, we obtain
+R¨ −RΩ˙ 2 −∇
+2R/a
+2 +R(∇Ω)
+2
+/a
+2 +U
 0
-1
+eff = 0, (8)
+where U
+0
+eff ≡ 2hcosΩ
+∂U
+∂φ i. Here, we have assumed that R and
+Ω˙ do not change much over the period of oscillations, which
+is a good approximation when the potential is dominated by
+the quadratic term. Furthermore, we assume that ∆H term is
+small enough to be ignored, which is a good approximation
+if ω & H, where ω is the oscillation frequency, because ∆H is
+effectively constant on the time scale of coherent oscillations.
+We note that Eqs. (7) and (8) have the same form as those
+studied in Ref. [12]. We can thus follow the same procedure
+as Ref. [12]. For completeness, we repeat the procedure.
+We expand R and Ω into their background parts and perturbations parts as
+R(t,x) = R0(t) +δR(t,x), Ω(t,x) = Ω0(t) +δΩ(t,x). (9)
+with R0 and Ω0 being the solutions of Eqs. (7) and (8). It is
+straightforward to show that the perturbations satisfy
+¨δR−2R0Ω˙
+0
+˙ δΩ−Ω˙ 2
+0
+δR−
+∇
+2δR
+a
 2
-x
-1
-System Trajectory Induced by Proposed Approach
-Fig. 1: The trajectory induced by the proposed approach.
-In this section, we present a numerical case study on the
-control synthesis for a DC motor. The system follows a
-control affine dynamics as follows [24]
-x˙ =
++U
+00
+effδR = 0, (10)
+¨ δΩ−
+∇
+2δΩ
+a
+2
+−
+2R˙
+0Ω˙
+0
+R
+2
+0
+δR+
+2R˙
+0
+R0
+˙ δΩ+
+2Ω˙
+0
+R0
+˙δR = 0, (11)
+where we assumed that the background solutions R0 and Ω0
+are homogeneous and we considered terms only up to the first
+order in δR and δΩ. The solution for the growth modes takes
+the form [1]
+δR,δΩ ∝ e
+S(t)−ik·x
+, (12)
+3
+where we may assume that s ≡ S˙ = constant, i.e., the rate of
+growth of perturbations is larger than the rate of expansion
+of the Universe. Thus, assuming the oscillation time scale
+is short compared to the expansion rate of the Universe, we
+obtain
+0 =
 
-−39.3153x1 + 19.1083
-−1.6599x2 − 3.3333 
-+
-
-−32.2293x2
-22.9478x1
+s
+2 +
+k
+2
+a
+2
++U
+00
+eff −Ω˙ 2
+0
+ s
+2 +
+k
+2
+a
+2
 
-u,
-where x1 is the rotor current, x2 is the angular velocity,
-u ∈ U = [−4, 4] is the stator current. The parameters
-in the system dynamics are unknown, and are normally
-obtained empirically in practice. The initial state is set as
-x0 = [0.5, 0.75]⊤. The safe set of the motor is defined as
-C = {x : 1−x
++4s
+2Ω˙ 2
+0
+. (13)
+One can solve the equation for s
 2
-1 ≥ 0}. We generate data set RK by randomly
-generating 200 trajectories over 1000 sampling periods, with
-the sampling period ∆t = 0.01s.
-We compare our proposed approach with a baseline scenario. In the baseline scenario, the system dynamics is
-known. The control signal applied at each sampling time
-is calculated by solving the following quadratic program at
-each sampling time z∆t for all z = 0, 1, . . . ,.
-min
-uz∆t
-u
+,
+s
+2 = −
+k
 2
-z∆t
-(32a)
-s.t.
-∂h(x)
-∂x f(x) + ∂h(x)
-∂x g(x)uz∆t + α(h(x)) ≥ 0 (32b)
-In Fig. 1, we present the trajectory generated using the proposed approach and the baseline. The trajectory generated using the proposed approach and the baseline are plotted using
-the blue solid line and the red dash-dotted line, respectively.
-We observe that both the proposed approach and the baseline
-guarantee safety of the system. However, the trajectories
-are not identical. There are two major reasons causing the
-trajectories to be different from each other. First, the system
-dynamics are not known when implementing the proposed
-approach, and thus the CBF constraints given in (29) are
-used, while the baseline implements the CBF constraint given
-in (32b). Second, the baseline aims at minimizing the energy
-used by the controller, i.e., solving quadratic program in (32)
-at each sampling time, while the unknown system dynamics
-lead to a non-convex program presented in (28), which is
-solved by first solving the convex program in (30) and then
-searching for control signal u that satisfies Lemma 5. We
-finally observe that the proposed approach provides some
-robustness compared with the baseline. That is, the trajectory
-generated using the proposed approach tends to stay further
-away from both boundaries of the safe set than the baseline.
-VII. CONCLUSION
-In this paper, we studied the problem of safety-critical
-control synthesis for sampled-data systems with unknown
-dynamics. We constructed a CBF constraint to guarantee the
-safety during each sampling period. We evaluated the CBF
-constraint at each sampling time by bounding the reachable
-state and the unknown system dynamics. We formulated
-a non-convex program subject to the CBF constraint to
-calculate the safe control input. We decomposed the nonconvex program into two sub-problems with only convex
-programs involved. We proved the synthesized controller
-guarantees the safety of the unknown sampled-data system.
-Our proposed solution was evaluated using a numerical case
-study. For future work, we will incorporate a data-driven
-method to improve the bound of the CBF constraint by
-learning the nonlinear system dynamics.
-REFERENCES
-[1] J. C. Knight, “Safety critical systems: challenges and directions,”
-in Proceedings of the 24th International Conference on Software
-Engineering, 2002, pp. 547–550.
-[2] A. D. Ames, X. Xu, J. W. Grizzle, and P. Tabuada, “Control barrier
-function based quadratic programs for safety critical systems,” IEEE
-Transactions on Automatic Control, vol. 62, no. 8, pp. 3861–3876,
-2016.
-[3] L. Wang, A. D. Ames, and M. Egerstedt, “Safety barrier certificates for
-collisions-free multirobot systems,” IEEE Transactions on Robotics,
-vol. 33, no. 3, pp. 661–674, 2017.
-[4] M. H. Cohen and C. Belta, “Approximate optimal control for safetycritical systems with control barrier functions,” in IEEE Conference
-on Decision and Control. IEEE, 2020, pp. 2062–2067.
-[5] A. Singletary, Y. Chen, and A. D. Ames, “Control barrier functions
-for sampled-data systems with input delays,” in IEEE Conference on
-Decision and Control. IEEE, 2020, pp. 804–809.
-[6] W. S. Cortez, D. Oetomo, C. Manzie, and P. Choong, “Control barrier
-functions for mechanical systems: Theory and application to robotic
-grasping,” IEEE Transactions on Control Systems Technology, 2019.
-[7] J. Breeden, K. Garg, and D. Panagou, “Control barrier functions in
-sampled-data systems,” arXiv preprint arXiv:2103.03677, 2021.
-[8] T. Mannucci, E.-J. van Kampen, C. de Visser, and Q. Chu, “Safe
-exploration algorithms for reinforcement learning controllers,” IEEE
-Transactions on Neural Networks and Learning Systems, vol. 29, no. 4,
-pp. 1069–1081, 2017.
-[9] C. Folkestad, Y. Chen, A. D. Ames, and J. W. Burdick, “Datadriven safety-critical control: Synthesizing control barrier functions
-with Koopman operators,” IEEE Control Systems Letters, 2020.
-[10] A. Taylor, A. Singletary, Y. Yue, and A. Ames, “Learning for safetycritical control with control barrier functions,” in Learning for Dynamics and Control. PMLR, 2020, pp. 708–717.
-[11] P. Jagtap, G. J. Pappas, and M. Zamani, “Control barrier functions for
-unknown nonlinear systems using Gaussian processes,” arXiv preprint
-arXiv:2010.05818, 2020.
-[12] L. Wang, E. A. Theodorou, and M. Egerstedt, “Safe learning of
-quadrotor dynamics using barrier certificates,” in 2018 IEEE International Conference on Robotics and Automation (ICRA). IEEE,
-2018, pp. 2460–2465.
-[13] F. Berkenkamp, M. Turchetta, A. Schoellig, and A. Krause, “Safe
-model-based reinforcement learning with stability guarantees,” in
-Advances in Neural Information Processing Systems, 2017, pp. 908–
-918.
-[14] C. Tomlin, G. J. Pappas, and S. Sastry, “Conflict resolution for air
-traffic management: A study in multiagent hybrid systems,” IEEE
-Transactions on Automatic Control, vol. 43, no. 4, pp. 509–521, 1998.
-[15] D. Mellinger, A. Kushleyev, and V. Kumar, “Mixed-integer quadratic
-program trajectory generation for heterogeneous quadrotor teams,” in
-2012 IEEE International Conference on Robotics and Automation.
-IEEE, 2012, pp. 477–483.
-[16] R. Cheng, G. Orosz, R. M. Murray, and J. W. Burdick, “End-to-end
-safe reinforcement learning through barrier functions for safety-critical
-continuous control tasks,” in Proceedings of the AAAI Conference on
-Artificial Intelligence, vol. 33, 2019, pp. 3387–3395.
-[17] J. Choi, F. Casta˜neda, C. J. Tomlin, and K. Sreenath, “Reinforcement
-learning for safety-critical control under model uncertainty, using
-control Lyapunov functions and control barrier functions,” arXiv
-preprint arXiv:2004.07584, 2020.
-[18] J. F. Fisac, A. K. Akametalu, M. N. Zeilinger, S. Kaynama, J. Gillula,
-and C. J. Tomlin, “A general safety framework for learning-based
-control in uncertain robotic systems,” IEEE Transactions on Automatic
-Control, vol. 64, no. 7, pp. 2737–2752, 2018.
-[19] J. H. Gillulay and C. J. Tomlin, “Guaranteed safe online learning of a
-bounded system,” in IEEE/RSJ International Conference on Intelligent
-Robots and Systems, 2011, pp. 2979–2984.
-[20] J. H. Gillula and C. J. Tomlin, “Guaranteed safe online learning via
-reachability: tracking a ground target using a quadrotor,” in IEEE
-International Conference on Robotics and Automation, 2012, pp.
-2723–2730.
-[21] A. K. Akametalu, J. F. Fisac, J. H. Gillula, S. Kaynama, M. N.
-Zeilinger, and C. J. Tomlin, “Reachability-based safe learning with
-Gaussian processes,” in IEEE Conference on Decision and Control,
-2014, pp. 1424–1431.
-[22] H. K. Khalil and J. W. Grizzle, Nonlinear Systems. Prentice hall
-Upper Saddle River, NJ, 2002, vol. 3.
-[23] R. Bellman, “The stability of solutions of linear differential equations,”
-Duke Mathematical Journal, vol. 10, no. 4, pp. 643–647, 1943.
-[24] S. Daniel-Berhe and H. Unbehauen, “Experimental physical parameter
-estimation of a thyristor driven DC-motor using the HMF-method,”
-Control Engineering Practice, vol. 6, no. 5, pp. 615–626, 1998.
-APPENDIX
-Proposition 3. Suppose Assumption 1 holds. Let x, x′ ∈ X
-and u ∈ U. We have kf(x) + g(x)u − f(x
-′
-) − g(x
-′
-)uk2 ≤
-θ(u)kx − x
-′k2.
-Proof. We analyze kf(x) + g(x)u − f(x
-′
-) − g(x
-′
-)uk2
-element-wise. Consider the j-th component of f(x) +g(x)u
-and f(x
-′
-) + g(x
-′
-)u. We have that
-|fj(x) + (g(x)u)j − fj (x
-′
-) − (g(x
-′
-)u)j |
-≤|fj(x) − fj(x
-′
-)| + |
-Xm
-s=1
-(gj,s(x) − gj,s(x
-′
-))us| (33a)
-≤
+a
+2
+−
+3Ω˙ 2
+0 +U
+00
+eff
+2
+±
+
+|3Ω˙ 2
+0 +U
+00
+eff|
+2
+1+
+16(k
+2/a
+2
+)Ω˙ 2
+0
+(3Ω˙ 2
+0 +U00
+eff)
+2
+1/2
+. (14)
+For small k/a values,
+s
+2 ≈ −
+k
+2
+a
+2
+−
+3Ω˙ 2
+0 +U
+00
+eff
+2
+(15)
+±
+
+|3Ω˙ 2
+0 +U
+00
+eff|
+2
+1+
+8(k
+2/a
+2
+)Ω˙ 2
+0
+(3Ω˙ 2
+0 +U00
+eff)
+2
+−
+36(k
+4/a
+4
+)Ω˙ 4
+0
+(3Ω˙ 2
+0 +U00
+eff)
+4
+
+.
+For a growing mode, s
+2 > 0, and thus we take the + sign,
+provided that 3Ω˙ 2
+0 +U
+00
+eff > 0, which gives
+s
+2 ≈
+k
+2
+a
+2
+1
+3Ω˙ 2
+0 +U00
+eff
+
+Ω˙ 2
+0 −U
+00
+eff −16 k
+2
+a
+2
+Ω˙ 4
+0
+(3Ω˙ 2
+0 +U00
+eff)
+2
+
+.
+(16)
+The largest possible value for k
+2/a
+2
+is then given by
+k
+2
+max
+a
+2
+≈ Ω˙ 2
+0 −U
+00
+eff . (17)
+Note that Ω˙ 2
+0 = U
+0
+eff/R from the background equation of motion. We therefore obtain
+s
+2 ≈
+k
+2
+a
+2
+
+1−
+k
+2
+k
+2
+max 
+U
+0
+eff/R−U
+00
+eff
+3U0
+eff/R+U00
+eff
+. (18)
+We now can integrate s to obtain the total growth factor,
+S(k,a(t)) = Z t
+t0
+dt s(k,t) = Z a(t)
+a0
+da s(k,a)
+aH
+. (19)
+As a condition for fragmentation, we require S ∼
+ln(R0/δR0), which results in non-linear perturbations, i.e.,
+δR/R ∼ 1. The primordial inflaton perturbation, δR0/R0 ∼
+10−4
+, can be used as the initial perturbation. Thus, the condition for growth to non-linearity and so fragmentation is given
+by
+S(k,a(t)) > 10. (20)
+The discussion above is applicable for a general potential.
+The polynomial expansion of a general potential is expected
+to have a leading-order quartic or cubic interactions for a symmetric potential or an asymmetric potential, respectively. The
+fragmentation condition (20) can then be converted into a
+bound on the model parameters. In the following two subsections, we discuss the case of a symmetric and an asymmetric
+potential respectively and obtain the condition on the model
+parameters for fragmentation to occur.
+B. Symmetric potentials
+Let us consider
+V(Φ) = 1
+2
+m
+2Φ
+2 −AΦ
+4
+, (21)
+where A > 0. The quadratic term is assumed to be dominant.
+The leading-order quartic self-interaction is expected to naturally arise in the polynomial expansion of a general symmetric
+potential3
+. The condition for fragmentation to occur with the
+quartic self-interaction was studied in detail in Ref. [12]. For
+completeness, we repeat the calculation here.
+As the potential is symmetric under Φ → −Φ, we may set
+ε = 0 in Eq. (5) and obtain the following effective potential,
+Ueff(R) = 1
+2
+m
+2R
+2 −
+3
+4
+A
+a0
+a
+3
+R
+4
+. (22)
+The upper limit of the comoving wavenumber, kmax, is then
+given by Eq. (17),
+kmax ≈
+√
+6ARa3/2
+0
+a
+−1/2
+. (23)
+We note that kmax ∝ a
+−1/2
+. For a mode k < kmax, the mode is
+initially growing. Eventually, the mode k will become larger
+than kmax since kmax decreases as a increases. Therefore, the
+mode will stop growing.
+The maximum possible growth of a mode is found by first
+considering k < kmax,0 at an initial scale factor a0. At a later
+scale factor af at which k = kmax, the growth stops. We compute the corresponding growth factor S(k,af) and maximise
+S(k,af) with respect to k and af
+. In this way, we determine the
+maximum possible growth of a mode starting at a0.
+Using Eq. (19), we obtain the growth factor from a0 to af
+as follows:
+S(k,af) = r
+3AR2
+2m2
+k
+a0H0
+Z xf
+1
+x
+−2
 
-Lfj +
-Xm
-s=1
-Lgj,s |us|
-!
-kx − x
-′
-k2, (33b)
-where (33a) holds by triangle inequality and matrix multiplication, and (33b) holds by Assumption 1. Given (33) holds
-for all j = 1, . . . , n, we have that the proposition holds.
+1−
+k
+2
+k
+2
+max,0
+x
+!1/2
+dx ,
+(24)
+where xf ≡ af/a0. A conservative analytical result for the
+growth factor can be obtained by setting x = xf
+in the square
+root factor, as it overestimates the suppression of the growth
+factor. Then, we find, with kmax,f ≡ kmax(af),
+S(k,af) = r
+3AR2
+2m2
+k
+a0H0
+
+1−
+k
+2
+k
+2
+max,f
+!1/2
+
+1−
+a0
+af
+
+. (25)
+Maximising the growth factor with respect to k gives
+k =
+kmax,f
+√
+2
+=
+
+a0
+af
+1/2
+kmax,0
+√
+2
+. (26)
+3 For the potential of the form V(Φ) = 1
+2 m
+2Φ2 − A|Φ|
+3
+, one may refer to
+Ref. [12].
+4
+Thus,
+Smax(af) = r
+3AR2
+2m2
+kmax,0
+2a0H0
+
+a0
+af
+1/2 
+1−
+a0
+af
+
+. (27)
+Maximising this with respect to af gives
+af = 3a0 . (28)
+Therefore,
+Smax =
+1
+3
+√
+3
+r
+3AR2
+2m2
+kmax,0
+a0H0
+=
+√
+2ARMP
+m2
+, (29)
+where we used the fact that the potential is dominated by the
+quadratic term so that H0 = mR/(
+√
+6MP). We should choose
+R ≡ Φ0, where Φ0 is the amplitude of the field oscillations at
+a0, to be as large as possible while being consistent with the
+assumption that the potential is dominated by the quadratic
+term. We define the ratio between the quartic part and the
+quadratic part of the potential by rS,
+rS =
+AΦ4
+0
+m2Φ2
+0
+/2
+=
+2AR2
+m2
+. (30)
+In terms of rS, we then obtain
+Smax = (rSA)
+1/2 MP
+m
+. (31)
+Therefore, the fragmentation condition (20), Smax > 10, will
+be satisfied if
+A > 1000
+0.1
+rS
+ m
+MP
+2
+. (32)
+C. Asymmetric potentials
+Next, we consider a typical asymmetric potential which, in
+the small field region where inflaton starts to oscillate around
+the minimum of the potential after inflation ends, can generically be described by the leading-order cubic term,
+V(Φ) = 1
+2
+m
+2Φ
+2 ±AΦ
+3
+. (33)
+The quadratic term is assumed to be the dominant term in the
+potential as before. The sign of the cubic term is chosen in
+such a way that A takes a positive value.
+In the case of asymmetric potentials, ε in Eq. (5) takes a
+non-zero value. To find ε, let us assume that the field reaches
+maximum at Φ = Φ± with Φ˙ = 0, where Φ± = ±(Φ0 ±δΦ)
+for the − sign in the potential (33) and Φ± = ±(Φ0 ∓δΦ) for
+the + sign in the potential (33). Here, Φ0,δΦ > 0. Note that
+δΦ → 0 as A → 0. From V(Φ+) = V(Φ−), we find that δΦ =
+AΦ2
+0
+/m
+2 = AR2/m
+2
+, where Φ0 is identified with R. Thus, the
+parameter ε can be determined as
+ε = ±
+AR
+m2
+, (34)
+with the + (−) sign for the − (+) sign in the potential (33),
+representing the deviation from the quadratic term.
+The effective potential now takes
+Ueff =
+1
+2
+m
+2R
+2 −
+9A
+2
+8m2
+a0
+a
+3/2
+R
+4
+. (35)
+The upper limit of the comoving wavenumber, kmax, in this
+case is given by
+kmax ≈
+3AR
+m
+a
+3/4
+0
+a
+1/4
+. (36)
+We see that kmax ∝ a
+1/4
+. Thus, a wavenumber that is initially
+larger than the maximum wavenumber, k > kmax, will eventually become smaller than kmax, and the growth of the mode
+starts. Therefore, the maximum growth corresponds to a mode
+k = kmax,0, for a given a0. The growth factor is given by
+S(kmax,0,a) = 3AR
+2m2
+kmax,0
+a0H0
+Z x
+1
+x
+−5/4
+p
+1−x
+−1/2 dx , (37)
+where x ≡ a/a0. We take the limit x → ∞. Then, the maximum
+growth factor is given by
+Smax =
+9
+√
+6πA
+2RMP
+2m4
+, (38)
+where we used the fact that the potential is dominated by the
+quadratic term so that H0 = mR/(
+√
+6MP).
+Therefore, the fragmentation condition (20), Smax > 10,
+will be satisfied if
+A
+2RMP
+m4
+>
+20
+9
+√
+6π
+≈ 0.29. (39)
+We may take the value of R as large as possible while keeping
+the cubic term in the potential smaller than the quadratic term.
+We parametrise it as rA, similarly to the rS in the symmetric
+case (30),
+R = rA
+m
+2
+2A
+. (40)
+Thus, the condition for growth to non-linearity and so fragmentation (39) can be written as
+A >
+400
+9
+√
+6π
+
+m
+2
+MP
+0.1
+rA
+
+≈ 5.78
+m
+2
+MP
+0.1
+rA
+
+. (41)
+D. Summary of analytical conditions
+We summarise the general analytical fragmentation conditions:
+• Symmetric potentials V =
+1
+2m
+2Φ2 −AΦ4
+:
+A > 1000
+m
+MP
+2 
+0.1
+rS
+
+. (42)
+5
+• Asymmetric potentials V =
+1
+2m
+2Φ2 ±AΦ3
+:
+A >
+400
+9
+√
+6π
+
+m
+2
+MP
+0.1
+rA
+
+. (43)
+These are the main results of the paper.
+Strictly speaking, these conditions are sufficient conditions
+for fragmentation, as they show that if the condensate forms it
+will fragments, hence fragmentation is guaranteed if our conditions are satisfied. In our analysis, we are restricting the
+initial value of the field to be close enough to the minimum of
+the potential that the potential is dominated by the quadratic
+term. However, it is possible that fragmentation could occur
+more rapidly and at larger field values due to tachyonic preheating, in which case it is possible that fragmentation could
+still occur even if our conditions are not satisfied. In practice, as we will demonstrate via a range of examples below,
+we find that quite generally our conditions accurately predict
+the conditions under which fragmentation occurs in numerical
+simulations.
+In the next section we will apply our analytical conditions
+to various examples of inflation models and compare them
+with the known numerical results in order to demonstrate the
+effectiveness of our analytic fragmentation conditions.
+III. APPLICATIONS
+A. α-attractor T-model
+The α-attractor T-model [13–15] with n = 1 has the following potential in the Einstein frame:
+V = λtanh2
+
+Φ
+√
+6αMP
+
+. (44)
+Around the minimum, the potential can be expanded as
+V ≈
+λ
+6α
+
+Φ
+MP
+2
+−
+λ
+54α2
+
+Φ
+MP
+4
+. (45)
+We thus find, by comparing with Eq. (21),
+m =
+s
+λ
+3αM2
+P
+, A =
+λ
+54α2M4
+P
+. (46)
+Therefore, by substituting m and A into Eq. (42), we see that
+the fragmentation condition is satisfied if
+α . 5.6×10−5
+ rS
+0.1
+
+. (47)
+Thus, in the α-attractor T-model, fragmentation of the inflaton condensate will occur for α . 5 × 10−5
+. Our analytical result is in agreement with the numerical analysis of Ref.
+[11], which demonstrates fragmentation for an explicit example with α ≈ 10−5
+, but finds no fragmentation for larger values
+of α.
+B. α-attractor E-model
+The Einstein-frame potential of the α-attractor E-model
+[13–15] with n = 1 is given by
+V = λ
+"
+1−exp
+−
+r
+2
+3α
+Φ
+MP
+!#2
+. (48)
+The potential can be expanded around the minimum as
+V ≈
+2λΦ2
+3αM2
+P
+−
+2
+3
+r
+2
+3
+λ
+α3/2
+Φ3
+M3
+P
+. (49)
+Comparing with Eq. (33), we find
+m =
+s
+4λ
+3αM2
+P
+, A =
+2
+3
+r
+2
+3
+λ
+α3/2M3
+P
+. (50)
+Therefore, by substituting m and A into Eq. (43), we see that
+the fragmentation condition is satisfied if
+α . 5×10−3
+ rA
+0.1
+2
+. (51)
+Thus, in the α-attractor E-model, fragmentation of the inflaton condensate will occur for α . 5 × 10−3
+. This analytical result agrees with a numerical analysis performed in Ref.
+[16], where it is concluded that fragmentation will occur for
+α . 10−3
+.
+C. Starobinsky R
+2 model
+Starobinsky’s R
+2
+inflation model [17] has the following potential in the Einstein frame,
+V = λ
+"
+1−exp
+−
+r
+2
+3
+Φ
+MP
+!#2
+. (52)
+We note that this potential can be obtained from the αattractor E-model potential (48) by setting α = 1. From Eq.
+(51), we see that α = 1 does not satisfy the fragmentation condition. Therefore, we conclude that the fragmentation does
+not occur in the R
+2 model. This is consistent with the results
+of Ref. [18].
+D. Palatini R
+2 model with a quadratic potential
+Let us consider the quadratic inflation model in the Palatini
+formulation with an R
+2
+term added [19, 20]. The action is
+given in the Jordan frame by
+S =
+Z
+d
+4
+x
+√
+−gJ
+
+M2
+P
+2
+g
+µν
+J RJµν +
+α
+2
+4
+(g
+µν
+J RJµν)
+2
+−
+1
+2
+g
+µν
+J
+∂µϕ∂νϕ−
+1
+2
+m
+2ϕ
+2
+
+, (53)
+6
+where we put the subscript J to denote the Jordan frame. The
+action can be brought into the Einstein frame via Weyl rescaling4
+,
+S =
+Z
+d
+4
+x
+√
+−gE
+
+M2
+P
+2
+g
+µν
+E REµν −
+1
+2
+g
+µν
+E
+∂µΦ∂νΦ−V
+
+, (54)
+where the subscript E stands for the Einstein frame, Φ is the
+canonically normalised field, and V is the Einstein-frame potential. Near ϕ = 0, the canonically normalised field can be
+approximated as Φ ≈ ϕ, and the Einstein-frame potential is
+given by [21]
+V ≈
+1
+2
+m
+2Φ
+2 −α
+
+m
+MP
+4
+Φ
+4
+. (55)
+Thus, it belongs to the symmetric case (21) with
+A = α
+
+m
+MP
+4
+. (56)
+Substituting the expression of A into Eq. (42), we see that the
+fragmentation condition is satisfied if
+α
+
+m
+MP
+2
+> 1000
+0.1
+rS
+
+. (57)
+To match the magnitude of the primordial curvature power
+spectrum, 2×10−9
+, the inflaton mass needs to be m ' 1.4×
+1013 GeV. The prediction for the fragmentation condition is
+then [21]
+α & 2.94×1013
+. (58)
+The same lower bound of 1013 was later found in Ref. [20]
+by performing a numerical analysis of tachyonic preheating
+in this model.
+E. Higgs Inflation
+In the previous sections we considered models for which
+a numerical analysis of fragmentation already exists, and we
+demonstrated that our simple analytical conditions can reproduce the conditions for fragmentation that were previously obtained numerically. In this section, we consider examples for
+which no numerical analysis at present exists, namely Higgs
+Inflation with a symmetry-breaking potential in both the metric and Palatini formalisms, where the inflaton is oscillating
+around the symmetry-breaking minimum of its potential. We
+derive the analytical conditions for fragmentation and then
+confirm numerically that these conditions are correct.
+4 As our aim is to apply our general analytical conditions to a specific model,
+we do not discuss the detailed computational steps. Readers may refer to
+Refs. [19, 20].
+Higgs Inflation is described the following action in the Jordan frame:
+S =
+Z
+d
+4
+x
+√
+−gJ
+
+M2
+P
+2
+F(ϕ)g
+µν
+J RJµν
+−
+1
+2
+g
+µν
+J
+∂µϕ∂νϕ−VJ(ϕ)
+
+, (59)
+where the subscript J denotes the Jordan frame, F(ϕ) = (M2+
+ξϕ2
+)/M2
+P
+is the non-minimal coupling term with M being a
+mass parameter, which reproduces the Planck mass at today,
+i.e., M2 +ξv
+2 ≡ M2
+P
+, v is the vacuum expectation value of the
+ϕ field, and VJ(ϕ) = λ(ϕ
+2 − v
+2
+)
+2/4 is the Higgs potential in
+the Jordan frame. In the Einstein frame, the action is given by
+S =
+Z
+d
+4
+x
+√
+−gE
+
+M2
+P
+2
+g
+µν
+E REµν −
+1
+2
+g
+µν
+E
+∂µΦ∂νΦ−VE(ϕ)
+
+,
+(60)
+where the subscript E denotes the Einstein frame, Φ is the
+canonically normalised field, and VE is the scalar potential in
+the Einstein frame. The Einstein-frame field and potential are
+related to the Jordan-frame field and potential as
+dΦ
+dϕ
+=
+s
+1
+F
++σ
+3M2
+P
+2F2
+
+dF
+dϕ
+2
+, (61)
+VE =
+VJ
+F2
+, (62)
+where σ parametrises the metric (σ = 1) and the Palatini
+(σ = 0) formulations. We shall omit the subscript E in the
+following. For inflationary physics of the Higgs Inflation in
+the metric and the Palatini formulations, see, e.g., Refs. [22–
+24].
+Assuming that |ϕ−v|  v, we can expand V(ϕ) as
+V(ϕ) = λ
+4F2
+(ϕ+v)
+2
+(ϕ−v)
+2
+=
+λ
+4F2
+[(ϕ−v) +2v]
+2
+(ϕ−v)
+2
+≈
+λv
+2
+F2
+(ϕ−v)
+2
+
+1+
+ϕ−v
+v
+
+. (63)
+We can also expand F as
+M2
+PF = M2
+P +ξ(ϕ+v)(ϕ−v)
+= M2
+P +ξ[2v+ (ϕ−v)](ϕ−v), (64)
+and thus we find
+1
+F2
+≈ 1−
+4ξv
+M2
+P
+(ϕ−v)−
+2ξ
+M2
+P
+
+1−
+6ξv
+2
+M2
+P
+
+(ϕ−v)
+2
+. (65)
+Thus, to leading order in (ϕ − v), the potential V(ϕ) can be
+expressed as
+V(ϕ) ≈ λv
+2
+(ϕ−v)
+2
+
+1−
+
+4ξv
+2
+M2
+P
+−1
+
+ϕ−v
+v
+
+. (66)
+7
+For |ϕ−v|  v, the relation between ϕ and Φ becomes
+Φ ≈
+s
+1+
+6σξ2v
+2
+M2
+P
+(ϕ−v), (67)
+where we define Φ = 0 at ϕ = v. This follows since, to leading
+order in (ϕ − v), we can set ϕ = v on the right-hand side of
+Eq. (61). Thus, in terms of Φ, the Einstein-frame potential for
+|ϕ−v|  v becomes
+V(Φ) = λv
+2
+1+6σξ2v
+2/M2
+P
+Φ
+2 ∓
+λv|4ξv
+2/M2
+P −1|
+(1+6σξ2v
+2/M2
+P
+)
+3/2
+Φ
+3
+.
+(68)
+This is of the form of Eq. (33) with
+m
+2 =
+2λv
+2
+1+6σξ2v
+2/M2
+P
+, A =
+λv|4ξv
+2/M2
+P −1|
+(1+6σξ2v
+2/M2
+P
+)
+3/2
+. (69)
+Applying the fragmentation condition for an asymmetric potential, (43), we obtain the general condition for fragmentation in Higgs Inflation with a symmetric-breaking potential as
+follows:
+v
+MP
+.
+9π
+400r
+3
+2
+ rA
+0.1
+ |4ξv
+2/M2
+P −1|
+(1+6σξ2v
+2/M2
+P
+)
+1/2
+. (70)
+(i) Case M2  ξv
+2
+: In this case, M2
+P ≈ ξv
+2
+, corresponding to non-minimally coupled inflation in the induced gravity
+limit. In this limit, the condition for fragmentation becomes
+(1+6σξ)
+1/2
+p
+ξ
+. 0.26 rA
+0.1
+
+. (71)
+For the metric case, σ = 1, and, assuming that ξ  1, the
+condition becomes
+√
+6 . 0.26 rA
+0.1
+
+, (72)
+which is not satisfied. Therefore, fragmentation does not occur for metric Higgs Inflation in the induced gravity limit. For
+the Palatini case, σ = 0, and the condition becomes
+ξ & 14.83
+0.1
+rA
+2
+. (73)
+This is easily satisfied since we expect that ξ  1. Therefore,
+we expect that the inflaton condensate will fragment in the
+case of Palatini Higgs Inflation in the induced gravity limit,
+but it will not fragment in the case of metric Higgs Inflation
+in this limit.
+(ii) Case M2  ξv
+2
+: In this case, M2
+P ≈ M2
+, corresponding
+to conventional Higgs Inflation. In addition, since |ϕ − v| 
+v, we also have ξϕ2  M2
+P
+. In this limit, the condition for
+fragmentation becomes
+v
+MP
+. 0.087
+0.1
+rA
+1+
+6σξ2
+v
+2
+M2
+P
+−1/2
+. (74)
+For the metric case, σ = 1, and the condition becomes
+v
+MP
+
+1+
+6ξ
+2
+v
+2
+M2
+P
+1/2
+. 0.087
+0.1
+rA
+
+. (75)
+There are two cases, corresponding to 6ξ
+2
+v
+2/M2
+P  1 and
+6ξ
+2
+v
+2/M2
+P  1. In the case where 6ξ
+2
+v
+2/M2
+P  1, the condition for the fragmentation becomes
+v
+MP
+. 0.087
+0.1
+rA
+
+. (76)
+In this case, the non-minimal coupling plays no role and we
+simply have the condition for fragmentation for a minimally
+coupled scalar with a broken-symmetry potential. This is satisfied as long as v is not very close to the Planck scale.
+In the case where 6ξ
+2
+v
+2/M2
+P  1, the condition for fragmentation becomes
+ξv
+2
+M2
+P
+. 0.035
+0.1
+rA
+
+. (77)
+In this case, the non-minimal coupling plays a role, even
+though ξϕ2  M2
+P
+. This is because once ϕ > MP/(
+√
+6ξ), the
+inflaton kinetic term in the Einstein frame in the metric case
+is modified. The allowed range of ξv
+2/M2
+P
+is 1  ξv
+2/M2
+P 
+1/(6ξ). Therefore, the fragmentation condition will be satisfied for most of the allowed range of ξv
+2/M2
+P
+except for when
+ξv
+2
+approaches M2
+P
+.
+In the case of Palatini Higgs Inflation, σ = 0, and the fragmentation condition becomes
+v
+MP
+. 0.087
+0.1
+rA
+
+. (78)
+This is simply the fragmentation condition for a minimally
+coupled scalar with a broken-symmetry potential. This is expected as in the limit ξv
+2  M2
+P
+(and so ξϕ2  M2
+P
+), the nonminimal coupling plays no role in Palatini inflation.
+In summary, we find significantly new results for the case
+of metric and Palatini Higgs Inflation with a broken-symmetry
+potential in the induced gravity limit, and for metric Higgs
+Inflation with a broken-symmetry potential in the limit where
+v > MP/(
+√
+6ξ), with all other cases reducing to a conventional
+minimally coupled scalar with a symmetry-breaking potential.
+In particular, we find that fragmentation will occur for Palatini
+Higgs Inflation in the induced gravity limit, but will not occur
+for metric Higgs Inflation in this limit.
+To our knowledge, there is no numerical study of this particular setup. In order to verify our analytical study, we
+perform numerical simulations in 1+3 dimensions by using
+the public lattice simulation code LATTICEEASY [25]. We
+present results of numerical simulations for the following two
+cases:
+• Palatini Higgs inflation in the ξv
+2  M2
+limit and
+• Metric and Palatini Higgs inflation with ξv
+2  M2
+, together with the condition ξ
+2
+v
+2  M2
+.
+8
+FIG. 1. Lattice simulation for the Palatini Higgs Inflation model. We present the quantity ρ/hρi = 10 at
+t = 500m
+−1
+. The choice of parameters are as follows:
+Ngrid = 1283
+, L = 50m
+−1
+, ξ = 1.0×103
+, and p
+ξv/M =
+1.0×103
+. We used the field value at the end of inflation,
+Φend = (MP/2
+p
+ξ)sinh−1
+(4
+p
+2ξ), as the initial condition.
+FIG. 2. Lattice simulation for the Higgs Inflation model.
+We present the quantity ρ/hρi = 10 at t = 40m
+−1
+.
+The choice of parameters are as follows: Ngrid = 1283
+,
+L = 30m
+−1
+, ξ = 1.0 × 104
+and p
+ξv/M = 0.1. We
+used the field value at the end of inflation, Φend =
+(MP/2
+p
+ξ)sinh−1
+(4
+p
+2ξ), as the initial condition.
+In both cases, our analytical results predict that fragmentation will occur. Note that, in the second case, the fragmentation conditions are same in both formalisms as in this limit
+both models reduce to a minimally coupled scalar with a
+symmetry-breaking potential, and there is no difference between the formalisms.
+For the numerical simulation, we set Ngrid = 1283
+, L =
+50m
+−1
+(30m
+−1
+), and δt = 0.1m
+−1
+for the first (second) case,
+where m ≡
+√
+2λv. For both cases, we used the field value at
+the end of inflation, Φend = (MP/2
+p
+ξ)sinh−1
+(4
+p
+2ξ) [23],
+as the initial condition. The result of the numerical simulation
+for the case of ξv
+2/M2  1 is shown in Fig. 1. We present
+the energy density ρ/hρi = 10, where hρi is the averaged energy density over the lattice. In Fig. 2, we plotted the energy
+density ρ/hρi = 10 for the case of ξv
+2/M2  1. We see that
+the inflaton condensate fragments after inflation ends in both
+cases. Our analytical results are thus in agreement with the
+numerical analysis.
+IV. CONCLUSION
+In this paper, we have derived general analytical conditions
+under which the inflaton condensate will fragment for the case
+of both symmetric and asymmetric potentials. The robustness
+of our results was demonstrated by applying our analytical
+fragmentation conditions to a range of models for which the
+result is known numerically, including the α-attractor T and
+E models, Starobinsky’s R
+2 model, and the Palatini R
+2 model
+with a quadratic potential. In all cases, we find that the analytically predicted condition on the model parameters for fragmentation to occur are in complete agreement with the results
+of the numerical analyses.
+In addition, we have applied our results to Higgs Inflation
+with a broken-symmetry potential in both the metric and Palatini formulations and derived a general condition for fragmentation to occur in these models. We then carried out numerical simulations of these models using LATTICEEASY and
+found complete agreement between our analytical predictions
+for fragmentation to occur and the results of the numerical
+simulations.
+The conditions we have derived provide a quick and simple method to check whether any model that can support nontopological soliton solutions (which requires that the scalars
+have a mass at the potential minimum and therefore that the
+potential is approximately quadratic at the minimum) will undergo fragmentation and to determine the range of model parameters for which this is possible.
+The physics of the inflaton condensate fragmentation has
+many interesting phenomenological consequences, including
+the formation of primordial black holes and gravitational wave
+signals. The evolution dynamics generally requires extensive
+numerical lattice simulations. We believe that our findings
+may serve as a starting point for such numerical analyses.

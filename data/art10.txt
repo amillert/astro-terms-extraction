@@ -1,3054 +1,1308 @@
-arXiv:2109.13148v1 [eess.SP] 27 Sep 2021
-MIMO-OFDM Dual-Functional
-Radar-Communication Systems: Low-PAPR
-Waveform Design
-Xiaoyan Hu, Member, IEEE, Christos Masouros, Senior Member, IEEE,
-Fan Liu, Member, IEEE, Ronald Nissel, Member, IEEE,
-Abstract—In this paper, we explore a dual-functional radarcommunication (DFRC) system for achieving integrated sensing
-and communications (ISAC). The technique of orthogonal frequency division multiplexing (OFDM) is leveraged to overcome
-the frequency-selective fading of the wideband multiple-input
-multiple-output (MIMO) systems with one multi-antenna DFRC
-base station (BS) and multiple single-antenna user equipment
-(UEs). In order to restrain the high peak-to-average power ratio
-(PAPR) of OFDM signals, we aim to jointly design low-PAPR
-DFRC MIMO-OFDM waveforms. This is done by utilizing a
-weighted objective function on both communication and radar
-performance metrics under power and PAPR constraints. The
-formulated optimization problems can be equivalently transformed into standard semi-definite programming (SDP) and can
-be effectively solved by semi-definite relaxation (SDR) method,
-where we prove that globally optimal rank-1 solution can be
-obtained in general. We further develop a low-complexity method
-to solve the problems with much reduced overheads. Moreover,
-the practical scenario with oversampling on OFDM signals
-is further considered, which has a significant effect on the
-resulting PAPR levels. The feasibility, effectiveness, and flexibility
-of the proposed low-PAPR DFRC MIMO-OFDM waveform
-design methods are demonstrated by a range of simulations on
-communication sum rate, symbol error rate as well as radar
-beampattern and detection probability.
-Index Terms—Spectrum sharing, DFRC, MIMO radar, communications, OFDM, PAPR
-I. INTRODUCTION
-A. Motivations and Prior Works
-The explosive growth of mobile and Internet-of-things (IoT)
-devices along with the severe spectrum shortage have driven
-the demand for an ever-increasing spectrum usage efficiency.
-To meet the impending need of massive connectivity in 2025
-with around 75 billion devices worldwide [1], sharing/resuing
-spectrum resources that have already been assigned to other
-existing applications is regarded as a promising strategy for
-future communication networks. Among the available applications, radar spectrum is widely regarded as a promising
-candidate that can facilitate communication and radar spectrum sharing (CRSS) due to the fact that the radar spectrum
-X. Hu and C. Masouros are with the Department of Electronic and Electrical
-Engineering, University College London, London WC1E 7JE, UK (Email:
-{xiaoyan.hu, c.masouros}@ucl.ac.uk).
-Fan Liu is with the Department of Electical and Electronic Engineering,
-Southern University of Science and Technology, Shenzhen, China ( Email:
-liuf6@sustech.edu.cn).
-R. Nissel is with Huawei Technologies, Gothenburg, Sweden (Email:
-ronald.nissel@huawei.com).
-provides large frequency bands that are suitable for wireless
-communications, and thus a win-win spectrum sharing policy
-can be achieved for both sides [2]. As a step further, with
-sharing one set of hardware equipment and signal processing
-frameworks for communications and radar, dual-functional
-radar-communication (DFRC) design provides a cost-efficient
-way for achieving integrated sensing and communications
-(ISAC) [3, 4]. In fact, the techniques of DFRC and ISAC are
-eagerly required by future intelligent 6G and IoT applications,
-such as smart cities, smart homes, automatic driving, industry
-4.0, etc., which have drawn great attention from both academia
-and industry recently [3–6].
-DFRC systems aim at fulfilling wireless communications
-and radar detections simultaneously through designing a single
-transmitted waveform. For radar-centric DFRC systems [3, 7–
-9], standard radar waveforms are employed and information is
-introduced by modulating and signaling for communications.
-In comparison, for communication-centric DFRC systems [4,
-10–12], the communication waveforms are directly exploited
-for sensing by extracting the radar information from targets
-echoes. It is known that radar-centric DFRC systems are
-capable of providing desirable sensing performance but with
-limited communication rates below 5G requirements, while
-communication-centric systems can achieve favorable communication performance but with unreliable and difficult-to-tune
-sensing performance [5, 6]. Recently, more attention is focused
-on DFRC systems with joint DFRC waveform design [13–15]
-to guarantee both sensing and communication performance,
-which is not limited by any existing radar or communication
-waveforms and is promising to achieve scalable performance
-trade-off between the two functionalities.
-The technique of orthogonal frequency division multiplexing (OFDM), as a key enabler for 4G and 5G wireless
-networks, is part of communication standards and has been
-studied extensively [16–18]. Actually, OFDM has also recently
-been exploited for radar sensing [10, 19–22]. The orthogonal property of OFDM waveform fulfilled by the discrete
-Fourier transform (DFT) and inverse DFT (IDFT) operations
-at transceivers can facilitate signal processing for both communications and radar sensing. A pioneer work [10] considered a
-communication-centric DFRC multiple-input multiple output
-(MIMO) OFDM system which provided a way of introducing
-radar sensing into a MIMO-OFDM system. In [19], a radarcentric DFRC MIMO-OFDM system with sidelobe control for
-communications was studied where the transmit and receive
-beamforming were optimized to maximize the radar metric
-of Kullback-Leibler divergence. The total radiated power was
-minimized in another radar-centric DFRC work [20] through
-subcarrier selection and power allocation with a primary radar
-purpose and a secondary communications purpose. Both radarcentric and joint design scenarios were addressed in recent
-work [21] where the DFRC trade-off waveform was optimized by taking the feedback overhead for conveying transmit
-waveform control information into consideration. A wideband
-DFRC MIMO-OFDM waveform was jointly designed in [22],
-where precoding and antenna selection matrices were optimized to meet a joint communication-sensing performance.
-Even though OFDM waveform is an excellent candidate
-for joint design of DFRC systems, one major disadvantage of
-OFDM waveform is high peak-to-average power ratio (PAPR)
-which should be effectively dealt with. Otherwise, high PAPR
-may cause non-linear distortion of the transmit signals and lead
-to radar/communication performance degradation considering
-the limited linear region of the low-cost power amplifiers [23–
-25]. In [19], the PAPR constraints were considered in a radarcentric DFRC system to restrain the PAPR of MIMO-OFDM
-waveform. However, to the best of our knowledge, most of the
-DFRC OFDM systems in the state-of-the-art literature have not
-taken the PAPR constraints into consideration, especially for
-the joint design DFRC systems. Moreover, PAPR is originally
-defined on the continuous-time passband signals [18], and thus
-oversampling may be necessary for obtaining accurate PAPR
-levels based on the discrete-time MIMO-OFDM waveform. It
-is verified that the discrete-time OFDM signal can get almost
-the same PAPR as the continuous-time signal if it is Υ-times
-interpolated (oversampled) with Υ ≥ 4 [18, 23].
-B. Our Contributions
-In this paper, we consider a wideband DFRC multi-user
-MIMO (MU-MIMO) OFDM system, where a multi-antenna
-DFRC base station (BS) acts as a cellular BS and a MIMO
-radar to generate DFRC MIMO-OFDM waveforms used for
-downlink data transmission and far-field targets detection
-simultaneously. We design low-PAPR DFRC MIMO-OFDM
-waveforms so as to achieve a tunable performance trade-off
-between wireless communications and radar sensing.
-Our main contributions are summarized as follows:
-• We jointly design the DFRC MIMO-OFDM waveforms
-by optimizing a weighted objective function on both
-communications and radar performance metrics under transmit power and PAPR constraints. The PAPR
-constraints are introduced to restrain the modulus of the
-DFRC MIMO-OFDM waveforms so as to avoid signal
-distortion caused by hardware limitation, e.g., low-cost
-non-linear power amplifiers, leading to energy-efficient
-data transmissions and target detections.
-• We first address low-PAPR DFRC MIMO-OFDM waveform design in the scenario with Nyquist-rate sampling.
-The PAPR of discrete-time DFRC MIMO-OFDM waveform with Nyquist-rate sampling is derived and used for
-PAPR constraints. The formulated problem is transformed
-into a standard semi-definite programming (SDP) and can
-be optimally solved by the semi-definite relaxation (SDR)
-method, where we can prove that the rank-1 solution
-exists in general.
-• A low-complexity method is further proposed to divide
-the original problem into sub-problems and obtain an
-effective solution with much reduced complexity. All
-the subproblems can be solved parallelly with much
-less optimization variables, and thus the computational
-complexity can be significantly reduced.
-• We further consider the practical case of DFRC MIMOOFDM waveform with an oversampling rate Υ ≥ 4,
-and design a new low-PAPR approach. Oversampling
-is required in practical OFDM systems with low-cost
-non-linear power amplifiers, where the PAPR level of
-ODFM waveform can be measured in a more accurate
-way. We derive the PAPR expression and transform
-the optimization problem for low-PAPR DFRC MIMOOFDM waveform design into a standard SDP though
-elaborate transformations. The global optimal solution
-can also be achieved by the SDR method which is shown
-to offer rank-1 solution in general. We further advance
-this approach with a low-complexity method to obtain an
-effective solution.
-The simulation results verify that the PAPR levels of our designed DFRC MIMO-OFDM waveform can be reduced from
-12.5dB/10.5dB to 3dB in the case of radar/communication
-priority with very slight performance degradation. Satisfactory
-performance tradeoff between the communications and radar
-can be achieved through effectively tuning the weighting factor
-on these two functionalities, demonstrating the feasibility,
-effectiveness, and flexibility of the proposed methods for lowPAPR DFRC MIMO-OFDM waveform design.
-The rest of this paper is organized as follows. Section II
-describes the considered system models including the DFRC
-waveform, the communication, and the radar models. The
-problem formulation as well as the low-PAPR DFRC MIMOOFDM waveform design with Nyquist-rate sampling are given
-in Section III. In Section IV, the practical scenario with
-oversampling is considered where the optimization problem
-is solved based on a more accurate PAPR measurement. The
-simulation results are provided in Section V, and we conclude
-our paper in Section VI.
-Notations: Unless specified otherwise, the upper and lower
-case bold symbols represent matrices (i.e., A) and vectors
-(i.e., x). The notations (·)
-∗
-, (·)
-T and (·)
-H denote complex
-conjugate, transpose and Hermitian transpose operations for
-vectors or matrices. Also, A†
-represents the Moore-Penrose
-pseudo-inverse of matrix A. Tr {X} is the trace of square
-matrix X and rank(A) represents the rank of matrix A. [A]i,j
-denotes the (i, j)-th element of matrix A. diag(·) can form a
-diagonal-form matrix using elements in (·). vec(A) represents
-vectorization on matrix A. ⊗ denotes the Kronecker product.
-|·|, kxk, kAkF
-denote the absolute value of scalers, the l2 norm
-of vector x and Frobenius norm of matrix A, respectively.
-II. SYSTEM MODEL
-We consider a wideband DFRC MU-MIMO system as
-shown in Fig. 1, where a DFRC-BS equipped with a uniform
-linear array (ULA) of Nt-antenna transmits DFRC waveforms,
-8(  8( K
-8(  8( K-
-WDUJHW 
-WDUJHW 
-WDUJHW M
-h
-h
-hK-1
-hK
-Fig. 1. An illustration of the DFRC MIMO-OFDM system, where a Ntantenna DFRC-BS simultaneously serves K downlink UEs and probes M
-far-field targets through jointly designing the DFRC MIMO-OFDM waveform.
-aiming at serving K downlink single-antenna user equipment
-(UEs) and sensing M far-field targets simultaneously.
-In the considered wideband DFRC MIMO-OFDM system
-with sufficient bandwidth, high distance resolution can be
-achieved for radar detection. However, the communication
-channels with multiple taps undergo significant frequencyselective fading due to the fact that the bandwidth is much
-larger than the channel coherence bandwidth [17]. It is well
-known that OFDM is an effective technique for overcoming
-frequency-selective fading while fully exploiting the frequency
-diversity, which is widely used in practical communication
-systems. Through the OFDM technique, each wideband channel can be divided into multiple orthogonal frequency-flat
-subchannels [18]. On the other hand, the OFDM technique
-introduces the disadvantage of enlarging the PAPR of the
-transmitted signal waveform, which may lead to crucial signal
-distortion. Hence, the transmitted signal waveform should be
-carefully designed so as to effectively restrain the corresponding PAPR of the OFDM signals.
-In this paper, the proposed system is denoted as DFRC
-MIMO-OFDM system, and the transmitted signal waveform
-is named as DFRC MIMO-OFDM waveform. Our objective
-is to effectively design the transmitted DFRC MIMO-OFDM
-waveform under transmit power and specific PAPR constraints,
-so as to obtain desirable low-PAPR DFRC MIMO-OFDM
-waveform achieving satisfactory performance tradeoff between
-communications and radar functionalities.
-A. DFRC MIMO-OFDM Waveform Formulation
-We assume that the wireless communication channels are
-with the memory of U − 1, i.e., each has U effectively nonzero channel taps. In addition, the length of the effective
-data symbols in each block is Ns which need modulate
-Ns subcarriers for transmissions [17], and we denote the
-index of symbols/subcarriers as n ∈ Ns = {1, · · · , Ns}. In
-order to eliminate inter-symbol interference (ISI) of wideband
-multicarrier transmissions, the standard OFDM technique of
-cyclic prefix (CP) is utilized [18]. The length of CP is denoted
-as Nc with Nc ≥ U − 1, and thus the total number of timedomain samples per block is N = Ns + Nc. Without lose of
-generality, we use Nc = U − 1 in this paper.
-1) Symbol Data and Preoding Model: Let
-S = [S
-T
-1
-, · · · , S
-T
-Ns
-]
-T ∈ C
-NsK×L (1)
-represent the symbol data matrix for all UEs of k ∈ K =
-{1, · · · , K} on Ns subcarriers, transmitted during a communication frame with length L.
-1 Here, Sn = [sn,1, · · · , sn,K]
-T ∈
-C
-K×L is the symbol matrix for all UEs on subcarrier n ∈ Ns
-with sn,k ∈ C
-L×1 being the specific symbol vector for user
-k. In addition, W = diag(W1, · · · ,WNs
-) ∈ C
-NsNt×NsK is
-the compact precoding matrix for all UEs on all subcarriers
-where Wn = [wn,1, · · · , wn,K] ∈ C
-Nt×K is the precoding
-matrix for all UEs on subcarrier n ∈ Ns with wn,k ∈ C
-Nt×1
-being the specific precoding vector for user k.
-The transmit symbol data S is first precoded by W in the
-frequency domain and then converted to the time domain by
-IDFT operation before subcarrier modulations. We further use
-Xs = WS = [XT
-1
-, · · · , XT
-Ns
-]
-T ∈ C
-NsNt×L
-(2)
-to indicate the baseband precoded symbol matrix on all
-subcarriers before the IDFT processing where Xn = WnSn ∈
-C
-Nt×L for n ∈ Ns. We denote Fs ∈ C
-Ns×Ns as the
-normalized DFT matrix for data transmissions with
-F
-s
-n,m =
-1
-√
-Ns
-e
-−
-j2π
-Ns
-(n−1)(m−1) (3)
-being the (n, m)-th element of Fs for n, m ∈ Ns. The IDFT
-processing at the transmitter of the DFRC-BS is operated
-by (FH
-s ⊗ INt
-) ∈ C
-NsNt×NsNt considering the fact that the
-ULA array is equipped with Nt transmit antennas. Hence, the
-transmitted time-domain data signal waveform after IDFT can
-be further expressed as
-G , (F
-H
-s ⊗ INt
-)Xs = [GT
-1
-, · · · , GT
-Ns
-]
-T ∈ C
-NsNt×L, (4)
-where Gn = (f
-H
-s,n⊗INt
-)Xs ∈ C
-Nt×L is the transmitted DFRC
-MIMO-OFDM signal from Nt antennas on the n-th subcarrier
-for n ∈ Ns. Also, fs,n ∈ C
-Ns×1
-indicates the n-th column of
-the DFT matrix Fs corresponding to the (I)DFT operations on
-the n-th subcarrier.
-2) DFRC MIMO-OFDM Waveform with CP: The next step
-is adding CP with size Nc = U − 1, which is crucial for
-eliminating the ISI caused by multi-path frequency-selective
-fading. It is operated by repeating the last Nc symbols at the
-beginning of the original symbol sequence [26]. We denote
-Xc = [XT
-Ns−Nc+1, XT
-Ns−Nc+2, · · · , XT
-Ns
-]
-T ∈ C
-NcNt×L, (5)
-Fc = [fs,Ns−Nc+1,fs,Ns−Nc+2, · · · ,fs,Ns
-] ∈ C
-Ns×Nc
-, (6)
-and let
-X˙ = [XT
-c
-, XT
-s
-]
-T ∈ C
-NNt×L, (7)
-F˙ = [Fc, Fs] ∈ C
-Ns×N , (8)
-then the transmitted DFRC MIMO-OFDM waveform after
-adding CP can be expressed as
-G˙ , (F˙ H ⊗ INt
-)X˙ ∈ C
-NNt×L
-= [GT
-Ns−Nc+1, GT
-Ns−Nc+2, · · · , GT
-Ns
-, GT
-1
-, · · · , GT
-Ns
-]
-T, (9)
-1L is the length of the radar pulse/communication block, corresponding to
-the number of OFDM symbols in the time domain.
-recalling that N = Nc + Ns. Through operating the IDFT
-and adding the CP at the transmitter side, the effects of ISI
-caused by frequency-selective fading can be eliminated after
-removing the CP and operating the DFT at the receiver side.
-B. MIMO-OFDM Communication Model
-1) Overall Downlink Channel and Received Signal: After
-adding the CP, the signal is then up-converted to the radio
-frequency (RF) domain through subcarrier modulations for
-transmission via Nt RF chains connected to Nt antennas.
-As mentioned before, the wireless channels from the DFRCBS to the downlink UEs are assumed as wideband frequencyselective fading channels with memory of U − 1, which is
-assumed time-invariant for a sufficiently long time-scale [17].
-Hence, the discrete-time impulse response of the channel from
-the DFRC-BS to UE k ∈ K can be denoted as
-hek(τ) =
-U
-X−1
-u=0
-hek,uδ(τ − u) ∈ C
-1×Nt
-, ∀k ∈ K, ∀τ (10)
-where hek,u ∈ C
-1×Nt
-is the time-invariant channel vector
-of the u-th tap and it is assumed as hek,u ∼ CN (0,
-1
-U
-INt
-)
-with independent identically distributed (i.i.d.) Rayleigh fading
-coefficients for any k ∈ K and u ∈ U = {0, · · · , U − 1}.
-Furthermore, we use
-He (τ) =
-U
-X−1
-u=0
-He uδ(τ − u) ∈ C
-K×Nt
-, ∀τ (11)
-to represent the compact channel matrix from the DFRC-BS to
-K downlink UEs, where He u = [heT
-1,u, · · · , heT
-K,u]
-T ∈ C
-K×Nt
-is the corresponding channel matrix of the u-th tap.
-Lemma 1. The overall effective downlink channel matrix
-of the DFRC MIMO-OFDM system on the n-th symbol subcarrier can be written in frequency domain as [17, 26]
-Hn =
-U
-X−1
-u=0
-He ue
-−
-j2πu(n−1)
-Ns , ∀n ∈ Ns. (12)
-Also, we have Hn = [h
-T
-1,n, · · · , h
-T
-K,n]
-T ∈ C
-K×Nt with
-hk,n =
-PU−1
-u=0 hek,ue
-−
-j2πu(n−1)
-Ns ∈ C
-1×Nt being the corresponding channel for UE k ∈ K. In addition, the received
-signal of symbol data sequence can be expressed as
-Ys = HsXs + Zs ∈ C
-NsK×L (13)
-where Hs = diag(H1, · · · , HNs
-) ∈ C
-NsK×NsNt and Zs ∈
-C
-NsK×L is the matrix of the additive white gaussian noise
-(AWGN) on Ns subcarriers with i.i.d. random variables following CN (0, σ2
-). Specifically, the corresponding noiseless
-received signal on the subcarrier n can be expressed as HnXn
-for n ∈ Ns [17, 26].
-Proof. See Appendix A.
-In this paper, we assume that the channels are known to
-the DFRC-BS, which can be obtained through conventional
-channel estimation methods.
-2) Multi-user Interference (MUI) and Sum Rate: The
-downlink MU-MIMO OFDM transmissions will induce MUI,
-which will have great effects on the performance of the
-achievable sum rate as well as the symbol error rate (SER)
-of the downlink UEs. Assuming that the data symbols for
-all UEs of k ∈ K on all subcarriers of n ∈ Ns follow the
-same constellation modulation, we can re-express the compact
-received signal in (13) as
-Ys = S
-|{z}
-Signal
-+ (HsXs − S)
-| {z }
-MUI
-+ Zs
-|{z}
-Noise
-, (14)
-where HsXs −S represents the MUI signals caused by multiuser transmissions [27]. The signal-to-interference-plus-noise
-ratio (SINR) of UE k ∈ K on subcarrier n ∈ Ns per frame
-can be further expressed as
-SINRk,n =
-E{|s
-l
-n,k|
-2}
-E{|hk,nxl
-n − s
-l
-n,k|
-2} + σ
+Cosmology and neutrino mass with the Minimum Spanning Tree
+ABSTRACT
+The information content of the minimum spanning tree (MST), used to capture higher-order statistics and other information from
+the cosmic web, is compared to that of the power spectrum for a 𝜈ΛCDM model. The measurements are made in redshift space
+using haloes from the Quĳote simulation of mass ≥ 3.2 × 1013 ℎ
+−1M in a box of length 𝐿box = 1 ℎ
+−1Gpc. The power spectrum
+multipoles (monopole and quadrupole) are computed for Fourier modes in the range 0.006 < 𝑘 < 0.5 ℎMpc−1
+. For comparison
+the MST is measured with a minimum length scale of 𝑙min ' 13 ℎ
+−1Mpc. Combining the MST and power spectrum allows for
+many of the individual degeneracies to be broken; on its own the MST provides tighter constraints on the sum of neutrino masses
+𝑀𝜈, Hubble constant ℎ, spectral tilt 𝑛s
+, and baryon energy density Ωb but the power spectrum alone provides tighter constraints
+on Ωm and 𝜎8. The power spectrum on its own gives a standard deviation of 0.25 eV on 𝑀𝜈 while the combination of power
+spectrum and MST gives 0.11 eV. There is similar improvement of a factor of two for ℎ, 𝑛s
+, and Ωb. These improvements appear
+to be driven by the MST’s sensitivity to small scale clustering, where the effect of neutrino free-streaming becomes relevant.
+The MST is shown to be a powerful tool for cosmology and neutrino mass studies, and therefore could play a pivotal role in
+ongoing and future galaxy redshift surveys (such as DES, DESI, Euclid, and Rubin-LSST).
+Key words: neutrinos – cosmological parameters – large scale structure of Universe
+1 INTRODUCTION
+The Λ Cold Dark Matter (ΛCDM) paradigm has remained at the
+forefront of cosmology for over twenty years, cementing it as the
+standard cosmological model. Observations and simulations over
+that time have largely strengthened the case for ΛCDM despite the
+model consisting overwhelmingly of things we still do not understand – principally the nature of dark matter and dark energy. While
+understanding the former will most likely need significant contributions from particle physics experiments, understanding the latter is
+a key goal for future experiments in cosmology. The next generation of galaxy redshift surveys (such as the Dark Energy Spectroscopic Instrument (DESI),1 Euclid,
 2
-, (15)
-where s
-l
-n,k is the l-th element of the symbol vector sn,k and
-x
-l
-n ∈ C
-Nt×1
-is the l-th column of the precoded symbol
-matrix Xn for all UEs. The expectations in (15) are taken
-with respect to (w.r.t.) the time index l ∈ L = {1, · · · , L}
-[14], and E{|s
-l
-n,k|
-2} is fixed with given constellation mode.
-Hence, the maximum achievable sum rate of the K downlink
-UEs on subcarrier n can be given as
-Rn =
-X
-K
-n=1
-log2
-(1 + SINRk,n). (16)
-The average sum rate/spectral efficiency of the MIMO-OFDM
-system is measured as
-R =
-1
-Ns
-X
-Ns
-n=1
-Rn. (17)
-Note that the MUI is an important performance metric of
-the DFRC MIMO-OFDM system which should be minimized
-from the perspective of communications, so as to increase the
-achievable sum rate and decrease the SER. To this end, in the
-following we employ the MUI as our objective/cost function
-for enhancing the communication performance of the DFRC
-MIMO-OFDM system, given as
-min
-Xs
-
-HsXs − S
-
-
-2
-F
-. (18)
-C. MIMO-OFDM Radar Model
-1) Radar Beampattern: Radar beampattern is a crucial
-indicator for measuring the radar detection and tracking performance. Note that MIMO radar is capable of achieving higher
-degrees of freedom (DoFs) than traditional phased-array radar
-through generating uncorrelated MIMO waveforms [28]. It
-has been verified that designing MIMO radar beampattern
-can be equivalently transformed into designing the probing
-signal waveform as the radar beampattern is highly related to
-the covariance matrix of the probing waveform [14, 28–30].
-For the considered DFRC MIMO-OFDM system, the transmit
-radar beampattern versus the detection angle θ is written as
-Bd(θ) = 1
-Ns
-X
-Ns
-n=1
-a
-H(θ)RG,na(θ), (19)
-which is averaged on the Ns subcarriers. Here a(θ) ∈ C
-Nt×1
-is the transmit steering vector given as
-a(θ) = [e
-−j
-Nt−1
-2
-π sin θ
-, e−j
-Nt−3
-2
-π sin θ
-, · · · , ej
-Nt+1
-2
-π sin θ
-]
-T,
-(20)
-under the assumption that even number of transmit antennas
-are equipped at the DFRC-BS ULA and the center of the ULA
-is chosen as the reference point. In addition, RG,n ∈ C
-Nt×Nt
-is the effective spatial covariance matrix of the transmit DFRC
-MIMO-OFDM waveform on the n-th subcarrier for n ∈ Ns
-which is defined as
-RG,n =
-1
-L
-GnGH
-n
-. (21)
-In order to ensure that the covariance matrices {RG,n}n∈Ns
-are positive-definite, we assume that the frame length satisfies
-L ≥ Nt, which is easy to achieve in the considered wideband
-scenario with approximately time-invariant channels.
-2) Radar Detection Probability: From the perspective of
-radar, another important performance indicator is the detection
-probability. To derive the detection probability, we first express
-the radar received target echo signal by the DFRC-BS at the
-l-th snapshot/frame as
-y
-r
-l = αΥ(θ)g
-s
-l + z
-r ∈ C
-NsNt×1
-, (22)
-which is an expanded radar received echo vector considering
-the Ns i.i.d data streams on the Ns subcarriers for l ∈ L.
-Here, α is the complex path loss of the radar-target-radar path,
-g
-s
-l = (FH
-s ⊗ INt
-)x
-l
-s ∈ C
-NsNt×1 with x
-l
-s ∈ C
-NsNt×1 being
-the l-th column of the precoded signal matrix Xs, and z
-r ∼
-CN (0, σ2
-r
-INsNt
-) is the AWGN noise for radar reception. In
-addition, Υ(θ) = INs ⊗ Υe (θ) ∈ C
-NsNt×NsNt with Υe (θ) =
-ar(θ)a
-T
-t
-(θ) ∈ C
-Nt×Nt where ar(θ) and at(θ) are the transmit
-and receive steering vector with ar(θ) = at(θ) = a(θ).
-Next by leveraging the Generalized Likelihood Ratio Test
-(GLRT) [14, 31, 32], we can further obtain the asymptotic
-radar detection probability as
-PD = 1 − FX 2
-2
-(µ)
-(ζ) = 1 − FX 2
-2
-(µ)
-
-F
+the Nancy Grace Roman Space
+Telescope,3
+the Prime Focus Spectrograph,4
+the Rubin Observatory
+Legacy Survey of Space and Time,5
+and the 4-metre Multi-Object
+Spectroscopic Telescope6
+) will map the positions of hundreds of millions of galaxies. Determining the nature of dark energy is a major
+scientific mission for these surveys. In ΛCDM dark energy is simply
+Einstein’s cosmological constant (resulting from a scalar field), but
+★ E-mail: knaidoo@cft.edu.pl
+1 http://desi.lbl.gov/
+2 http://www.euclid-ec.org/
+3 https://roman.gsfc.nasa.gov
+4 https://pfs.ipmu.jp/index.html
+5 https://www.lsst.org/
+6 https://www.4most.eu/cms/
+better data may reveal that dark energy is actually changing with time
+(dynamical dark energy) or that the requirement for dark energy is
+actually a symptom that General Relativity, on which these models
+are based, is incomplete and requires modification (the premise of
+Modified Gravity theories).
+The discovery of neutrino oscillation (Fukuda et al. 1998; Ahmad
+et al. 2001) provided evidence that neutrinos are not massless (as
+had been predicted by the standard model of particle physics). This
+discovery makes neutrinos of keen interest to particle physicists,
+as the origins of their mass and hierarchy could provide hints to
+new physics. Particle physics experiments currently place a lower
+bound on the sum of neutrino masses (denoted in this work by 𝑀𝜈)
+of 𝑀𝜈 & 0.06 eV. However, it is cosmological experiments that
+provide the tightest upper bound: currently 𝑀𝜈 . 0.11 eV (95%
+confidence level (CL); Planck Collaboration et al. 2018; eBOSS
+Collaboration et al. 2020); by contrast the upper bound from particle
+physics experiment KATRIN is currently 𝑀𝜈 ≤ 1.1 eV (90% CL;
+Aker et al. 2019) (although unlike cosmological measurements this is
+model independent). The sensitivity to neutrino mass in cosmology
+comes from the role neutrinos play in the growth of large scale
+structure (LSS). The neutrino’s characteristic free-streaming length,
+a quantity dependent on its mass, will wash out small scale structure.
+This effect can be quantified as a suppression of small scale modes
+in the power spectrum. Over the next five years surveys such as DESI
+expect to be sensitive to 𝑀𝜈 . 0.06 eV (95% CL; Font-Ribera et al.
+© 2020 The Authors
+arXiv:2111.12088v1 [astro-ph.CO] 23 Nov 2021
+2 K. Naidoo et al.
+2014) and therefore anticipate a first cosmological detection of a
+non-zero mass for neutrinos.
+Cosmological surveys have largely focused on two-point statistics,
+whether in real or Fourier space. While these methods are triedand-tested, they fail to fully explore and capture all the information
+content of galaxy surveys. This is particularly relevant at low redshifts where the highly non-linear structure of the cosmic web is
+very pronounced; here the distribution of matter cannot be fully
+characterised by two-point statistics and further statistical methods
+are required if we are to fully extract all the information present.
+Such analyses are particularly timely as future data sets will probe
+the Universe with tracers (galaxies, quasars, etc.) at higher number
+densities providing a greater sensitivity to the cosmic web. Relevant
+statistical methods include the three-point correlation function (the
+Bispectrum in Fourier space; e.g. Gil-Marín et al. 2017; Gualdi et al.
+2019), Minkowski functionals (e.g. Petri et al. 2013), the 1D probability distribution function (Uhlemann et al. 2019), marked power
+spectra (Massara et al. 2020), machine learning (ML; e.g. Fluri et al.
+2018), and the Minimum Spanning Tree (MST; Naidoo et al. 2020)
+– the focus of this paper.
+The MST was first introduced to astronomy by Barrow et al. (1985)
+and has successfully been used as a filament finder for cosmic web
+studies (Bhavsar & Ling 1988; van de Weygaert et al. 1992; Bhavsar
+& Splinter 1996; Krzewina & Saslaw 1996; Ueda & Itoh 1997; Coles
+et al. 1998; Adami & Mazure 1999; Colberg 2007; Alpaslan et al.
+2014; Beuret et al. 2017; Libeskind et al. 2018). The MST is the minimum weighted graph that connects a set of points without forming
+loops. More recently Naidoo et al. (2020) investigated how the MST
+could be used to incorporate the cosmic web when constraining cosmological parameters. However, unlike the conventional two-point
+analysis as performed by most galaxy redshift surveys, reference
+MST values cannot be calculated analytically and instead need to be
+calculated from simulations. Fortunately, this problem is not unique
+to the MST – conventional statistics such as the power spectrum
+and bispectrum cannot be computed analytically in the non-linear
+regime (for Fourier modes 𝑘 & 0.3 ℎMpc−1
+) and hence require simulations, as do artificial intelligence (AI) and ML algorithms (as well
+as other algorithms used to measure non-linear features in the cosmic
+web). This has created a growing demand for large suites of cosmological simulations and the development of accurate emulators as
+cosmologists push to extract more information from the distribution
+of galaxies.
+The Quĳote simulations (Villaescusa-Navarro et al. 2019) were
+designed precisely for this use (i.e. to test new summary statistics
+such as the MST and AI/ML and to push conventional statistics to
+smaller scales). In this paper we will use these simulations to measure
+the information content of the MST. The simulations have previously
+been used to conduct Fisher matrix analysis for the power spectrum
+(Villaescusa-Navarro et al. 2019), bispectrum (Hahn et al. 2019), 1D
+probability distribution function (Uhlemann et al. 2019), and marked
+power spectrum (Massara et al. 2020). In this paper we extend this
+analysis to the MST; in Naidoo et al. (2020) the MST was tested
+against measurements of the power spectrum and bispectrum for a
+few parameters (matter density Ωm, amplitude of scalar fluctuations
+𝐴s, and neutrino mass 𝑀𝜈) to test whether the MST adds new information. Fisher matrix analysis is useful in cosmology as it places a
+lower bound (the Cramer-Rao bound; Rao 1945; Cramer 1946) on the
+uncertainty of cosmological parameters inferred from a given statistic. If the posterior distribution is Gaussian then the Fisher matrix
+constraints will be realised; otherwise the constraints on any given
+parameter will be weaker. This analysis is explored for parameters
+of the 𝜈ΛCDM model (i.e. the standard model of cosmology ΛCDM
++ massive neutrinos 𝑀𝜈). This will help determine the role that the
+MST can play in constraining parameters from the current and next
+generation of galaxy surveys.
+The paper is organised as follows. In section 2 we discuss the
+methodology and data used. In section 3 we present the constraints
+from components of the MST and demonstrate how including the
+MST together with measurements of the power spectrum improves
+parameter constraints in a 𝜈ΛCDM model. Finally in section 4 we
+discuss the main results and their implications for cosmology and
+future surveys.
+2 METHOD
+In this section we explain the Fisher matrix formalism used to measure the information content of several summary statistics, we explain how we measure the power spectrum multipoles and the MST
+statistics in redshift space, and we describe properties of the Quĳote
+simulations used in this analysis.
+2.1 Fisher Formalism
+The Fisher matrix (Tegmark et al. 1997) 𝐹 is defined to have elements
+𝐹𝑖 𝑗 =
+∑︁
+𝛼,𝛽
+𝜕𝑆𝛼
+𝜕𝜃𝑖
+𝐶
 −1
-X 2
-2
-(1 − Pf)
-
-, (23)
-where Pf = 1 − FX 2
-2
-(ζ) is the false alarm rate and FX 2
-2
-is
-the chi-squared cumulative distribution function (CDF) with 2
-DoFs. In order to endure a constant false alarm rate Pf
-, we
-have ζ = F
-−1
-X 2
-2
-(1 − Pf) under the Neyman-Pearson criterion
-with F
-−1
-X 2
-2
-being the inverse function of the chi-squared CDF
-with 2 DoFs. In addition, the function FX 2
-2
-(µ)
-in (23) is the
-non-central chi-squared CDF with 2 DoFs and the non-central
-parameter µ is defined as
-µ = L|α|
-2P
-r
-t
-tr
-Υ(θ)RGΥH(θ)(σ
-2
-r
-I)
-−1
+𝛼,𝛽
+𝜕𝑆𝛽
+𝜕𝜃 𝑗
+, (1)
+where 𝑆𝛼 and 𝑆𝛽 are the elements 𝛼 and 𝛽 of the data vector 𝑆, C is
+the sample covariance matrix defined to have elements
+𝐶𝑖 𝑗 = h(𝑆𝑖 − h𝑆𝑖i)
+
+𝑆 𝑗 − h𝑆 𝑗i
 
-= SNRRtr
-Υ(θ)RGΥH(θ)
-
-, (24)
-where P
-r
-t
-is the power of the DFRC MIMO-OFDM probing
-waveform and RG =
-1
-LGGH ∈ C
-NsNt×NsNt
-. In addition, the
-signal-to-noise (SNR) ratio of the radar received target echo
-signal is denoted as SNRR =
-L|α|
-2Pt
-σ2
-r
-[31].
-To design our DFRC MIMO-OFDM waveform, we employ
-a desired benchmark of the MIMO-OFDM radar waveform,
-denoted as G0 , (FH
-s ⊗ INt
-)Xs,0 with Xs,0 being the radar
-waveform before IDFT operation, which is capable to achieve
-desirable detection probability. One such benchmark waveform
-of G0 can be obtained by leveraging the Directional Beampattern Design. From the viewpoint of radar performance, it is
-beneficial to make the DFRC waveform G = (FH
-s ⊗ INt
-)Xs
-to be as close to G0 as possible. Hence, the objective/cost
-function for enhancing the radar performance of the DFRC
-MIMO-OFDM system is given as
-min
-Xs
-
-(F
-H
-s ⊗ INt
-)Xs − G0
-
-
-2
-F
-. (25)
-III. LOW-PAPR DFRC MIMO-OFDM WAVEFORM
-DESIGN WITH NYQUIST-RATE SAMPLING
-In this section, we consider the scenario leveraging the
-Nyquist-rate sampling where the sampled sequence corresponds to the symbol sequence [33]. Our aim is to achieve a
-desirable performance tradeoff between communications and
-radar detections through elaborately designing the precoded
-DFRC MIMO-OFDM waveform matrix Xs ∈ C
-NsNt×L under
-the PAPR as well as the power allocation constraints.2
-A. PAPR of the DFRC MIMO-OFDM Waveform
-PAPR is defined as the ratio between the maximum power
-and the average power of the complex passband signal [18],
-and thus the PAPR constraint on the considered discrete-time
-DFRC MIMO-OFDM waveform can be given as
-PAPR(Xs) =
-max
-i,l
-
-
-
-h
-F˙ H ⊗ INt
-
-X˙
-i
-i,l
-
-
-
-2
-1
-NNtL
-
-
-
-
-F˙ H ⊗ INt
-
-X˙
-
-
-
-2
-F
-≤ ε, (26)
-where ε ∈ [1, NNtL] is the maximum allowable PAPR
-threshold of the DFRC MIMO-OFDM system. Based on
-the fact that the radar is usually required to transmit at
-its maximum available power in practice, we then have the
-following equality power allocation constraint
-1
-L
-
-
-
-
-F˙ H ⊗ INt
-
-X˙
-
-
-
-2
-F
-= Pt, (27)
-where the power budget Pt is totally utilized for generating the
-DFRC MIMO-OFDM waveform. Hence, this PAPR constraint
-defined in (26) can be simplified as
-max
-i,l
-
-
-
-h
-F˙ H ⊗ INt
-
-X˙
-i
-i,l
-
-
-
-2
-≤
-εPt
-NNt
-,
-∀i ∈ N˙
-t = {1, · · · , NNt}, ∀l ∈ L, (28)
-which is equivalent to the following set of constraints
-
-
-
-
-h
-F
-H
-s ⊗ INt
-
-Xs
-i
-i,l
-
-
-
-
-2
-≤
-εPt
-NNt
-,
-∀i ∈ Nst = {1, · · · , NsNt}, ∀l ∈ L. (29)
-2
-It is easy to notify that the signal matrix with CP, i.e., X˙
-, can be totally
-determined by the symbol signal matrix Xs according to their definitions in
-sectio
-B. Problem Formulation
-In order to achieve desirable performance tradeoff between
-communications and radar under the PAPR and power allocation constraints, we can formulate the DFRC MIMO-OFDM
-waveform optimization problem as
-(P1) : min
-Xs
-ρ
-kSk
-2
-F
-
-HsXs − S
-
-
-2
-F
-+
-1 − ρ
-kG0k
-2
-F
-
-(F
-H
-s ⊗ INt
-)Xs − G0
-
-
-2
-F
-(30a)
-s.t.
-
-
-
-
-h
-F
-H
-s ⊗ INt
-
-Xs
-i
-i,l
-
-
-
-
-2
-≤
-εPt
-NNt
-,
-∀i ∈ Nst, ∀l ∈ L, (30b)
-1
-L
-
-
-
-
-F˙ H ⊗ INt
-
-X˙
-
-
-
-2
-F
-= Pt, (30c)
-where a weighted objective function considering the normalized objectives relating to the performance of communications
-and radar is leveraged. It is easy to verify that
-
-
-
-
-F˙ H ⊗ INt
-
-X˙
-
-
-
-2
-F
-=
-
-
-
-G˙
-
-
-
-2
-F
-=
-
-
-
-F
-H
-s ⊗ INT
-
-Xs
-
-
-2
-F
-+
-
-Γc
-
-F
-H
-s ⊗ INT
-
-Xs
-
-
-2
-F
-= kGk
-2
-F + kΓcGk
-2
-F
-(31)
-where Γc ∈ R
-NsNt×NsNt defined as
-Γc =
+i, (2)
+and 𝜃𝑖 and 𝜃 𝑗 are parameters 𝑖 and 𝑗 of the model. We multiply
+the inverse of the covariance matrix by the Kaufman-Hartlap factor
+(Kaufman 1967; Hartlap et al. 2007) (𝑁sim − 2 − 𝑁S)/(𝑁sim − 1)
+where 𝑁S is the length of the data vector 𝑆 and 𝑁sim is the number of
+simulations used to estimate the covariance matrix; this compensates
+for the error in the sample covariance estimation.
+When reference summary statistics are available analytically, the
+partial derivatives in the Fisher matrix are straightforward to estimate. However, for some summary statistics (such as the MST)
+where reference values must be obtained via simulations, the partial
+derivatives must be estimated numerically; typically we use
+𝜕𝑆
+𝜕𝜃 '
+𝑆(𝜃 + 𝑑𝜃) − 𝑆(𝜃 − 𝑑𝜃)
+2𝑑𝜃
++ O(𝑑𝜃2
+), (3)
+where 𝑑𝜃 is a small deviation from a fiducial 𝜃. We cannot use
+this when estimating the partial derivative with respect to neutrino
+mass when this mass is zero, as this would require simulations with
+negative neutrino mass; instead here we use one of the estimators
 
-0(Ns−Nc)Nt 0(Ns−Nc)Nt×NcNt
-0NcNt×(Ns−Nc)Nt
-INcNt
+𝜕𝑆
+𝜕𝑀𝜈
 
-(32)
-is utilized to abstract the signals in G used for CP that
-ΓcG = [0, · · · , 0, GT
-Ns−Nc+1, · · · , GT
-Ns
-]
-T ∈ C
-NsNt×L
-(33)
-where the zero matrix 0 in (33) is with the size of L × Nt. In
-order to facilitate the solving process of problem (P1) in (30),
-we can divide the equality power allocation constraint (30c)
-into two equality power allocation constraints respectively on
-the symbol signals and the CP signals as
 1
-L
-
-
-
-F
-H
-s ⊗ INT
-
-Xs
-
-
-2
-F
-=
-1
-L
-kGk
-2
-F = βPt, (34)
-1
-L
-
-Γc
-
-F
-H
-s ⊗ INT
-
-Xs
-
-
-2
-F
-=
-1
-L
-kΓcGk
-2
-F = (1 − β)Pt, (35)
-by introducing a power splitting parameter β ∈ (0, 1). For
-simplicity, we fix β =
-Ns
-N
-and then we have βPt =
-Ns
-N
-Pt ,
-P
-s
-t
-and (1 − β)Pt =
-Nc
-N
-Pt , P
-c
-t
-, which is reasonable on the
-basis of average power allocation on data transmissions and
-will be used in the rest of this paper.3
-In order to further simplify problem (P1), we denote D =
-FH
-s ⊗ INt ∈ C
-NsNt×NsNt which is a full-rank matrix with
-D−1 = (F
-H
-s
-)
-−1 ⊗ I
-−1
-Nt = Fs ⊗ INt = DH. (36)
-Considering G = (FH
-s ⊗ INt
-)Xs = DXs, the optimization
-variable Xs can be re-expressed as Xs = D−1G. Let HD =
-HsD−1 ∈ C
-NsK×NsNt
-, then problem (P1) in (30) with the
-3The technique of CP is beneficial to avoid ISI cased by frequency-selective
-fading but at the cost of consuming extra energy and thus degrade the energy
-efficiency. The effects of adding CP on the degradation of energy efficiency
-can be eliminated by enlarging Ns where β =
-Ns
-N
-can approach to 1.
-newly introduced power allocation constraints (34) and (35)
-can be further rewritten as
-(P2) : min
-G
-ρ
-kSk
-2
-F
-
-HDG − S
-
-
-2
-F
-+
-1 − ρ
-kG0k
-2
-F
-
-G − G0
-
-
-2
-F
-(37a)
-s.t.
-
-
-[G]
-i,l
-
-
-2
-≤
-εPt
-NNt
-, ∀i ∈ Nst, ∀l ∈ L, (37b)
-kGk
-2
-F = LPs
-t
-, (37c)
-kΓcGk
-2
-F = LPc
-t
-, (37d)
-which can be solved by directly optimizing the DFRC MIMOOFDM waveform after IDFT operations, i.e., G , (FH
-s ⊗
-INt
-)Xs, and will be addressed in the next sub-section.
-C. MIMO-OFDM DFRC Waveform Design
-It is easy to verify that the objective function of problem
-(P2) in (37) can be equivalently re-expressed in the form of
-
-AG − B
-
-
-2
-F
-(38)
-where
-A =
- √
-ρ
-kSkF
-HT
-D,
-√
-1 − ρ
-kG0kF
-INsNt
-T
-∈ C
-(NsK+NsNt)×NsNt
-, (39)
-B =
- √
-ρ
-kSkF
-S
-T,
-√
-1 − ρ
-kG0kF
-GT
-0
-T
-∈ C
-(NsK+NsNt)×L. (40)
-To further facilitate the optimization, we then transform problem (P2) in (37) with the objective function (38) into an
-equivalent vector form as below
-(P3) : min
-g
-
-
-Age − b
-
-
-
-2
-(41a)
-s.t. |gq|
-2 ≤
-εPt
-NNt
-, ∀q ∈ NstL, (41b)
-kgk
-2 = LPs
-t
-, (41c)
-
-
-
-Γecg
-
-
-
-2
-= LPc
-t
-, (41d)
-where we have
-Ae = IL ⊗ A ∈ C
-(NsK+NsNt)L×NsNtL
-, (42)
-g = vec(G) ∈ C
-NsNtL×1
-, (43)
-b = vec(B) ∈ C
-(NsK+NsNt)L×1
-, (44)
-Γec = IL ⊗ Γc ∈ C
-NsNtL×NsNtL, (45)
-and gq indicates the q-th element of the vector g for q ∈
-NstL = {1, · · · , NsNtL}.
-Moreover, the minimization of the objective function in
-(41a) without any constraints can be equivalently transformed
-into a problem with an auxiliary parameter ξ as follows
-min
-g
-
-
-Age − ξb
-
-
-
-2
-, s.t. |ξ|
-2 = 1. (46)
-Note that if (g
-o
-, ξo
-) is the optimal solution of problem
-(46), then g
-o
-(ξ
-o
-)
-∗
-is the optimal solution for minimizing the
-objective function in (41a). Based on this observation, problem
-(P3) in (41) can be equivalently reformulated as
-(P4) : min
-g,ξ
-[g
-H, ξ∗
-]
-"
-Ae HAe −Ae Hb
-−b
-HA b e Hb
-# 
-g
-ξ
-
-s.t. diag(ggH) ≤
-εPt
-NNt
-1NsNtL, (47b)
-kgk
-2 = LPs
-t
-, (47c)
-
-
-
-Γecg
-
-
-
-2
-= LPc
-t
-, (47d)
-|ξ|
-2 = 1, (47e)
-which is a homogeneous quadratically constrained quadratic
-program (QCQP) and can be solved by SDR. We denote
-gb = [g
-H, ξ∗
-]
-H ∈ C
-(NsNtL+1)×1
-, (48)
-Gb = gbgb
-H ∈ C
-(NsNtL+1)×(NsNtL+1)
-, (49)
-Q =
-"
-Ae HAe −Ae Hb
-−b
-HA b e Hb
-#
-∈ C
-(NsNtL+1)×(NsNtL+1)
-, (50)
-Γbc =
+'
+𝑆(𝑑𝑀𝜈) − 𝑆(𝑀𝜈 = 0)
+𝑑𝑀𝜈
++ O(𝑑𝑀𝜈), (4)
 
-ΓeH
-c Γec 0NsNtL×1
-01×NsNtL 0
+𝜕𝑆
+𝜕𝑀𝜈
 
-∈ C
-(NsNtL+1)×(NsNtL+1)
-, (51)
-problem (P4) in (47) can be further rewritten as
-(P5) : min
-Gb
-Tr(QGb ) (52a)
-s.t. Gb q,q ≤
-εPt
-NNt
-, ∀q ∈ NstL, (52b)
-Tr(Gb ) = LPs
-t + 1, (52c)
-Tr(ΓbcGb ) = LPc
-t
-, (52d)
-Gb NsNtL+1,NsNtL+1 = 1, (52e)
-Gb  0, (52f)
-rank(Gb ) = 1, (52g)
-through optimizing the hermitian semi-definite matrix variable
-Gb . By dropping the rank-1 constraint on Gb in (52g), problem
-(P5) in (52) becomes a standard SDP and can be effectively
-solved by the classic SDR technique via the existing numerical
-tools, e.g., CVX.
-Lemma 2. It can be proved that the rank-1 solution exist in
-general for the SDR of problem (P5) in (52), indicating that
-the globally optimal solution of problem (P5) can always be
-obtained by solving its SDR without considering the rank-1
-constraint (52g), denoted as Gb o
-.
-Proof. See Appendix B.
-Once we obtain the optimal solution of Go based on Gb o
-,
-then the optimal precoded DFRC MIMO-OFDM waveform on
-the symbol subcarriers can be expressed as Xo
-s = D−1
-s Go
-.
-The previously proposed SDR method for solving problem
-(P5) in (52) can obtain the global optimal solution of the
-original problem (P2) in (37), but its computation complexity
-is quite high. We can observe that the number of optimization
-variables for problem (P5) is (NsNtL + 1)2 which is nearly
-proportional to the square of NsNtL, and thus high computational complexity may hinder its use in practical systems,
-especially considering the wideband scenario with longer
-coherent frame, i.e., with larger L. Next, we propose a method
-with much lower complexity by dividing the original problem
-(P2) into L subproblems corresponding to each frame/snapshot
-of the DFRC MIMO-OFDM waveform.
-D. Low-Complexity Approach
-In order to solve problem (P2) in (37) with low complexity,
-we further transform problem (P2) into the following form
-(P6) : min
-{gl}l∈L
-X
-L
-l=1
-
-ρ
-kSk
 2
-F
-
-HDgl − sl
-
-
+'
+−𝑆(2𝑑𝑀𝜈) + 4𝑆(𝑑𝑀𝜈) − 3𝑆(𝑀𝜈 = 0)
+2𝑑𝑀𝜈
++ O(𝑑𝑀2
+𝜈
+), (5)
+
+𝜕𝑆
+𝜕𝑀𝜈
+
+3
+'
+𝑆(4𝑑𝑀𝜈) − 12𝑆(2𝑑𝑀𝜈) + 32𝑆(𝑑𝑀𝜈) − 21𝑆(𝑀𝜈 = 0)
+12𝑑𝑀𝜈
++ O(𝑑𝑀3
+𝜈
+). (6)
+These non-symmetric estimators are designed to use simulations with
+𝑀𝜈 = 0.1, 0.2, or 0.4 eV (in addition to 𝑀𝜈 = 0). In this case the
+increment 𝑑𝑀𝜈 can in Eq. 4 be any of these three values, in Eq. 5
+can be 𝑀𝜈 = 0.1 or 0.2 eV, and in Eq. 6 must be 𝑀𝜈 = 0.1 eV.
+MNRAS 000, 1–11 (2020
+Cosmology and neutrino mass with the MST 3
+The variance for the symmetric estimator (Eq. 3) is
+Var 
+𝜕𝑆
+𝜕𝜃 
+'
+Δ𝑆(𝜃 + 𝑑𝜃)
+2 + Δ𝑆(𝜃 − 𝑑𝜃)
 2
-+
-1 − ρ
-kG0k
-2
-F
-
-gl − g0,l
-
-
+4𝑑𝜃2
+, (7)
+where Δ𝑆
+2 = Var (𝑆) /𝑁Real and 𝑁Real is the number of simulation
+realisations. For the non-symmetric derivative estimators (Eqs. 4, 5
+and 6) used for 𝑀𝜈 the uncertainties are respectively:
+Var   𝜕𝑆
+𝜕𝑀𝜈
+
+1
+
+'
+1
+𝑑𝑀2
+𝜈
+h
+Δ𝑆(𝑑𝑀𝜈)
+2 + Δ𝑆(𝑀𝜈 = 0)2
+i
+, (8)
+Var   𝜕𝑆
+𝜕𝑀𝜈
+
 2
 
-(53a)
-s.t. |gl,i|
-2 ≤
-εPt
-NNt
-, ∀i ∈ Nst, ∀l ∈ L, (53b)
-kglk
-2 = P
-s
-t
-, ∀l ∈ L, (53c)
-kΓcglk
-2 = P
-c
-t
-, ∀l ∈ L, (53d)
-where gl ∈ C
-NsNt×1
-, sl ∈ C
-NsK×1
-and g0,l ∈ C
-NsNt×1
-correspond to the l-th column of G, S and G0, respectively.
-Also, gl,i indicates the i-th element of gl
-. In problem (P6), the
-original sum power allocation constraints in (37c) and (37d) of
-problem (P2) is respectively further relaxed into L individual
-power allocation constraints as in (53c) and (53d) for l ∈ L,
-which is optimal in the average basis and easy to operate in
-practical communication systems. Note that problem (P6) can
-be parallelly solved by addressing L sub-problems as shown
-in the following l-th sub-problem (P6.1)
-(P6.1) : min
-gl
-ρ
-kSk
-2
-F
-kHDgl − slk
-2 +
-1 − ρ
-kG0k
-2
-F
-kgl − g0,lk
-2
-(54a)
-s.t. |gl,i|
-2 ≤
-εPt
-NNt
-, ∀i ∈ Nst, (54b)
-kglk
-2 = P
-s
-t
-, (54c)
-kΓcglk
-2 = P
-c
-t
-, (54d)
-which can be finally transformed into the following form
-(P6.2) : max
-Gb l
-Tr(QlGb l) (55a)
-s.t. Gb l,i,i ≤
-εPt
-NNt
-, ∀i ∈ Nst, (55b)
-Tr(Gb l) = P
-s
-t + 1, (55c)
-Tr(Γ˙
-cGb l) = P
-c
-t
-, (55d)
-Gb l,NsNt+1,NsNt+1 = 1, (55e)
-Gb l  0, (55f)
-rank(Gb l) = 1, (55g)
-which is similar to problem (P5) in (52) where
-Gb l = gblgb
-H
-l ∈ C
-(NsNt+1)×(NsNt+1)
-, (56)
-Ql =
-
-AHA −AHbl
-−b
-H
-l A bH
-l bl
-
-∈ C
-(NsNt+1)×(NsNt+1) (57)
-Γ˙
-c =
-
-Γ
-H
-c Γc 0NsNt×1
-01×NsNt 0
-
-∈ C
-(NsNt+1)×(NsNt+1)
-, (58)
-with gbl = [g
-H
-l
-, ξ∗
-l
-] ∈ C
-(NsNt+1)×1
-and bl ∈ C
-(NsK+NsNt)×1
-being the l-th column of B. The SDR of problem (P6.2) in
-(55) can also be solved with CVX by dropping the rank-1
-constraint (55g), and it can be verified that the rank-1 solution
-exist in general via the same method of Lemma 2.
-The number of optimization variables for solving problem
-(P6.2) in (55) is (NsNt+1)2
-, and thus the computational complexity/running time can be significantly reduced comparing
-with solving problem (P5) in (52). In the simulation results, we
-leverage the low-complexity method of solving sub-problems
-proposed in this section due to the fact that it is easy to exceed
-the array size of MATLAB operation when solving the original
-problem (P5) in (52) with the SDR algorithm given in Section
-III-C, especially with larger values of Ns, Nt and L.
-E. Desired Benchmark of Radar Waveform with Directional
-Beampattern Design
-In this subsection, we provide a desired benchmark for the
-radar detection waveform of the MIMO-OFDM system by utilizing the technique of directional beampattern design, denoted
-as Gd
-0 = (FH
-s ⊗ INt
-)Xd
-s,0
-, where Xd
-s,0
-is the corresponding
-precoded waveform. Assuming Rd ∈ C
-Nt×Nt
-is a Hermitian
-positive semi-definite covariance matrix corresponding to a
-well designed MIMO radar beampattern on a single carrier,
-the radar detection waveform of the considered MIMO-OFDM
-system via the directional beampattern design can be obtained
-by solving the following MUI minimization problem
-min
-G
-kHDG − Sk
-2
-F
-(59a)
-s.t.
+'
 1
-L
-GGH = INs ⊗ Rd. (59b)
-Considering the Cholesky decomposition on Rd, we have
-INs ⊗ Rd = ΦΦH, (60)
-where Φ ∈ C
-NsNt×NsNt
-is a lower triangular matrix. Without
-loss of generality, we assume Rd is positive-definite such that
-INs ⊗ Rd is positive-definite as well which can guarantee
-that Φ is invertible. Hence, the constraint in (59b) can be
-equivalently re-expressed as
-1
-L
-Φ
-−1G(Φ
-−1G)
-H = INsNt
-. (61)
-Let us denote GΦ =
-q
-1
-LΦ−1G, then problem (59) can be
-reformulated as
-min
-GΦ
-
-
-
-√
-LHDΦGΦ − S
-
-
-
-2
-F
-(62a)
-s.t. GΦGH
-Φ = INsNt
-, (62b)
-which has been proven as the Orthogonal Procrustes problem
-(OPP) [34], and a simple closed-form global optimal solution
-based on the Singular Value Decomposition (SVD) is given as
-GΦ = UINsNt×LVH, (63)
-where UΣVH = ΦHHH
-DS is the SVD of ΦHHH
-DS. Hence, the
-optimal solution of the original problem (59) with directional
-radar beampattern design can be expressed as
-Gd
-0 =
-√
-LΦGΦ =
-√
-LΦUINsNt×LVH, (64)
-which can be used as a desired benchmark of radar waveform,
-i.e., G0, used in problem (P2) in (37).
-IV. LOW-PAPR DFRC MIMO-OFDM WAVEFORM
-DESIGN WITH OVERSAMPLING
-OFDM introduces large amplitude variations in time, which
-may result in significant signal distortion in the presence of
-non-linear amplifiers. In practical OFDM systems utilizing
-low-cost non-linear amplifiers, the technique of oversampling
-is usually required for digital pre-distortion to avoid serious
-distortion of the time-domain signals [35]. Meanwhile, we
-can obtain a more accurate PAPR measurement through the
-oversampled signals compared with the scenario leveraging
-Nyquist-rate sampling in Section III (oversampling rate equals
-to 1). Based on the results in [18, 23], PAPR levels can be
-accurately measured if the discrete-time signals are Υ-times
-interpolated (oversampled) with Υ ≥ 4. Hence, in this section, we further address the low-PAPR DFRC MIMO-OFDM
-waveform design in the practical scenario with oversampling.
-A. Problem Formulation
-Considering an oversampling rate Υ ≥ 4, the corresponding IDFT of each transmit antenna should with ΥNs input
-and output points. We further denote Fos ∈ C
-ΥNs×ΥNs
-as the normalized oversampling DFT matrix where F
-os
-i,m =
-√
-1
-Ns
-e
-−j
-2π
-ΥNs
-(i−1)(m−1) is the (i, m)-th element with index
-i, m ∈ Nos = {1, 2, · · · , ΥNs}. In addition, the precoded
-symbol matrix should be Υ-times interpolated with 0 as
-Xos =
+4𝑑𝑀2
+𝜈
 h
-XT
-1
-, · · · , XT
-Ns/2
-, 0, · · · , 0
-| {z }
-ΥNs−1 0L×Nt
-,
-XT
-Ns/2+1, · · · , XT
-Ns
-iT
-∈ C
-ΥNsNt×L, (65)
-considering even number of subcarriers Ns, then the oversampled IDFT output can be written as (FH
-os ⊗ INt
-)Xos ∈
-C
-ΥNsNt×L. Hence, the PAPR constraint of the oversampled
-discrete-time signal for the DFRC MIMO-OFDM waveform
-after IDFT can be expressed as
-PAPR(Xos) =
-max
-γ,l
-
-
-
-
-(FH
-os ⊗ INt
-)Xos
-γ,l
-
-
-
+Δ𝑆(2𝑑𝑀𝜈)
+2 + 16Δ𝑆(𝑑𝑀𝜈)
 2
-1
-ΥNNtL
-
-
-(F˙ H
-os ⊗ INt
-)X˙
-os
-
-
-
-2
-F
-(a)
-=
-max
-γ,l
-
-
-
-
-(FH
-os ⊗ INt
-)Xos
-γ,l
-
-
-
-2
-1
-NNtL
-
-
-(F˙ H ⊗ INt
-)X˙
-
-
-
-2
-F
-(b)
-=
-max
-γ,l
-
-
-
-
-(FH
-os ⊗ INt
-)Xos
-γ,l
-
-
-
-2
-1
-NNt
-Pt
-≤ ε, (66)
-where γ ∈ Nγst = {1, · · · , ΥNsNt}, l ∈ L and
-F˙
-os = [F
-c
-os, Fos] ∈ C
-ΥNs×(ΥNs+Nc)
-, (67)
-X˙
-os = [(Xc
-os)
-T, XT
-os] ∈ C
-(ΥNs+Nc)Nt×L (68)
-with Fc
-os ∈ C
-ΥNs×Nc being formulated by the last Nc columns
-of Fos while Xc
-os ∈ C
-Nc×Nt being formulated by the last
-NcNt rows of Xos, similar to the definitions of Fc in (6) and
-Xc in (5), respectively. It is easy to observe that Xc
-os = Xc in
-the practical scenario where Nc ≤ Ns/2, which is considered
-in this paper.4
-In (66), (a) and (b) are based on the fact that
-1
-Υ
-
-(F˙ H
-os ⊗ INt
-)X˙
-os
-
-
-2
-F
-=
-
-(F˙ H ⊗ INt
-)X˙
-
-
-2
-F
-= LPt. (69)
-Hence, the PAPR constraint in (66) is equivalent to the set of
-PAPR constraints given below:
-
-
-
-
-(F
-H
-os ⊗ INt
-)Xos
-γ,l
-
-
-
-2
-≤
-εPt
-NNt
-, ∀γ ∈ Nγst, ∀l ∈ L. (70)
-It is easy to note the effective elements of the oversampled
-matrix Xos ∈ C
-ΥNsNt×L in (65) are exactly the elements
-of the original precoded symbol matrix Xs ∈ C
-NsNt×L. For
-utilizing the accurate PAPR constraint (70) and facilitating the
-formulation of the optimization problem for the effective matrix Xs, one challenging lies in transforming (FH
-os ⊗ INt
-)Xos
-in (70) into a function of Xs, which is also a key step for
-simplifying the problem solving process and reducing the
-computational complexity. To this end, we further denote an
-equivalent oversampling DFT matrix Feos ∈ C
-ΥNs×Ns as
-Feos =
-
-
-
-1
-√
-Ns
-e
-−j
-2π
-ΥNs
-(n−1)(m−1)
-,
-n = 1, · · · ,
-Ns
-2
-, m = 1, · · · , ΥNs,
-1
-√
-Ns
-e
-−j
-2π
-ΥNs
-(ΥNs−Ns+(n−1))(m−1)
-,
-n =
-Ns
-2
-+ 1 · · · , Ns, m = 1, · · · , ΥNs,
-(71)
-and it is easy to prove that
-(F
-H
-os ⊗ INt
-)Xos = (FeH
-os ⊗ INt
-)Xs ∈ C
-ΥNsNt×L. (72)
-Then the PAPR constraints in (70) can be equivalently transformed into
-
-
-
-
-(FeH
-os ⊗ INt
-)Xs
-
-γ,l
-
-
-
-2
-≤
-εPt
-NNt
-, ∀γ ∈ Nγst, ∀l ∈ L. (73)
-Considering the equivalent IDFT operation FeH
-os ⊗ INt ∈
-C
-ΥNsNt×NsNt and DFT operation Feos ⊗INt ∈ C
-NsNt×ΥNsNt
-over the MIMO-OFDM system, we further have
-(Feos ⊗ INt
-)(FeH
-os ⊗ INt
-) = INsNt ⇔
-(FeH
-os ⊗ INt
-)
-† = Feos ⊗ INt = (FeH
-os ⊗ INT
-)
-H, (74)
-where (FeH
-os ⊗ INt
-)
-†
-represents the Moore-Penrose pseudoinverse of FeH
-os⊗INt
-. Hence, we can formulate the optimization
-problem similar as problem (P2) in (37) by optimizing the
-DFRC MIMO-OFDM waveform matrix after IDFT operation,
-i.e., G = DXs, with the consideration of the accurate PAPR
-constraints in (73), which is expressed as
-(P1) : min b
-G
-ρ
-kSk
-2
-F
-kHDG − Sk
-2
-F +
-1 − ρ
-kG0k
-2
-F
-kG − G0k
-2
-F
-(75a)
-s.t.
-
-
-[ΘG]γ,l
-
-
-2
-≤
-εPt
-NNt
-, ∀γ ∈ Nγst, ∀l ∈ L, (75b)
-kGk
-2
-F = LPs
-t
-, (75c)
-4
-In order to improve the energy efficiency of practical OFDM communication systems, the number of symbols is usually set to be much larger than
-the length of CP, i.e., Ns ≫ Nc. In the scenario considered in this paper, we
-assume that Ns/2 ≥ Nc.
-kΓcGk
-2
-F = LPc
-t
-, (75d)
-where Θ = DosD−1 ∈ C
-ΥNsNt×NsNt with Dos = FeH
-os ⊗INt
-.
-The PAPR constraints in (75b) can be equivalently transformed
-into the vector form with the optimization vector g as
-diag(Θgg e HΘe H) ≤
-εPt
-NNt
-1ΥNsNtL. (76)
-where Θe = IL ⊗ Θ ∈ C
-ΥNsNtL×NsNtL.
-Similar to the case with Nyquist-rate sampling in Section
-III, we can finally re-express problem (Pb1) in (75) as
-(P2) : max b
-Gb
-Tr(QGb ) (77a)
-s.t. diag(Θb Gb Θb H) ≤
-εPt
-NNt
-1ΥNsNtL, (77b)
-Tr(Gb ) = LPs
-t + 1, (77c)
-Tr(ΓbcGb ) = LPc
-t
-, (77d)
-Gb NsNtL+1,NsNtL+1 = 1, (77e)
-Gb  0, (77f)
-rank(Gb ) = 1, (77g)
-where Θb =
-
-Θ 0 e ΥNsNtL×1
-
-∈ C
-ΥNsNtL×(NsNtL+1). Problem (Pb2) has a similar structure to problem (P5) in (52) and
-can be optimally solved in a similar way. Moreover, we can
-also divide the problem (P2b ) in (77) into L subproblems each
-corresponding to one frame/snapshot as in Section III-D, and
-then leverage the low-complexity algorithm to obtain the lowPAPR DFRC MIMO-OFDM waveform solution by solving L
-subproblems parallelly.
-V. SIMULATION RESULTS
-In this section, simulation results are given to demonstrate
-the effectiveness of the proposed methods for designing the
-low-PAPR DFRC MIMO-OFDM waveform in both scenarios
-with Nyquist-rate sampling (NS) and oversampling (OS). The
-performance comparison for these two cases are given to verify
-the necessity of utilizing oversampling in practical OFDM
-systems for measuring the PAPR levels of OFDM signals.
-The performance results for communications and radar are
-analyzed with either communication priority or radar priority
-based on the weighting factor ρ, demonstrating the feasibility,
-effectiveness, and flexibility of the proposed DFRC waveform
-design methods. Also, the performance tradeoff between communications and radar are investigated to show the capability
-of the proposed waveform design methods in achieving satisfactory balance between these two functionalities.
-In the following figures, the proposed low-PAPR DFRC
-MIMO-OFDM waveform design scheme is named as ‘DFRC’
-where we consider four different PAPR threshold values:
-0.3dB, 1dB, 2dB, 3dB, and one benchmark without PAPR
-constraints; The benchmark scheme of desired radar waveform
-with directional beampattern design in noted as ‘DirectionalStrict’; Another banchmark scheme of power constrained zero
-forcing (ZF) beamforming is denoted as ‘ZF-Power Constrained’, where the power of transmitted ZF waveform is
-limited by the same power budget of the ‘DFRC’ scheme.
-The unit-power QPSK alphabet is utilized as the constellation
-for the communication UEs, and the SNR is defined as Pt/σ2
-.
-Other basic simulation parameters are listed in Table I unless
-specified otherwise. The obtained results in the following
-figures are averaged over 1000 Monte Carlo simulations.
-TABLE I
-SIMULATION PARAMETERS
-Parameter Symbol Value
-Number of transmit antennas at the DFRC-BS Nt 8
-Number of subcarriers Ns 16
-Number of non-zero channel taps U 4
-Length of CP Nc 3
-Number of active UEs K 2
-Number of targets M 3
-The frame length L 128
-Power budget for each OFDM symbol Pt 1W
-Oversampling rate Υ 4
-A. Performance Comparison for Scenarios with NS and OS
-In this subsection, we show the performance comparisons
-between the cases with NS and OS discussed in Section III and
-Section IV, respectively. In Fig. 2, Fig. 3, and Fig. 4, we depict
-the curves of the average sum rate, SER, and radar detection
-probability PD of all the schemes versus the weighting ratio
-parameter ρ. It is known that the radar function has higher
-priority as ρ approaches to 0 while communication function
-dominates as ρ approaches to 1.
-0 0.2 0.4 0.6 0.8 1
-2.5
-2.7
-2.9
-3.1
-3.3
-3.5
-3.7
-3.9
-4.1
-4.3
-4.5
-4.7
-Average Achievable Sum Rate (bps/Hz)
-(a) NS: 8×2 SNR=20dB
-0 0.2 0.4 0.6 0.8 1
-2.5
-2.7
-2.9
-3.1
-3.3
-3.5
-3.7
-3.9
-4.1
-4.3
-4.5
-4.7
-(b) OS: 8×2 SNR=20dB
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-Fig. 2. The average achievable sum rate versus ρ for SNR=20dB.
-0 0.2 0.4 0.6 0.8 1
-10-4
-10-3
-10-2 SER
-(a) NS: 8×2 SNR=20dB
-0 0.2 0.4 0.6 0.8 1
-10-4
-10-3
-10-2
-(b) OS: 8×2 SNR=20dB
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-Fig. 3. The average SER versus ρ for SNR=20dB.
-Fig. 2 and Fig. 3 present the variation of two important
-communication performance metrics: sum rate and SER versus
-ρ. From these two figures, we can observe that the average sum
-rates of the DFRC scheme increase with ρ while the average
-SERs decrease with ρ in both the NS and OS scenarios,
-which coincides the intuition that the communication priority
-increases with ρ and thus better communication performance
-can be achieved with larger ρ. The benchmark performance of
-the ZF-Power Constrained and the Directional-Strict schemes
-is not affected by ρ. It is easy to note that the communication
-performance of sum rates and SERs for the proposed DFRC
-scheme degrades to the Directional-Strict scheme when ρ
-approaches 0, which operates a desired radar-only waveform
-design. Correspondingly, the communication performance approaches to the ZF-Power Constrained scheme as ρ is close
-to 1, operating a communication-only waveform design.5
-0 0.2 0.4 0.6 0.8 1
-0
-0.1
-0.2
-0.3
-0.4
-0.5
-0.6
-0.7
-0.8
-0.9
-1
-PD
-(a) NS: 8×2 SNRR
-= -4dB
-0 0.2 0.4 0.6 0.8 1
-0
-0.1
-0.2
-0.3
-0.4
-0.5
-0.6
-0.7
-0.8
-0.9
-1
-(b) OS: 8×2 SNRR
-= -4dB
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-Fig. 4. The average radar detection probability PD versus ρ for SNRR=−4dB.
-Fig. 4 shows that the radar detection probability values
-PD of the DFRC scheme decreases as ρ increases along
-with the design focus transforming from radar priority to
-communication priority. Similarly, it demonstrates that the
-radar detection performance can catch up the Directional-Strict
-scheme when ρ is close 0 while gradually degrades to the ZFPower Constrained scheme as ρ approaches 1. Note that the
-proposed DFRC scheme can achieve better radar detection performance (also better sum rate performance as shown in Fig.
-2) than the ZF-Power Constrained scheme when ρ approaches
-1, demonstrating the effectiveness of the proposed methods
-for low-PAPR DFRC MIMO-OFDM waveform design.
-From Fig. 2 to Fig. 4, we can see that better DFRC performance can be achieved with more relaxed PAPR constraints as
-PAPR threshold from 0.3dB to 3dB and even without PAPR
-constraints. Moreover, it is clearly shown that the gaps between
-the DFRC curves with different PAPR constraints are much
-wider in the case with OS, indicating that the performance
-degradations caused by tightening the PAPR constraints are
-more obvious in the case with OS compared to NS. It is known
-that high PAPR is a vital disadvantage of the OFDM technique,
-and thus the PAPR levels of DFRC MIMO-OFDM waveforms
-should be carefully measured and then restrained through
-effective low-PAPR DFRC MIMO-OFDM waveform design
-so as to meet the hardware requirements. In the case with
-NS, the measurement of PAPR is less accurate compared with
-OS due to insufficient sampling, resulting in a set of compact
-DFRC curves even with different PAPR constraints. These
-three figures verify the necessity of oversampling in measuring
-5
-In Fig. 3, the SER values of the ZF-Power Constrained schemes for the
-two cases are both 0, so the curves are not drawn with the log-scale y-axis.
-the accurate PAPR levels of OFDM waveforms in practical
-systems with low-cost non-linear power amplifiers. Hence, in
-the following sub-sections, we will present more simulation
-results of low-PAPR MIMO-OFDM waveform design for the
-case with OS.
-B. More Simulation Results for Communications and Radar
-with Oversampling
-1) Performance for Communications: In Fig. 5 and Fig. 6,
-the communication performance results of average sum rate
-and SER versus SNR are shown in scenarios with communication priority (ρ = 0.8) and radar priority (ρ = 0.2).
-0 10 20 30
-SNR (dB)
-1
-1.5
-2
-2.5
++ 9Δ𝑆(𝑀𝜈 = 0)2
+i
+, (9)
+Var   𝜕𝑆
+𝜕𝑀𝜈
+
 3
-3.5
-4
-Average Achievable Sum Rate (bps/Hz)
-0 10 20 30
-SNR (dB)
-10-5
-10-4
-10-3
-10-2
-10-1
-SER
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-Fig. 5. The average achievable sum rate and SER versus SNR for comunication priority with ρ=0.8.
-0 10 20 30
-SNR (dB)
+
+'
 1
-1.5
+144𝑑𝑀2
+𝜈
+h
+Δ𝑆(4𝑑𝑀𝜈)
+2 + 144Δ𝑆(2𝑑𝑀𝜈)
 2
-2.5
-3
-3.5
-4
-Average Achievable Sum Rate (bps/Hz)
-0 10 20 30
-SNR (dB)
-10-3
-10-2 SER
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-Fig. 6. The average achievable sum rate and SER versus SNR for radar
-priority with ρ=0.2.
-From Fig. 5 and Fig. 6, it is easy to observe that the
-communication-only ZF-Power Constrained scheme provides
-a upper bound while the radar-only Directional-Strict scheme
-provides a lower bound for communication performance in
-both scenarios with communication priority (ρ = 0.8) and
-radar priority (ρ = 0.2). For the case with communication
-priority (ρ = 0.8), the communication performance of sum
-rate and SER for the DFRC scheme is highly superior to
-the Directional-Strict scheme and close to the ZF-Power
-Constrained scheme. For the case with radar priority (ρ = 0.2),
-the communication performance of sum rate degrades to the
-Directional-Strict scheme. The SER performance of the DFRC
-scheme with more restrict PAPR constraints such as 0.3dB
-and 1dB is worse than the Directional-Strict scheme since
-no PAPR constraints are executed for the Directional-Strict
-scheme. Both two figures show that average sum rates of
-all the schemes gradually saturate as the SNR increases due
-to the fact the noise power gradually becomes negligible as
-SNR increases considering the fixed limited signal power and
-thus MUI dominates leading to the sum rate saturation.6 The
-values of SER decreases as SNR increases and the restriction
-effects of PAPR constraints on SER performance become more
-obvious with the enlarging of SNR.
-2) Performance for Radar: In Fig. 7 and Fig. 8, the radar
-performance results of detection beampattern are presented in
-the scenarios with radar priority (ρ = 0.2) and communication
-priority (ρ = 0.8), where three targets of interest with angles
-of −π/3, 0 and π/3 are considered. In Fig. 9, we further show
-the radar detection probability PD versus ρ in two scenarios
-with different radar received target echo SNRR.
--50 0 50
- (deg)
--6
--4
--2
++ 1024Δ𝑆(𝑑𝑀𝜈)
+2 + 441Δ𝑆(𝑀𝜈 = 0)2
+i
+. (10)
+The likelihood is assumed to follow a multivariate Gaussian (e.g.
+Heavens(2009), i.e. with Gaussian errors for each parameter) defined
+by
+L(𝜃) = √︄
+det F
+(2𝜋)𝑀
+exp 
+−
+1
+2
+(𝜃 − 𝜃Fid)
+>
+· F · (𝜃 − 𝜃Fid)
+
+, (11)
+where 𝜃 (of length 𝑀) are the parameters of a 𝜈ΛCDM model and
+𝜃Fid are fiducial parameters.
+2.2 Summary Statistics in Real and Redshift Space
+In redshift space, redshift space distortions (RSD; Kaiser 1987)
+caused by peculiar velocities alter the observed redshifts of galaxies.
+This causes a line-of-sight (LOS) shift given by
+𝑥RSD = 𝑥 +
+1 + 𝑧
+𝐻(𝑧)
+(𝑣 · 𝑒), (12)
+where 𝑥 is the real space coordinate, 𝑥RSD is the redshift space
+coordinate, 𝑣 is the peculiar velocity, 𝑧 is the redshift, 𝐻(𝑧) is the
+Hubble expansion rate at redshift 𝑧, and 𝑒 is the unit vector defining
+the LOS. In this paper the LOS is taken to be the z-axis, so that
+𝑒 = (0, 0, 1).
+2.2.1 Power Spectrum Multipoles
+The density field is reexpressed in Fourier space; let 𝑘 = (𝑘x, 𝑘y, 𝑘z)
+be a Fourier mode vector. We bin the density field by 𝑘 = |𝑘 | and
+𝜇 = 𝑘z/𝑘 (the cosine of the angle between 𝑘 and the LOS 𝑒).
+The power spectrum multipoles are
+𝑃ℓ
+(𝑘) = (2ℓ + 1) Z1
 0
-2
-4
-6
+𝑃(𝑘, 𝜇)Lℓ
+(𝜇)𝑑𝜇, (13)
+where Lℓ
+is a Legendre polynomial. The monopole and quadrupole
+are 𝑃0 and 𝑃2 respectively.
+2.2.2 Masking Small Scales by Grouping
+Masking of small scales is done by grouping two haloes if their
+separation is less than 𝑙min = 2𝜋/𝑘max = 4𝜋 ℎ−1Mpc ' 13 ℎ
+−1Mpc
+(equivalent to the maximum Fourier mode 𝑘max = 0.5 ℎMpc−1 measured for the power spectrum). The grouping is transitive (if 𝐴 and 𝐵
+are close, and 𝐵 and 𝐶 are close, then all three are grouped together
+Table 1. A summary of the Quĳote simulations used in this study, highlighting
+the deviations from the fiducial cosmological parameters. We use the standard
+and paired-fixed simulations for each set of simulations.
+Name Deviation from Fiducial Realisations
+Fiducial n/a 15500
+Ω+
+m ΔΩm = +0.01 1000
+Ω−
+m ΔΩm = −0.01 1000
+Ω++
+b
+ΔΩb = +0.002 1000
+Ω−−
+b
+ΔΩb = −0.002 1000
+ℎ
++ Δℎ = +0.02 1000
+ℎ
+− Δℎ = −0.02 1000
+𝑛
++
+s Δ𝑛s = +0.02 1000
+𝑛
+−
+s Δ𝑛s = −0.02 1000
+𝜎+
 8
-Beampattern (dBi)
-(a): 8×2 PAPR= 0.3dB, = 0.2
--50 0 50
- (deg)
--6
--4
--2
-0
-2
-4
-6
+Δ𝜎8 = +0.015 1000
+𝜎−
 8
-(b): 8×2 PAPR= 3dB, = 0.2
-ZF-Power Constrained
-Directional-Strict
-DFRC with PAPR
-Fig. 7. Radar beampatterns for radar priority with ρ=0.2.
--50 0 50
- (deg)
--6
--4
--2
-0
-2
-4
-6
-8
-Beampattern (dBi)
-8×2 PAPR= 0.3dB, = 0.8
--50 0 50
- (deg)
--6
--4
--2
-0
-2
-4
-6
-8
-8×2 PAPR= 3dB, = 0.8
-ZF-Power Constrained
-Directional-Strict
-DFRC with PAPR
-Fig. 8. Radar beampatterns for communication priority with ρ=0.8.
-The performance of radar beampattern shown in Fig. 7 and
-Fig. 8 demonstrates the effectiveness of the designed lowPAPR DFRC MIMO-OFDM waveform in detecting targets,
-where we can observe that three targets can be clearly distinguished in both the cases with radar priority (ρ = 0.2)
-and communication priority (ρ = 0.8). For radar priority
-(ρ = 0.2), the beampattern of the proposed DFRC scheme
-can well match the desired Directional-Strict scheme and can
-be enhanced by relaxed PAPR constraints. Looser beampattern
-fit is achieved in the case of communication priority (ρ = 0.8)
-but can still achieve satisfactory detection performance. For the
-6
-In order to make a fair comparison, we also limit the ZF signal power
-with the same power budget Pt for each OFDM symbol, which restricts the
-performance of ZF scheme and leads to saturation of sum rate performance
-for ZF-Power Constrained scheme at high SNR.
-communication-only ZF-Power Constrained scheme, the beam
-gains at all directions are almost the same which is impossible
-to detect the interested targets. From the comparison of the
-DFRC scheme between two sub-figures with different PAPR
-thresholds in Fig. 7-8, we can see that better beampattern
-match can be achieved with relaxed PAPR constraints.
-0 0.2 0.4 0.6 0.8 1
-0
-0.1
-0.2
-0.3
-0.4
-0.5
+Δ𝜎8 = −0.015 1000
+𝑀+
+𝜈 Δ𝑀𝜈 = +0.1 eV 1000
+𝑀++
+𝜈 Δ𝑀𝜈 = +0.2 eV 1000
+𝑀+++
+𝜈 Δ𝑀𝜈 = +0.4 eV 1000
+regardless of the distance between 𝐴 and 𝐶); as a result, 𝑙min meeds
+to be set well below the mean separation of points (to avoid the entire catalogue collapsing to one point). A group of haloes is given
+coordinates equal to the mean coordinates of its constituent haloes.
+This process yields a catalogue of nodes (a collection of grouped
+and ungrouped haloes); on average this node catalogue is about one
+quarter the size of the original halo catalogue. See Appendix A for
+evidence that this masking technique is effective.
+2.2.3 Minimum Spanning Tree Statistics
+The MST is constructed, in 3D comoving coordinates in redshift
+space, from the node catalogue. The distribution function 𝑁(𝑥) of
+the MST statistics is measured, where 𝑥 is the degree 𝑑, edge length
+𝑙, branch length 𝑏, or branch shape 𝑠 (Naidoo et al. 2020). An edge is
+a line in the MST graph, the degree is the number of edges attached to
+each node, and a branch is a chain of edges connected continuously
+by nodes of degree 𝑑 = 2. For the branches we measure their length 𝑏
+(i.e. the sum of the lengths of member edges) and their shape 𝑠(i.e. the
+square root of one minus the ratio between the straight line distance
+between branch ends and the branch length – with this definition,
+straighter branches have 𝑠 ' 0 while larger values indicate more
+curved branches). Furthermore, to ensure 𝑁(𝑥) can be described by a
+Gaussian distribution we remove the tails of the distribution function.
+We measure the mean of the cumulative distribution function (CDF)
+of 𝑁(𝑥) for the fiducial simulations and then measure the MST 𝑁(𝑥)
+only in the region where 0.05 < CDF < 0.95 (with the exception
+of 𝑑 where we include 𝑁(𝑑) in the range 1 ≤ 𝑑 ≤ 4). The publicly
+available Python package MiSTree (Naidoo 2019) was used to
+construct and measure the statistics of the MST.
+2.3 Quĳote Simulations
+The Quĳote simulations (Villaescusa-Navarro et al. 2019) are a large
+set of 𝑁-body simulations designed for quantifying the information
+content of cosmological observables and for training ML algorithms.
+The simulations are constructed in boxes of length 𝐿box = 1 ℎ
+−1Gpc,
+using 5123 dark matter particles and 5123 neutrino particles (for simulations with massive neutrinos). A detailed table of the parameters
+used for the Quĳote simulations can be found in Tab. 1 of VillaescusaNavarro et al. (2019). The simulations are based on a fiducial ΛCDM
+cosmology (based on Planck Collaboration et al. 2018) with matter
+MNRAS 000, 1–11 (2020)
+4 K. Naidoo et al.
+d
+d
+l
+l
+b
+b
+s
+s
+P`=0,2(k)
+P`=0,2(k)
+MST
+MST
+−1.00
+−0.75
+−0.50
+−0.25
+0.00
+0.25
+0.50
+0.75
+1.00
+Cij
+/
+p
+Cii
+Cjj
+Figure 1. Correlation matrices (left) of MST statistics and (right) of MST statistics and power spectrum multipoles. The components of the MST statistics (the
+degree 𝑑, edge length 𝑙, branch length 𝑏, and branch shape 𝑠) are labelled and divided by dashed grey lines on the left. The matrix has significant non-diagonal
+features. The most striking is the correlation between the edge length 𝑙 and branch length 𝑏 where there are several fading lines of positive correlation. These
+originate from correlations between branches formed from two edges, three edges and so on, becoming fainter for branches formed from more edges. For the
+degree 𝑑 and 𝑙 there is virtually no correlation while there are correlations between 𝑑 and the two branch statistics length 𝑏 and shape 𝑠. These correlations
+appear to be strongly tied to 𝑑 = 2 presumably due to the definition for branches requiring intermediate nodes with degree 𝑑 = 2. Lastly there is a weak
+correlation between 𝑏 and 𝑠 and negligible correlations between other MST statistics (i.e. between 𝑙 and 𝑑 and between 𝑙 and 𝑠). The power spectrum multipoles
+and components of the MST statistic are divided by a dashed grey lines on the right. The correlation matrix for the power spectrum multipoles is shown to be
+strongest diagonally, with the most striking feature being the positive correlations between multipoles. Correlations between the power spectrum multipoles and
+the MST are negligible with only a small inverse correlation seen. This is consistent with expectations since smaller edge lengths should correspond to larger
+Fourier modes.
+density Ωm = 0.3175, baryon density Ωb = 0.049, Hubble constant
+ℎ = 0.6711, primordial spectral tilt 𝑛s = 0.9624, the root mean
+square of the linear power spectrum at spheres of radius 8 ℎ
+−1Mpc
+𝜎8 = 0.834, sum of neutrino masses 𝑀𝜈 = 0 eV, and dark energy
+equation of state 𝑤 = −1. The power spectrum multipoles and MST
+are computed on haloes with masses larger than 3.2 × 1013 ℎ
+−1M.
+For each parameter we determine the dependence on that parameter
+using 500 simulations in which only that parameter deviates from
+its fiducial value (while maintaining zero curvature, i.e. a shift in
+Ωm =⇒ ΩΛ = 1 − Ωm). To construct the covariance matrix we use
+15,000 fiducial simulations constructed with the fiducial cosmology. See Tab. 1 for a summary. Simulations with massive neutrinos
+(𝑀+
+𝜈
+, 𝑀++
+𝜈
+, and 𝑀+++
+𝜈
+) are produced with Zel’dovich initial conditions instead of second-order Lagrangian perturbation theory (2LPT)
+since the 2LPT approach is not implemented for massive neutrino
+cosmologies (for further details see Villaescusa-Navarro et al. 2019).
+3 RESULTS
+This Section discusses the following results: (1) the covariance matrix
+for the MST statistics and the internal correlations and correlations
+with the power spectrum, (2) the partial derivatives of the power spectrum and MST statistics, and (3) parameter constraints for a 𝜈ΛCDM
+model obtained from individual and combined measurements of the
+MST and power spectrum.
+3.1 Covariance Matrix
+The covariance matrix is constructed from Eq. 2 using data vectors
+measured from 15,000 fiducial simulations. Fig. 1 shows the correlation matrix for the MST on the left and the correlation matrix
+for the combined data vector of the power spectrum multipoles and
+MST statistics on the right. Unlike the correlation matrix for the
+power spectrum, the correlation matrix for the MST contains several non-diagonal features. One of the most striking features is the
+correlation between the edge length 𝑙 and branch length 𝑏 which
+show ‘waves’ of positive correlations between short edges and short
+branches followed by negative correlations and then positive correlation for longer edges and branches. These positive correlations stem
+from the correlations between branches formed from two edges, three
+edges, and so on. For branches formed from more edges these correlations become weaker as branches formed from more than three
+edges are rarer. Other correlations in the MST statistics appear to
+stem from branches, which by definition have intermediate nodes
+with degree 𝑑 = 2. As a result we see strong correlations between
+the degree and branch length. The correlation between branch length
+and shape is weak but indicates that longer branches are more curved
+than short ones. The correlations between the power spectrum multipoles and MST are weak so adding the MST to 𝑃(𝑘) is beneficial.
+This is clearest for the monopole and edge lengths which show an
+inverse correlation between edges and Fourier modes; this is completely consistent with the relation between Fourier modes and real
+space. Furthermore the large scale modes of the monopole (the first
+half of the data vector) show positive correlations with longer edges.
+This indicates that most of the large scale clustering information is
+stored in the large edges of the MST.
+MNRAS 000, 1–11 (2020)
+Cosmology and neutrino mass with the MST 5
+MST(l)
+MST(b)
+MST(l, b)
+MST(l, b, s)
+MST(d, l, b, s)
+0.00
+0.03
+0.06
+0.09
+Ωb
+0.25
+0.50
+0.75
+1.00
+h
 0.6
+0.8
+1.0
+1.2
+ns
+0.4
+0.6
+0.8
+1.0
+1.2
+σ8 −0
+−
+.8
+0.4
+0.0
+0.4
+0.8
+Mν [eV]
+0.15
+0.30
+0.45
+Ωm
+0
+2
+4
+6
+Mmin
+0.00
+0.03
+0.06
+0.09
+Ωb
+0.25
+0.50
+0.75
+1.00
+h
+0.6
+0.8
+1.0
+1.2
+ns
+0.4
+0.6
+0.8
+1.0
+1.2
+σ8
+−0.8
+−0.4
+0.0
+0.4
+0.8
+Mν [eV]
+0
+2
+4
+6
+Mmin
+Figure 2. Fisher matrix constraints for 𝜈ΛCDM parameters from the MST edge and branch length distributions in combination with the distribution of degree
+and branch shape in redshift space at 𝑧 = 0. The individual constraints from the edge MST(𝑙) and branch length distributions MST(𝑏) are shown in blue and
+purple respectively. The combined constraint from the edge and branch lengths MST(𝑙, 𝑏) is shown with black dashed lines, from the edge, branch length and
+degree distributions MST(𝑙, 𝑏, 𝑠) with green lines, and from the edge, branch length, degree and branch shape distribution MST(𝑑, 𝑙, 𝑏, 𝑠) with red lines and
+contours. The contours show that adding the degree does very little to improve the constraints from the edge and branch length distribution while the branch
+shape tightens constraints overall.
+3.2 Fisher Matrix and Partial Derivatives
+The Fisher matrix is calculated from Eq. 1 from the data vector
+𝑆. In this Section the data vectors are either the power spectrum
+monopole and quadrupole 𝑃ℓ=0,2(𝑘) or combinations of the MST
+statistics: degree 𝑑, edge length 𝑙, branch length 𝑏, and branch shape
+𝑠. To calculate the Fisher matrix we require measurements of the
+derivatives 𝜕𝑆/𝜕𝜃; these are estimated using simulations summarised
+in Tab. 1. For each set of simulations (consisting of 500 individual
+simulations and 15,000 simulations for the fiducial set) the mean
+and standard deviation of the summary statistics are obtained. The
+derivatives for the parameters are then obtained using Eq. 3, with the
+exception of neutrino mass where three estimators are used (Eqs. 4,
+5, and 6). In real data we would not be able to place a clean cut on
+the galaxy masses; instead, these limits would be imposed by survey
+designs and magnitude limits. To account for this in our analysis
+we follow Hahn et al. (2019) by adding the nuisance parameter
+𝑀min which characterises the dependence on the minimum halo mass
+which is calculated by running the statistics on the fiducial suite with
+𝑀min = 3.1 and 𝑀min = 3.3 ×1013ℎ
+−1M. However, unlike in the
+study by Hahn et al. (2019) we do not include a linear bias nuisance
+parameter (as it is not clear how a linear bias would effect the MST
+statistics and including it solely in the power spectrum measurements
+would weaken the constraints in the power spectrum but leave the
+MST unaffected, in effect biasing our results in favour of the MST).
+To avoid this we use only the minimum halo mass as a nuisance
+parameter in this study.
+The more accurate estimators for the partial derivatives are those
+for which the errors are given to higher orders of 𝑑𝜃. For most
+parameters the derivative 𝜕𝑆/𝜕𝜃 is determined by the symmetric
+derivative estimator Eq. 3 which has errors of order O(𝑑𝜃2
+), while
+the most accurate estimator for 𝜕𝑆/𝜕𝑀𝜈 is given by Eq. 6 which
+MNRAS 000, 1–11 (2020)
+6 K. Naidoo et al.
+P`=0,2(k)
+MST(d, l, b, s)
+P`=0,2(k) + MST(d, l, b, s)
+0.000
+0.025
+0.050
+0.075
+Ωb
+0.25
+0.50
+0.75
+1.00
+h
+0.75
+0.90
+1.05
+1.20
+ns
 0.7
 0.8
 0.9
-1
-PD
-(a): 8×2 SNRR
-= -4dB
-0 0.2 0.4 0.6 0.8 1
-0
-0.1
-0.2
-0.3
+1.0
+σ8 −0
+−
+.8
 0.4
-0.5
-0.6
-0.7
+0.0
+0.4
 0.8
-0.9
-1
-(b): 8×2 SNRR
-= -2dB
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-Fig. 9. The average radar detection probability PD versus ρ for SNRR =
-−4dB and SNRR = −2dB.
-The performance results of radar detection probability PD
-versus ρ are depicted in Fig. 9 with SNRR = −4dB and
-SNRR = −2dB. As a crucial radar performance metric, PD is
-highly affected by the radar received target echo SNRR, which
-is described in Section II-C2. The larger SNRR, the better
-radar detection performance can be achieved. For the case of
-SNRR = −4dB, PD ≥ 0.8 can be achieved by all the DFRC
-curves when ρ ≤ 0.6 even with the strictest PAPR constraint
-of 0.3dB, and PD ≥ 0.65 for the case with communication
-priority ρ = 0.8. When SNRR increases to −2dB, DFRC
-curves are capable to achieve PD ≥ 0.9 for ρ = 0.8 and the
-detection probability can always approach 1 as the DirectionalStrict scheme when ρ ≤ 0.6.
-C. Performance Tradeoff between Communications and Radar
-In this section, we try to analyze the direct performance
-tradeoff between functionalities of communications and radar.
-The communication results of average sum rate and SER
-versus the radar detection probability PD are depicted in Fig.
-10 and Fig. 11 for SNRR = −4dB and SNRR = −2dB,
-respectively. The six points shown in these two figures correspond to ρ = [0.01, 0.2, 0.4, 0.6, 0.8, 0.99].
-0 0.2 0.4 0.6 0.8 1
-PD
+Mν [eV]
+0.25
+0.30
+0.35
+0.40
+Ωm
+1.6
 2.4
-2.6
-2.8
-3
 3.2
-3.4
-3.6
-3.8
-4
-4.2
-4.4
-Average Achievable Sum Rate (bps/Hz)
-(a) Sum Rate vs PD
-: SNRR
-= -4dB
-0 0.2 0.4 0.6 0.8 1
-PD
-10-4
-10-3
-10-2SER
-(b) SER vs PD
-: SNRR
-= -4dB
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-Fig. 10. The average achievable communication sum rate and SER for
-SER=20dB versus the radar detection probability PD for SNRR=−4dB.
-0 0.2 0.4 0.6 0.8 1
-PD
-2.4
-2.6
-2.8
-3
-3.2
-3.4
-3.6
-3.8
-4
-4.2
-4.4
-Average Achievable Sum Rate (bps/Hz)
-(a) Sum Rate vs PD
-: SNRR
-= -2dB
-0 0.2 0.4 0.6 0.8 1
-PD
-10-4
-10-3
-10-2 SER
-(b) SER vs PD
-: SNRR
-= -2dB
-ZF-Power Constrained
-Directional-Strict
-DFRC-PAPR=0.3dB
-DFRC-PAPR=1dB
-DFRC-PAPR=2dB
-DFRC-PAPR=3dB
-DFRC-no PAPR Constraints
-PAPR increasing
-direction ( ->1)
-PAPR increasing
-direction ( =0.8)
-PAPR increasing
-direction ( ->1)
-PAPR increasing
-direction ( =0.8)
-Fig. 11. The average achievable communication sum rate and SER for
-SER=20dB versus the radar detection probability PD for SNRR=−2dB.
-In Fig. 10, we draw two required thresholds for sum rate
-and PD in sub-figure (a) and two thresholds for SER and
-PD in sub-figure (b). For requirements of (PD,sum rate), the
-points located in the top right corner of sub-figure (a) are
-satisfactory. In contrast, the points in the bottom right corner of
-sub-figure (b) are satisfactory for the (PD,SER) requirements.
-Giving the requirements of these three performance metrics for
-communications and radar, we can effectively set parameter ρ
-satisfying certain PAPR constraints (hardware requirements).
-In Fig. 11 with SNRR = −2dB, the PD requirements are
-easier to be satisfied since most of the points are located in
-the area of PD ≥ 0.8, and thus the satisfactory settings of
-ρ and PAPR thresholds can be flexibly selected based on the
-requirements of sum rate and SER.
-8 9 10 11 12 13 14 15 16 17
-PAPR (dB)
-0
-0.2
-0.4
-0.6
+4.0
+4.8
+Mmin
+0.000
+0.025
+0.050
+0.075
+Ωb
+0.25
+0.50
+0.75
+1.00
+h
+0.75
+0.90
+1.05
+1.20
+ns
+0.7
 0.8
-1
-Empirical CDF
-ZF-Power Constrained
-Directional-Strict
-DFRC =0.01
-DFRC =0.2
-DFRC =0.4
-DFRC =0.6
-DFRC =0.8
-DFRC =0.99
-Fig. 12. The empirical CDF of the PAPR (dB) without considering the PAPR
-constraints.
-In Fig. 12, the empirical CDFs of waveform PAPR for the
-proposed DFRC scheme with different ρ values as well as the
-two benchmarks are provided, where the PAPR constraints
-are not considered. It is clear to see that the PAPR of the
-proposed DFRC scheme is within the range of [9,14]dB if no
-PAPR constraints are used. For radar priority of ρ approaching
-0, the PAPR levels with average value of 12.5dB get close to
-the radar-only Directional-Strict scheme with average value
-of 13.5dB. For communication priority of ρ close to 1, the
-PAPR levels approach to the communication-only ZF-Power
-Constrained scheme with average value of 10.5dB. All these
-PAPR levels are too high to satisfy the strict hardware requirements in practical communication systems. In comparison with
-the simulation results in the previous figures, we can clearly
-observe that we can restrain the PAPR levels of the DFRC
-waveform to 3dB, 2dB, 1dB and even 0.3dB without too much
-performance degradation for both communications and radar,
-demonstrating the feasibility and effectiveness of the proposed
-low-PAPR DFRC MIMO-OFDM waveform design methods.
-VI. CONCLUSION
-In this paper, we investigate the low-PAPR DFRC waveform
-design for MIMO-OFDM systems, where the scenario with
-Nyquist-rate sampling and oversampling are considered for
-measuring the waveform PAPR levels. A weighted objective
-function on normalized communication performance metric
-MUI and radar performance metric (distance to desired radar
-waveform) is minimized under the transmit power and PAPR
-constraints. The optimization problems can be transformed
-into standard SDP, then the SDR method is leveraged to find
-the optimal solution where the rank-1 constraint is satisfied in
-general. In addition, low-complexity methods are provided to
-reduce the overload for solving the SDP problems where the
-original problems are divided into subproblems corresponding
-to each frame/snapshot. The simulation results demonstrate
-that oversampling on OFDM signals can provide an accurate
-way for measuring the PAPR levels. Moreover, the feasibility, effectiveness, and flexibility of the proposed low-PAPR
-DFRC MIMO-OFDM waveform design methods are verified
-by sufficient numerical simulations.
-APPENDIX A
-PROOF OF LEMMA 1
-Considering the IDFT operation applied at the DFRC-BS
-transmitter and the DFT processing operated at the downlink
-UE receivers, the received baseband signal of UE k during
-frame l ∈ L in the frequency domain can be expressed as
-y
-l
-k = FsHs
-k
-(F
-H
-s ⊗ INt
-)x
-l
-s ∈ C
-Ns×1
-. (78)
-where x
-l
-s ∈ C
-NsNt×1
-is the l-th column of Xs and Hs
-k ∈
-C
-Ns×NsNt
-is a block circulant channel matrix given as
-H
+0.9
+1.0
+σ8
+−0.8
+−0.4
+0.0
+0.4
+0.8
+Mν [eV]
+1.6
+2.4
+3.2
+4.0
+4.8
+Mmin
+Figure 3. Fisher matrix constraints on 𝜈ΛCDM parameters from the power spectrum and MST separately and combined in redshift space at 𝑧 = 0. The
+constraints from the power spectrum multipoles 𝑃ℓ=0,2(𝑘) are shown with blue dashed lines, from the four MST statistics MST(𝑑, 𝑙, 𝑏, 𝑠) with red dotted lines,
+and from the combination of the power spectrum multipoles and MST 𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) with purple lines and contours. Constraints for 𝜎8 and Ωm
+are dominated by the power spectrum multipoles while ℎ, 𝑛s, Ωb, and 𝑀𝜈 are dominated by the MST. Significant degeneracies are broken when combined,
+leading to much tighter constraints (in comparison to the individual constraints from the power spectrum multipoles) on ℎ, 𝑛s, and Ωb (which improve by ∼ 2.4)
+and 𝑀𝜈 (which improves by ∼ 2.26).
+has errors of order O(𝑑𝜃3
+). However, in order for the estimators
+to be consistent for all parameters the appropriate estimator to use
+for 𝑀𝜈 is Eq. 5 which has errors of order O(𝑑𝜃2
+). Previous studies
+(Villaescusa-Navarro et al. 2019; Uhlemann et al. 2019; Hahn et al.
+2019) have used Eq. 6 (while Massara et al. 2020 uses Eq. 5), so to
+facilitate comparisons to these studies the results obtained using this
+estimator are additionally provided in Tab. C2. However, throughout
+this paper we will refer to results obtained using Eq. 5 with 𝑑𝑀𝜈 =
+0.1 eV. The partial derivatives for the data vectors (as a function of
+the 𝜈ΛCDM parameters Ωm, Ωb
+, ℎ, 𝑛s, 𝜎8, and 𝑀𝜈) are shown in
+appendix B.
+3.3 MST Bin Size Dependence
+We test the sensitivity of the MST distribution functions to the bin
+size. In real data the size of bins would be dictated by numerical
+constraints, i.e. the number of mocks used to obtain the covariance
+matrices and the sample size. Since the suite used to estimate the
+covariance matrix is large we do not need to keep the data vector
+short and therefore can test the sensitivity to the MST distribution
+function’s bin size. To this end we use three binning strategies for
+the distribution functions of 𝑙, 𝑏 and 𝑠, with 𝑁bins = 200, 100, and
+40 bins. The constraints from the different binning strategies are
+described and discussed in the following sections (in particular see
+Fig. 4).
+3.4 Sensitivity to Neutrinos and ΛCDM
+In this Section the forecast constraints (derived from Fisher matrices)
+for parameters of a 𝜈ΛCDM universe are obtained and discussed.
+MNRAS 000, 1–11 (2020)
+Cosmology and neutrino mass with the MST 7
+0.0 0.5
+MST(l)
+MST(b)
+MST(l, b)
+Ωm
+0.0 0.2
+Ωb
+0.5 1.0
+h
+0.5 1.0 1.5
+ns
+0 1
+σ8
+−1 0 1
+Mν [eV]
+0.3 0.4
+MST(l, b, s)
+MST(d, l, b, s)
+0.04 0.06 0.6 0.8 0.9 1.0 0.8 1.0−0.25 0.00 0.25
+0.300 0.325
+P`=0,2(k)
+P`=0,2(k)+
+MST(d, l, b, s)
+0.04 0.06 0.50 0.75 0.9 1.0 0.82 0.84 −0.25 0.00 0.25
+200 Bins 100 Bins 40 Bins
+Figure 4. The one dimensional parameter constraints from the MST statistics individually and in combination with the power spectrum multipoles (measured
+at redshift 𝑧 = 0). From left to right we show the constraints on the cosmological parameters of the 𝜈ΛCDM model: Ωm, Ωb, ℎ, 𝑛s, 𝜎8, and 𝑀𝜈. From top
+to bottom we show the constraints for the individual MST statistics: edge length MST(𝑙) and branch length MST(𝑏), then constraints from the combined MST
+statistics: edge and branch length MST(𝑙, 𝑏), with the addition of branch shape MST(𝑙, 𝑏, 𝑠) and with the addition of the degree MST(𝑑, 𝑙, 𝑏, 𝑠), and finally
+in combination with the power spectrum: first showing the power spectrum multipoles alone 𝑃ℓ=0,2(𝑘) (these are marked with blue envelopes for comparison
+to the other statistics) and in combination 𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠). These are further subdivided for constraints involving the MST with different binning
+schemes 𝑁bins: 200 bins is shown with a dark coloured error bar at the top, 100 bins is shown with slightly paler coloured error bars in the middle and 40 bins
+is shown with the palest coloured error bars at the bottom. These results indicate the significance that binning will have on the individual MST constraints; they
+also show that, regardless of binning, combining MST statistics with the power spectrum significantly improves constraints for Ωb, ℎ, 𝑛s, and 𝑀𝜈.
+3.4.1 Constraints from the Minimum Spanning Tree
+In Fig. 2 the individual and combined constraints from the edge
+length 𝑙, branch length 𝑏, branch shape 𝑠, and degree 𝑑 distributions
+are shown using 𝑙, 𝑏, and 𝑠 with 𝑁bins = 200. The edge and branch
+length distributions have constraints that are competitive with each
+other but that in combination are significantly tighter. In augmenting
+the constraints first with the branch shape and then with the degree
+we see that much of the constraining power for the MST is contained
+in the edge and branch length distribution; the addition of the branch
+shape adds a modest improvement to the overall constraints (∼ 25%
+for cosmological parameters at 𝑧 = 0) but the addition of the degree
+appears to provide a negligible improvement (∼ 1% for cosmological
+parameters at 𝑧 = 0).
+3.4.2 Combined Constraints from the Minimum Spanning Tree and
+Power Spectrum
+The separate and combined constraints from the MST (using 𝑙, 𝑏,
+and 𝑠 with 𝑁bins = 200) and power spectrum measured at redshift
+𝑧 = 0 are shown in Fig. 3 (for the constraints obtained from different
+redshifts refer to Tab. C2). The constraints obtained for Ωb
+, ℎ, 𝑛s,
+and neutrino mass 𝑀𝜈 are significantly tighter for the MST, while the
+power spectrum yields better constraints on Ωm and𝜎8.When the two
+are combined, significant degeneracies are broken leading to much
+tighter constraints than those obtained using either statistic alone.
+For neutrino mass 𝑀𝜈 the combination provides a 1𝜎 constraint that
+is 2.26× tighter, for Ωm that is 1.17× tighter, for Ωb
+that is 2.38×
+tighter, for ℎ that 2.61× tighter, for 𝑛s that is 2.29× tighter, and for
+𝜎8 that is 1.1× tighter.
+The impact of the MST binning is explored in Fig. 4, where we
+display the one dimensional constraints for the MST statistics (individually and for different combinations) at redshift 𝑧 = 0 in comparison to the power spectrum multipoles with different levels of
+binning. Larger bins are associated with poorer constraints but in
+each case combining with the power spectrum still leads to significant improvements in the constraints, particularly for Ωb
+, ℎ, 𝑛s, and
+𝑀𝜈. This highlights the importance of including the MST in future
+galaxy redshift surveys to test and constrain ΛCDM parameters and
+to determine the sum of neutrino mass 𝑀𝜈 – a key scientific goal of
+many future surveys.
+3.4.3 Sensitivity to the Neutrino Partial Derivative Estimator
+The partial derivative of the summary statistics as a function of neutrino mass can be estimated using Eqs. 4, 5, and 6. Fig. 5 compares the
+neutrino mass constraints Δ𝑀𝜈 =
+√︃
+𝐹
+−1
+𝜈𝜈 using the different estimators for the power spectrum and MST measured at redshift 𝑧 = 0 (see
+Tab. C1 for a full summary of the different estimators for different
+components and combinations of the MST statistics at different redshifts). The intrinsic accuracy of the estimators appear to show that
+less accurate estimators are associated with poorer constraints. The
+most accurate estimators, i.e. estimator 2 and 3 with 𝑀𝜈 = 0.1 eV,
+MNRAS 000, 1–11 (2020)
+8 K. Naidoo et al.
+10−3 10−2 10−1
+Order of Error on ∂S/∂Mν
+10−1
+100
+∆
+Mν [eV]
+0.1 0.1 0.2 0.1 0.2 0.4
+Estimator: 3 2 1
+Mν :
+MST(d, l, b, s)
+P`=0,2(k)
+P`=0,2(k)+
+MST(d, l, b, s)
+Nbins = 200
+Nbins = 100
+Nbins = 40
+Figure 5. The constraints on neutrino mass from different partial derivative estimates for the MST and power spectrum measured at redshift 𝑧 = 0
+(individually and in combination). The MST statistics are shown with three
+binning schemes (𝑁bins = 200, 100 and 40). The constraints are given as a
+function of the order of the absolute error on 𝜕𝑆/𝜕𝑀𝜈. Estimator 1 is given
+by Eq. 4, Estimator 2 by Eq. 5, and Estimator 3 by Eq. 6. The estimators are
+indicated by shaded grey lines with the value of 𝑀𝜈 used for each estimator
+labelled. With the exception of the 40 bins data, the MST consistently outperforms the power spectrum constraints. However, irrespective of the bin size,
+significant improvements in the constraints of neutrino mass are obtained
+when combining the MST with the power spectrum.
+are shown to be fairly consistent, with estimator 3 generally providing tighter constraints. Without prior knowledge of the true partial
+derivative it is difficult to know which estimator better captures the
+true behaviour. For consistency we focus on the results from estimator 2 (with 𝑀𝜈 = 0.1 eV) which has the same absolute errors as
+the estimator used on the other parameters (Eqs. 3). Nevertheless as
+is shown in Fig. 5 the relative strengths of the constraints from the
+power spectrum and MST individually and combined remains, meaning our overall conclusions are insensitive to the neutrino derivative
+estimator used.
+In all cases the MST constraints on 𝑀𝜈 are stronger than ones
+obtained from the power spectrum. If more bins are used for the
+MST then the combined constraints with the power spectrum are
+significantly improved in comparison to the power spectrum alone.
+4 CONCLUSION
+Using haloes from the Quĳote simulations we calculate the information content (from the Fisher matrix) of the MST statistics in a
+𝜈ΛCDM model. The Quĳote simulations are a large suite of 𝑁-body
+simulations designed to test the information content of summary
+statistics and to test AI/ML algorithms. In this paper we use a subset
+of the full suite of simulations (summarised in Tab. 1), measuring the
+power spectrum multipoles and MST statistics in redshift space on
+haloes with mass ≥ 3.1×1013 ℎ
+−1M. The analysis presented in this
+paper is based on the Fisher matrix formalism which considers only
+second derivatives of the data vector, rather than a full exploration of
+the parameter space via for e.g. MCMC. Fisher matrices are limited in
+the sense that they place only lower bounds (the Cramer-Rao bound)
+on the uncertainties of cosmological parameters; as such analysis on
+real data is likely to depart significantly due to non-Gaussianities
+(see Hawken et al. 2012; Foroozan et al. 2021).
+From the MST we measure the distribution of degree 𝑑, edge length
+𝑙, branch length 𝑏, and branch shape 𝑠. In Naidoo et al. (2020) it was
+shown that 𝑙 is the most constraining MST statistic. However, this
+previous analysis was based on COLA simulations of length 𝐿box =
+250 ℎ
+−1Mpc and limited to the most massive 5000 haloes. Due to
+the size of the sample, the study saw only modest improvements of
+17% on the 1𝜎 constraints on Ωm and 12% on the 1𝜎 constraints
+on 𝐴s. By using the Quĳote simulations we are able to expand this
+analysis to a wider set of cosmological parameters (Ωm, Ωb
+, ℎ, 𝑛s,
+𝜎8, and 𝑀𝜈 compared to only 𝐴s, Ωm, and 𝑀𝜈), over a larger volume
+(𝐿box = 1 ℎ
+−1Gpc), and using a larger catalogue of haloes (of the
+order of 105
+). In Fig. 2 the constraints from the MST are shown to be
+dominated by the distribution of edge and branch lengths, with the
+degree adding very little information and the branch shape providing
+a moderate improvement overall.
+In Fig. 3 and Tab. C2 the MST and power spectrum constraints are
+compared and combined. The power spectrum multipoles provide
+much stronger constraints on Ωm and 𝜎8. On the other hand the MST
+dominates the constraints on 𝑀𝜈: at 𝑧 = 0 the power spectrum multipoles gives Δ𝑀𝜈 = 0.25 eV (1𝜎), the MST gives Δ𝑀𝜈 = 0.13 eV
+(1𝜎), and the power spectrum multipoles and the MST combined
+give Δ𝑀𝜈 = 0.11 eV – an improvement of a factor of ∼ 2.3. For
+the other parameters we find that combining the two sets of statistics
+breaks several degeneracies and thereby improves constraints on ℎ,
+𝑛s, and Ωb by a factor of ∼ 2.4 in comparison to the individual power
+spectrum constraints. We measure the dependence on the number of
+bins 𝑁bins, showing that fewer bins will decrease the constraining
+power but that the inclusion of the MST will, irrespective of the bin
+number, significantly improve constraints on Ωb
+, ℎ, 𝑛s, and neutrino
+mass 𝑀𝜈.
+In this paper we show that adding the MST to the power spectrum greatly improves constraints for parameters of the 𝜈ΛCDM
+model. In particular constraints on 𝑀𝜈 are dominated by the MST
+since it is significantly more sensitive to the effects of neutrinos on
+the distribution of haloes. This appears to come from the MST’s
+sensitivity to the small scale clustering in the cosmic web where
+neutrino free-streaming effects are important. Future galaxy surveys
+such as DESI, Euclid, and LSST are projected to bring the upper
+limit on neutrino mass below or close to 0.06 eV (Font-Ribera et al.
+2014), the lower limit from neutrino oscillations (assuming normal
+hierarchy). As we have illustrated using halo simulations the MST
+can improve by a factor of two the constraints on neutrino mass
+with respect to just the power spectrum. Therefore we can expect
+the MST to provide greater constraints from current and future surveys, possibly enabling this interesting regime to be probed sooner.
+These constraints could be further improved by combining the MST
+and the power spectrum with other probes such as the CMB. This
+demonstrates the importance of measuring more than just the power
+spectrum (or two-point statistics) and provides a powerful argument
+for making measurements of the MST on current and future galaxy
+surveys such as BOSS, eBOSS, and DESI. In future work we will look
+to develop techniques for addressing the challenges associated with
+real galaxy survey data; these challenges include the impact of the
+survey’s selection function across the sky (completeness and depth)
+and as a function of redshift, the incorporation of galaxy weights,
+MNRAS 000, 1–11 (2020)
+Cosmology and neutrino mass with the MST 9
+and the mitigation of small scale effects including the effect of fibre
+collisions in spectroscopic surveys.
+APPENDIX A: MASKING SMALL SCALES USING
+GROUPS
+Cosmological simulations tend to suffer from inaccuracies at small
+scales due to limitations in resolution and complex baryonic effects
+which require expensive hydrodynamics simulations. For these reasons it is important to be able to remove these troublesome scales
+from our analysis. For traditional N-point statistics this is relatively
+straightforward as this simply requires placing scale cuts on the data
+vector. However the MST is different as there is no way to mask small
+scales once the MST has been constructed; instead, the input data
+vector needs to be prepared such that scales are not present when the
+MST is constructed. To remove these scales from our analysis we
+implement a grouping scheme where points separated by less than
+𝑙min are combined.
+In this section we investigate the effectiveness of masking small
+scales by grouping using two Levy-Flight simulations as a proxy
+for N-body simulations with accurate and inaccurate small scale
+effects (such as baryonic effects). These simulations were chosen
+as their clustering properties are relatively simple to control and
+are fast to generate. We generate 50 realisations of two Levy Flight
+simulation models: (1) the standard Levy Flight (LF) and (2) the
+Adjusted Levy Flight (ALF; see Naidoo et al. 2020, for more details).
+The simulations are generated using MiSTree (Naidoo 2019). For
+each simulation 50,000 points are generated in a box of length 75
+with parameters 𝑡0 = 0.24 and 𝛼 = 1.6 for the LF simulations and
+parameters 𝑡0 = 0.325, 𝑡𝑠 = 0.015, 𝛼 = 1.5, 𝛽 = 0.45, and 𝛾 = 1.3
+for the ALF.
+The 2-point correlation function (2PCF) and MST statistics are
+measured for both simulations and compared in Fig. A1. The simulations are designed to exhibit very different small scale properties
+but identical large scale correlation functions.
+All points in the simulations with separations less than 0.4 are
+grouped and replaced by a single point with the average position of
+the group members. A new catalogue of points is now constructed
+with these grouped points and any remaining ungrouped points. For
+both simulations this results in a catalogue of roughly ∼ 13, 000
+points. To ensure differences between the statistics are not due to
+slight differences in density we sample at random 12,000 points from
+each catalogue and measure the 2PCF and MST statistics. In Fig A1
+the statistics before and after grouping are shown. Prior to grouping
+the simulations exhibit different small scale clustering properties,
+which is seen by differences in the 2PCF and MST statistics, while
+after grouping all the statistics are consistent with each other. This
+shows that grouping effectively masks the small scale differences
+between the simulations.
+MNRAS 000, 1–11 (2020)
+10 K. Naidoo et al.
+10−1 100 101
+r
+10−1
+100
+101
+ξ(r)
+Grouped
+−2 −1 0 1
+log10 l
+0.0
+2.5
+P(log10
+l)
+LF
+ALF
+2 4 6
+d
+0.0
+0.5
+P(d)
+2 4 6
+d
+0.0
+0.5
+P(d)
+0.0 0.5 1.0
 s
-k =
-
-
-
-
-
-
-
-
-
-
-
-
-
-hek,0 0 · · · 0 hek,U−1 · · · hek,1
-hek,1 hek,0 · · · 0 0 · · · hek,2
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-hek,U−1 hek,U−2 · · · hek,0 0 · · · 0
-0 hek,U−1 · · · hek,1 hek,0 · · · 0
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-.
-. 0
-0 0 · · · hek,U−1 hek,U−2 · · · hek,0
-
-
-
-
-
-
-
-
-
-
-
-
-
-, (79)
-thanks to the operation of adding CP. We further denote the
-overall effective downlink channel matrix of UE k as
-hk , FsHs
-k
-(F
-H
-s ⊗ INt
-) ∈ C
-Ns×NsNt
-= FsHs
-kΩΩT(F
-H
-s ⊗ INt
-)ΩΩT
-(a)
-= Fs[Hs
-k,1
-, · · · , Hs
-k,Nt
-]ΩT(F
-H
-s ⊗ INt
-)ΩΩT
-(b)
-= Fs[Hs
-k,1
-, · · · , Hs
-k,Nt
-](INt ⊗ F
-H
-s
-)ΩT
-(c)
-= [FsHs
-k,1F
-H
-s
-, · · · , FsHs
-k,NtF
-H
-s
-]ΩT
-(d)
-= [Λk,1, · · · , Λk,Nt
-]Ω
-T
-(e)
-= diag(hk,1, · · · , hk,Ns
-) ∈ C
-Ns×NsNt
-, (80)
-where (a) holds by column permutation Hs
-kΩ with ΩΩT =
-INsNt
-that Hs
-k
-is transformed into Nt circulant channel
-matrix Hs
-k,nt
-∈ C
-Ns×Ns
-for nt ∈ Nt = {1, · · · , Nt}.
-In addition, through both raw and column permutations,
-we have ΩT(FH
-s ⊗ INt
-)Ω = (INt ⊗ FH
-s
-), leading to (b).
-The equation of (c) is based on the special structure of
-(INt ⊗ FH
-s
-). Then FsHs
-k,nt
-FH
-s = Λk,nt
-as (d) [26], where
-Λk,nt ∈ C
-Ns×Ns
-is a diagonal matrix with elements Λk,nt,n = PU−1
-u=0
-ehk,u,nt
-e
-−
-j2πu(n−1)
-Ns for nt ∈ Nt and n ∈ Ns. After the
-final column permutation on [Λk,1, · · · , Λk,Nt
-] with ΩT in
-(d), a diagonal structure can be obtained as in (e) where
-hk,n = [Λk,1,n, · · · ,Λk,Nt,n]
-=
-U
-X−1
-u=0
-[ehk,u,1, · · · , ehk,u,Nt
-]e
-−
-j2πu(n−1)
-Ns
-=
-U
-X−1
-u=0
-hek,ue
-−
-j2πu(n−1)
-Ns ∈ C
-1×Nt
-, n ∈ Ns, k ∈ K. (81)
-Hence, combining (78), we have
-y
-l
-k = hkx
-l
-s = diag(hk,1, · · · , hk,Ns
-)x
-l
-s
-. (82)
-Further considering all the K users and L symbol frames, a
-compact form of the noiseless received signal can be given as
-Ys = HsXs ∈ C
-NsK×L, (83)
-where Hs = diag(H1, · · · , HNs
-) ∈ C
-NsK×NsNt with Hn =
-[h
-T
-1,n, · · · , h
-T
-K,n]
-T ∈ C
-K×Nt
-. The proof of Lemma 1 has been
-completed.
-APPENDIX B
-PROOF OF LEMMA 2
-It is easy to observe that the problem (P5) in (52) ignoring
-the rank-1 constraint (52g) is a convex optimization problem,
-and thus the optimal solution must satisfy the Karush-KuhnTacker (KKT) conditions [36]. We first express the Lagrangian
-function of such problem as
-L =Tr
-QGb
-
-+
-NXsNtL
-q=1
-λq
-
-Tr
-ΠqGb
-
-−
-εPt
-NNt
-
-+ ν
-
-Tr
-Gb
-
-− LPs
-t − 1
-
-+ ̺
-
-Tr
-ΓbcGb
-
-− LPc
-t
-
-− Tr
-ΨGb
-
-− ϕ
-
-Tr
-ΠNsNtL+1Gb
-
-− 1
-
-, (84)
-where λq ≥ 0 for q ∈ NstL and Ψ  0 are the Lagrangian
-multipliers corresponding to the inequality constraints (52b)
-and (52f), while ν, ̺ and ϕ are the Lagrangian multipliers corresponding to the equality constraints (52c), (52d), and (52e).
-For the global optimal solution of the considered problem, the
-optimal Lagrangian multipliers are uniquely determined.
-Here, Πq ∈ R
-NsNtL+1 is a diagonal matrix where only the
-q-th element on the diagonal line is non-zero with value of 1.
-Hence, we can obtain the KKT conditions given below
-∂L
-∂Gb
-= Q +
-NXsNtL
-q=1
-λqΠq + νI + ̺Γbc − Ψ − ϕΠNsNtL+1 = 0
-λq
-
-Tr
-ΠqGb
-
-−
-εPt
-NNt
-
-= 0, λq ≥ 0, q ∈ NstL, (86)
-Tr
-ΨGb
-
-= 0, Ψ  0 (87)
-Tr
-Gb
-
-− LPs
-t − 1 = 0, (88)
-Tr
-ΓbcGb
-
-− LPc
-t = 0, (89)
-Tr
-ΠNsNtL+1Gb
-
-− 1 = 0. (90)
-The above KKT conditions should be satisfied with the global
-optimal solution of problem (P5) in (52) ignoring the rank1 constraint. We denote the optimal solution as Gb o
-, and the
-corresponding optimal Lagrangian multipliers are denoted as
-λ
-o
-q
-, ν
-o
-, ̺
-o
-, ϕ
-o
-, and Ψo
-. From the condition (85), we have
-Ψo = Q +
-N
-XsNtL
-q=1
-λ
-o
-qΠq + ν
-o
-I + ̺
-oΓbc − ϕ
-oΠNsNtL+1
-= Q + Πo + ν
-o
-I + ̺
-oΓbc − ϕ
-oΠNsNtL+1, (91)
-where Πo  0 is a diagonal matrix with
-diag(Πo
-) = [λ
-o
-1
-, λo
+0
 2
-, · · · , λo
-NsNtL, 0]T (92)
-and the rank of Πo
-is determined by the number of nonzero Lagrangian multipliers λ
-o
-q
-for q ∈ NstL. It is easy to
-verify that Γbc  0 is also a diagonal matrix with NcNtL
-non-zero elements which with the same value of 1, and thus
-rank(Γbc) = NcNtL. Hence, we can obtain
-Πo + ν
-o
-I + ̺
-oΓbc ≻ 0, (93)
-by considering the fact Πo
-, ν
-o
-and ̺
-o
-are uniquely determined
-and the special case of ν
-o = 0 rarely occurs. Based on
-the definition of Q in (50) and the non-negative property of
-objective function (47a), we know that Q  0. Hence, we can
-further derive that
-Ξ , Q + Πo + ν
-o
-I + ̺
-oΓbc ≻ 0, (94)
-which can be verified by contradiction. Assuming that Ξ  0,
-there exists at least one vector x ∈ C
-(NsNtL+1)×1
-such that
-x
-HΞx ≤ 0, also we have
-x
-HΨox = x
-HΞx − ϕ
-ox
-HΠNsNtL+1x ≥ 0 (95)
-due to the fact that Ψo  0. Considering that ΠNsNtL+1  0
-as well, we have x
-HΠNsNtL+1x ≥ 0, leading to the results
-of x
-HΨox = 0, x
-HΠNsNtL+1x = 0 and x
-HΞx = 0. In
-addition, x
-HQx ≥ 0, and thus x
-H(Πo + ν
-o
-I + ̺
-oΓbc)x =
-x
-HΞx − x
-HQx ≤ 0, which contradicts the result in (93).
-Based on the expression (91), we further have
-rank(Ψ) ≥ rank(Ξ) − rank(ΠNsNtL+1)
-≥ NsNtL + 1 − 1 = NsNtL. (96)
-Since Tr
-ΨGb
-
-= 0 with Ψ  0 and Gb  0, it follows that
-ΨGb = 0 and rank(Ψ) + rank(Gb ) ≤ NsNtL + 1, and thus
-rank(Gb ) ≤ NsNtL + 1 − rank(Ψ) ≤ 1. (97)
-Also, rank(Gb ) ≥ 1 as it is a non-zero matrix, leading to the
-final result of rank(Gb ) = 1.
-REFERENCES
-[1] P. Brown, “75.4 billion devices connected to the internet of things by
-2025,” 2016, [Online]. Available: https://electronics360.globalspec.com
-/article/6551/75-4-billion-devices-connected-to-the-internet-of-things-by
--2025.
-[2] H. Griffiths, L. Cohen, S. Watts, E. Mokole, C. Baker, M. Wicks, and
-S. Blunt, “Radar spectrum engineering and management: Technical and
-regulatory issues,” Proceedings of the IEEE, vol. 103, no. 1, pp. 85–102,
-2015.
-[3] A. Hassanien, M. G. Amin, E. Aboutanios, and B. Himed, “Dualfunction radar communication systems: A solution to the spectrum
-congestion problem,” IEEE Signal Process. Mag., vol. 36, no. 5, pp.
-115–126, 2019.
-[4] D. Ma, N. Shlezinger, T. Huang, Y. Liu, and Y. C. Eldar, “Joint radarcommunication strategies for autonomous vehicles: Combining two key
-automotive technologies,” IEEE Signal Process. Mag., vol. 37, no. 4,
-pp. 85–97, 2020.
-[5] F. Liu, C. Masouros, A. P. Petropulu, H. Griffiths, and L. Hanzo, “Joint
-radar and communication design: Applications, state-of-the-art, and the
-road ahead,” IEEE Transactions on Communications, vol. 68, no. 6, pp.
-3834–3862, 2020.
-[6] J. A. Zhang, F. Liu, C. Masouros, R. W. Heath Jr, Z. Feng, L. Zheng,
-and A. Petropulu, “An overview of signal processing techniques for joint
-communication and radar sensing,” arXiv preprint arXiv:2102.12780,
-2021.
-[7] R. M. Mealey, “A method for calculating error probabilities in a radar
-communication system,” IEEE Trans. Space Electron. Telemetry, vol. 9,
-no. 2, pp. 37–42, 1963.
-[8] G. N. Saddik, R. S. Singh, and E. R. Brown, “Ultra-wideband multifunctional communications/radar system,” IEEE Trans. Microw. Theory
-Techn., vol. 55, no. 7, pp. 1431–1437, 2007.
-[9] A. Hassanien, M. G. Amin, Y. D. Zhang, and F. Ahmad, “Dual-function
-radar-communications: Information embedding using sidelobe control
-and waveform diversity,” IEEE Trans. Signal Process., vol. 64, no. 8,
-pp. 2168–2181, 2016.
-[10] C. Sturm and W. Wiesbeck, “Waveform design and signal processing
-aspects for fusion of wireless communications and radar sensing,” Proc.
-IEEE, vol. 99, no. 7, pp. 1236–1259, 2011.
-[11] D. Gaglione, C. Clemente, C. V. Ilioudis, A. R. Persico, I. K. Proudler,
-and J. J. Soraghan, “Fractional fourier based waveform for a joint radarcommunication system,” in 2016 IEEE Radar Conference (RadarConf),
-2016, pp. 1–6.
-[12] P. Kumari, J. Choi, N. Gonzlez-Prelcic, and R. W. Heath, “Ieee
-802.11ad-based radar: An approach to joint vehicular communicationradar system,” IEEE Trans. Veh. Technol., vol. 67, no. 4, pp. 3012–3027,
-2018.
-[13] F. Liu, C. Masouros, A. Li, H. Sun, and L. Hanzo, “MU-MIMO communications with MIMO radar: From co-existence to joint transmission,”
-IEEE Trans. Wireless Commun., vol. 17, no. 4, pp. 2755–2770, 2018.
-[14] F. Liu, L. Zhou, C. Masouros, A. Li, W. Luo, and A. Petropulu, “Toward dual-functional radar-communication systems: Optimal waveform
-design,” IEEE Trans. Signal Process., vol. 66, no. 16, pp. 4264–4279,
-2018.
-[15] X. Liu, T. Huang, N. Shlezinger, Y. Liu, J. Zhou, and Y. C. Eldar, “Joint
-transmit beamforming for multiuser MIMO communications and mimo
-radar,” IEEE Transactions on Signal Processing, vol. 68, pp. 3929–3944,
-2020.
-[16] G. Stuber, J. Barry, S. McLaughlin, Y. Li, M. Ingram, and T. Pratt,
-“Broadband MIMO-OFDM wireless communications,” Proc. IEEE,
-vol. 92, no. 2, pp. 271–294, 2004.
-[17] D. Tse and P. Viswanath, Fundamentals of wireless communication.
-Cambridge university press, 2005.
-[18] Y. S. Cho, J. Kim, W. Y. Yang, and C. G. Kang, MIMO-OFDM wireless
-communications with MATLAB. John Wiley & Sons, 2010.
-[19] T. Tian, T. Zhang, L. Kong, and Y. Deng, “Transmit/receive beamforming for MIMO-OFDM based dual-function radar and communication,”
-IEEE Trans. Veh. Technol., vol. 70, no. 5, pp. 4693–4708, 2021.
-[20] C. Shi, Y. Wang, F. Wang, S. Salous, and J. Zhou, “Joint optimization
-scheme for subcarrier selection and power allocation in multicarrier dualfunction radar-communication system,” IEEE Syst. J., vol. 15, no. 1, pp.
-947–958, 2021.
-[21] M. F. Keskin, V. Koivunen, and H. Wymeersch, “Limited feedforward
-waveform design for OFDM dual-functional radar-communications,”
-IEEE Trans. Signal Process., vol. 69, pp. 2955–2970,
-[22] Z. Xu and A. Petropulu, “A wideband dual function radar communication system with sparse array and OFDM waveforms,” arXiv preprint
-arXiv:2106.05878, 2021.
-[23] S. H. Han and J. H. Lee, “An overview of peak-to-average power
-ratio reduction techniques for multicarrier transmission,” IEEE Wireless
-Commun., vol. 12, no. 2, pp. 56–65, 2005.
-[24] D.-W. Lim, S.-J. Heo, and J.-S. No, “An overview of peak-to-average
-power ratio reduction schemes for ofdm signals,” J. Commun. Netw.,
-vol. 11, no. 3, pp. 229–239, 2009.
-[25] G. Wunder, R. F. Fischer, H. Boche, S. Litsyn, and J.-S. No, “The
-PAPR problem in OFDM transmission: New directions for a long-lasting
-problem,” IEEE Signal Process. Mag., vol. 30, no. 6, pp. 130–144, 2013.
-[26] B. Muquet, Z. Wang, G. Giannakis, M. de Courville, and P. Duhamel,
-“Cyclic prefixing or zero padding for wireless multicarrier transmissions?” IEEE Trans. Commun., vol. 50, no. 12, pp. 2136–2148, 2002.
-[27] S. K. Mohammed and E. G. Larsson, “Per-antenna constant envelope
-precoding for large multi-user MIMO systems,” IEEE Trans. Commun.,
-vol. 61, no. 3, pp. 1059–1071, 2013.
-[28] J. Li and P. Stoica, MIMO radar signal processing. John Wiley &
-Sons, 2008.
-[29] P. Stoica, J. Li, and Y. Xie, “On probing signal design for MIMO radar,”
-IEEE Trans. Signal Process., vol. 55, no. 8, pp. 4151–4161, 2007.
-[30] D. R. Fuhrmann and G. San Antonio, “Transmit beamforming for MIMO
-radar systems using signal cross-correlation,” IEEE Trans. Aerosp.
-Electron. Syst., vol. 44, no. 1, pp. 171–186, 2008.
-[31] I. Bekkerman and J. Tabrikian, “Target detection and localization using
-MIMO radars and sonars,” IEEE Trans. Signal Process., vol. 54, no. 10,
-pp. 3873–3883, 2006.
-[32] S. M. Kay, “Fundamentals of statistical signal processing. detection
-theory, volume ii,” Printice Hall PTR, pp. 1545–5971, 1998.
-[33] K. Paterson and V. Tarokh, “On the existence and construction of good
-codes with low peak-to-average power ratios,” IEEE Transactions on
-Information Theory, vol. 46, no. 6, pp. 1974–1987, 2000.
-[34] T. Viklands, “Algorithms for the weighted orthogonal procrustes problem
-and other least squares problems,” Ph.D. dissertation, Datavetenskap,
-2006.
-[35] M. Sharif, M. Gharavi-Alkhansari, and B. Khalaj, “On the peak-toaverage power of OFDM signals based on oversampling,” IEEE Trans.
-Commun., vol. 51, no. 1, pp. 72–78, 2003.
-[36] S. Boyd and L. Vandenberghe, Convex optimization. Cambridge
-university press, 2004.
+P(s)
+10−1 100 101
+r
+10−1
+101
+103
+ξ(r)
+Ungrouped
+−1 0 1 2
+log10 b
+0
+1
+P(log10 b)
+−2 −1 0 1
+log10 l
+0
+2
+P(log10
+l)
+0.0 0.5 1.0
+s
+0
+2
+P(s)
+−1 0 1 2
+log10 b
+0
+1
+P(log10 b)
+Figure A1. The effect of grouping Levy Flight simulations are shown for the 2-point correlation function (2PCF) and MST statistics. Two sets of Levy Flight
+simulations are used: the standard Levy Flight (LF) simulations are shown in blue and the adjusted Levy Flight (ALF) simulations are shown in red. They exhibit
+almost identical large scale 2PCF 𝜉(𝑟) by design but have very different small scale correlation properties. The differences between the ungrouped simulations
+are shown in the top subpanels. On the left is the 2PCF and on the right are the four MST statistics degree (𝑑), edge length (𝑙), branch shape (𝑠), and branch length
+(𝑏). The differences between the grouped simulations are shown in the bottom subpanels. On the left is the 2PCF and on the right are the four MST statistics 𝑑,
+𝑙, 𝑠, and 𝑏. These plots show that grouping provides an effective solution for masking small scales as the small scale differences between the simulations do not
+appear once grouping has been performed.
+APPENDIX B: MINIMUM SPANNING TREE PARTIAL
+DERIVATIVES
+The partial derivative estimates for the MST statistics are shown for
+the distribution of degree 𝑑 in Fig. B1, for the distribution of edges
+𝑙 in Fig. B2, for the distribution of branches 𝑏 in Fig. B3, and for
+the distribution of branch shapes 𝑠 in Fig. B4. Depending on the
+estimators used the error bars are calculated using either Eq. 7 or 9.
+The derivatives for neutrino mass are shown for estimator 2 (Eq. 5)
+with 𝑀𝜈 = 0.1 eV.
+For a fixed MST statistic, the partial derivatives of that statistic
+(with respect to the various cosmological parameters) all have similar shapes. The similarity can be explained if we think about the
+construction of the MST as an optimisation problem: differences
+in parameters will lead to trees with longer (poorly optimised) or
+shorter edges (highly optimised). Depending on the outcome the
+MST statistics will to first order be pulled to smaller or larger values
+but since there are roughly the same number of points this change
+has to be counter balanced with a reduction in the opposite direction.
+Although the profiles are similar in their general shape if we instead
+look to the relative peaks and troughs with respect to zero we can
+see that each parameter behaves slightly differently; take for example
+the partial derivatives for edge length with respect to Ωm and 𝑀min
+where the troughs for 𝑀min is much deeper. The similarities suggest
+that the MST statistics data vectors could be compressed into a few
+values (this possibility will be investigated in future work). In any
+case the similarities are not a cause for concern as the interdependencies of these parameters are taken into account in the Fisher matrix
+calculation and would appear as covariances.
+APPENDIX C: FISHER MATRIX CONSTRAINTS FROM
+THE MST
+Additional constraints from the MST and power spectrum multipoles
+are presented in this section. In addition to the measurements made
+in the paper at redshift 𝑧 = 0, we also make measurements at redshift
+𝑧 = 0.5 and 𝑧 = 1, and finally combine the analysis over the three
+redshifts.
+In Tab. C1 we compare the constraints of the MST and power spectrum multipoles for the different neutrino mass derivative estimates
+presented in this paper.
+MNRAS 000, 1–11 (2020)
+Cosmology and neutrino mass with the MST 11
+0
+5000
+10000
+∂N(d)/∂θ
+Ωm
+−20000
+−10000
+0
+Ωb
+0
+2000
+4000
+6000 h
+2 4
+d
+0
+2500
+5000
+7500
+∂N(d)/∂θ
+ns
+2 4
+d
+−4000
+−2000
+0
+σ8
+2 4
+d
+−400
+−200
+0
+Mν
+2 4
+d
+0
+200
+400
+Mmin
+Figure B1. Derivatives for the MST degree 𝑑 are shown for the six 𝜈ΛCDM parameters (ℎ, 𝑛𝑠, Ωb, Ωm, 𝜎8, and 𝑀𝜈) in redshift space and an additional
+nuisance parameter 𝑀min. Error bars are obtained using Eq. 7 and Eq. 9 for 𝑀𝜈. The sensitivity to each parameter can be assessed by the significance of
+deviations away from 𝜕𝑁 (𝑑)/𝜕𝜃 = 0 (dotted black line).
+0
+500
+1000
+∂N(l)/∂θ
+Ωm
+−2000
+0
+2000 Ωb
+0
+500
+h
+20 30
+l [h
+−1Mpc]
+0
+500
+1000
+∂N(l)/∂θ
+ns
+20 30
+l [h
+−1Mpc]
+−500
+0
+500
+σ8
+20 30
+l [h
+−1Mpc]
+−100
+0
+Mν
+20 30
+l [h
+−1Mpc]
+0
+50
+Mmin
+Nbins = 200
+Nbins = 100
+Nbins = 40
+Figure B2. Derivatives for the MST edge length 𝑙 are shown for the six 𝜈ΛCDM parameters (ℎ, 𝑛𝑠, Ωb, Ωm, 𝜎8, and 𝑀𝜈) in redshift space and an additional
+nuisance parameter 𝑀min. Error bars are obtained using Eq. 7 and Eq. 9 for 𝑀𝜈. The sensitivity to each parameter can be assessed by the significance of
+deviations away from 𝜕𝑁 (𝑙)/𝜕𝜃 = 0 (dotted black line). The derivatives are shown for three binning schemes (𝑁bins): 200 (blue), 100 (orange), and 40 (green).
+In Tab. C2 we compare the constraints of the MST and power
+spectrum multipoles for the six 𝜈ΛCDM parameters and the nuisance
+minimum halo mass parameter 𝑀min.
+This paper has been typeset from a TEX/LATEX file prepared by the author.
+MNRAS 000, 1–11 (2020)
+12 K. Naidoo et al.
+Table C1. Constraints on 𝑀𝜈 using different estimators for 𝜕𝑆/𝜕𝑀𝜈 at 𝑧 = 0: estimator 1 (Eq. 4) using 𝑀𝜈 = 0.1, 0.2, and 0.4 eV, estimator 2 (Eq. 5) using
+𝑀𝜈 = 0.1 and 0.2 eV, and estimator 3 (Eq. 6) using 𝑀𝜈 = 0.1 eV. Typically estimator 3 has been used in previous studies but in this paper we use estimator
+2 with 𝑀𝜈 = 0.1 eV since the accuracy of this estimator is consistent with Eq. 4 used for the other parameters. With the exception of results derived from Eq.
+4, the least accurate estimator using 𝑀𝜈 = 0.2 and 0.4 eV, all the estimators in real and redshift space show tighter constraints for the MST than the power
+spectrum. Furthermore, when they are combined the constraints appear to be dominated by the MST.
+Statistics Redshift Est. 1 (Eq. 4) Est. 2 (Eq. 5) Est. 3 (Eq. 6)
+0.1 eV 0.2 eV 0.4 eV 0.1 eV 0.2 eV 0.1 eV
+MST(𝑙) 0 0.45 0.86 1.3 0.24 0.48 0.18
+MST(𝑏) 0 0.4 0.8 1.3 0.22 0.44 0.16
+MST(𝑙, 𝑏) 0 0.29 0.57 0.86 0.15 0.32 0.12
+MST(𝑙, 𝑏, 𝑠) 0 0.24 0.44 0.7 0.13 0.24 0.095
+MST(𝑑, 𝑙, 𝑏, 𝑠) 0 0.24 0.44 0.69 0.13 0.24 0.094
+𝑃ℓ=0,2(𝑘) 0 0.39 0.8 1.1 0.25 0.55 0.2
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0 0.2 0.36 0.45 0.11 0.21 0.082
+Table C2. Separate and combined constraints for parameters from the 𝜈ΛCDM model determined from measurements of the power spectrum (multipoles in
+redshift space) and MST at redshift 𝑧 = 0, 0.5, and 1. The constraints are obtained using Eq. 3 for all of the parameters except 𝑀𝜈 which are obtained using
+Eq. 5 and Eq. 6. The former is used for the analysis presented in this paper and for comparison with Massara et al. 2020 while the latter is provided to allow
+comparisons with results obtained by Villaescusa-Navarro et al. 2019, Hahn et al. 2019 and Uhlemann et al. 2019. For the standard ΛCDM parameters we
+obtain competitive constraints from the MST at all redshifts, with the exception of Ωm and 𝜎8 where the power spectrum dominates; however for 𝑀𝜈 the MST
+dominates. When measurements from the different redshifts are combined we find the MST is competitive for all parameters, including Ωm and 𝜎8, but still
+dominates constraints on 𝑀𝜈.
+Statistics Redshift 𝑁bins ΔΩm ΔΩb Δℎ Δ𝑛s Δ𝜎8
+Δ𝑀𝜈 [eV] Δ𝑀min Est. 2 (Eq. 5) Est. 3 (Eq. 6)
+MST(𝑙) 0 200 0.068 0.018 0.14 0.12 0.12 0.24 0.18 1.0
+MST(𝑏) 0 200 0.043 0.011 0.14 0.12 0.091 0.22 0.16 1.0
+MST(𝑙, 𝑏) 0 200 0.036 0.0094 0.098 0.076 0.069 0.15 0.12 0.59
+MST(𝑙, 𝑏, 𝑠) 0 200 0.029 0.0076 0.072 0.057 0.056 0.13 0.095 0.49
+MST(𝑑, 𝑙, 𝑏, 𝑠) 0 200 0.028 0.0076 0.071 0.056 0.055 0.13 0.094 0.45
+𝑃ℓ=0,2(𝑘) 0 n/a 0.016 0.014 0.14 0.085 0.013 0.25 0.2 0.26
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0 200 0.013 0.0057 0.054 0.037 0.012 0.11 0.082 0.14
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0 100 0.014 0.0073 0.071 0.045 0.012 0.14 0.11 0.16
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0 40 0.015 0.01 0.099 0.056 0.012 0.17 0.14 0.18
+MST(𝑙) 0.5 200 0.057 0.017 0.15 0.12 0.1 0.26 0.19 0.95
+MST(𝑏) 0.5 200 0.066 0.012 0.11 0.095 0.097 0.23 0.17 1.2
+MST(𝑙, 𝑏) 0.5 200 0.039 0.0098 0.086 0.073 0.071 0.17 0.12 0.67
+MST(𝑙, 𝑏, 𝑠) 0.5 200 0.03 0.0075 0.066 0.056 0.052 0.13 0.093 0.53
+MST(𝑑, 𝑙, 𝑏, 𝑠) 0.5 200 0.03 0.0075 0.065 0.056 0.052 0.13 0.092 0.53
+𝑃ℓ=0,2(𝑘) 0.5 n/a 0.014 0.013 0.14 0.09 0.011 0.23 0.19 0.25
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0.5 200 0.012 0.0054 0.051 0.04 0.0089 0.11 0.081 0.15
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0.5 100 0.013 0.007 0.074 0.054 0.0091 0.15 0.11 0.17
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0.5 40 0.013 0.0098 0.1 0.066 0.0093 0.17 0.14 0.19
+MST(𝑙) 1 200 0.053 0.015 0.15 0.1 0.094 0.22 0.17 1.2
+MST(𝑏) 1 200 0.054 0.012 0.13 0.12 0.078 0.2 0.15 1.1
+MST(𝑙, 𝑏) 1 200 0.034 0.0094 0.092 0.074 0.058 0.15 0.11 0.73
+MST(𝑙, 𝑏, 𝑠) 1 200 0.029 0.0075 0.076 0.062 0.046 0.12 0.086 0.63
+MST(𝑑, 𝑙, 𝑏, 𝑠) 1 200 0.028 0.0074 0.074 0.06 0.045 0.12 0.086 0.58
+𝑃ℓ=0,2(𝑘) 1 n/a 0.017 0.015 0.17 0.14 0.015 0.24 0.2 0.31
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 1 200 0.013 0.0058 0.056 0.045 0.012 0.1 0.078 0.14
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 1 100 0.014 0.0072 0.072 0.056 0.012 0.14 0.11 0.16
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 1 40 0.015 0.0093 0.096 0.069 0.013 0.17 0.14 0.18
+MST(𝑙) 0, 0.5, 1 200 0.032 0.0091 0.077 0.061 0.025 0.13 0.1 0.43
+MST(𝑏) 0, 0.5, 1 200 0.025 0.0066 0.063 0.054 0.026 0.12 0.089 0.38
+MST(𝑙, 𝑏) 0, 0.5, 1 200 0.02 0.0054 0.049 0.04 0.017 0.089 0.066 0.27
+MST(𝑙, 𝑏, 𝑠) 0, 0.5, 1 200 0.016 0.0043 0.038 0.032 0.014 0.071 0.052 0.23
+MST(𝑑, 𝑙, 𝑏, 𝑠) 0, 0.5, 1 200 0.016 0.0043 0.038 0.032 0.014 0.07 0.052 0.22
+𝑃ℓ=0,2(𝑘) 0, 0.5, 1 n/a 0.0094 0.0083 0.078 0.053 0.007 0.12 0.1 0.18
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0, 0.5, 1 200 0.0069 0.0035 0.031 0.025 0.0057 0.061 0.046 0.081
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0, 0.5, 1 100 0.0073 0.0045 0.042 0.031 0.0058 0.08 0.061 0.092
+𝑃ℓ=0,2(𝑘) + MST(𝑑, 𝑙, 𝑏, 𝑠) 0, 0.5, 1 40 0.0076 0.0061 0.055 0.037 0.0059 0.095 0.075 0.1
+MNRAS 000, 1–11 (2020)
+Cosmology and neutrino mass with the MST 13
+0
+200
+400
+600
+∂N(b)/∂θ
+Ωm
+−2000
+−1000
+0
+1000 Ωb
+0
+200
+400 h
+50 100
+b [h
+−1Mpc]
+0
+200
+400
+∂N(b)/∂θ
+ns
+50 100
+b [h
+−1Mpc]
+−200
+0
+σ8
+50 100
+b [h
+−1Mpc]
+−50
+0
+Mν
+50 100
+b [h
+−1Mpc]
+0
+20
+Mmin
+Nbins = 200
+Nbins = 100
+Nbins = 40
+Figure B3. Derivatives for the MST branch length 𝑏 are shown for the six 𝜈ΛCDM parameters (ℎ, 𝑛𝑠, Ωb, Ωm, 𝜎8, and 𝑀𝜈) in redshift space and an additional
+nuisance parameter 𝑀min. Error bars are obtained using Eq. 7 and Eq. 9 for 𝑀𝜈. The sensitivity to each parameter can be assessed by the significance of
+deviations away from 𝜕𝑁 (𝑏)/𝜕𝜃 = 0 (dotted black line). The derivatives are shown for three binning schemes (𝑁bins): 200 (blue), 100 (orange), and 40 (green).
+0
+100
+200
+∂N(s)/∂θ
+Ωm
+−500
+0
+Ωb
+0
+50
+100
+h
+0.25 0.50 0.75
+s
+0
+50
+100
+150
+∂N(s)/∂θ
+ns
+0.25 0.50 0.75
+s
+−100
+−50
+0
+σ8
+0.25 0.50 0.75
+s
+−20
+0
+20
+Mν
+0.25 0.50 0.75
+s
+0.0
+2.5
+5.0
+7.5 Mmin
+Nbins = 200
+Nbins = 100
+Nbins = 40
+Figure B4. Derivatives for the MST branch shape 𝑠 are shown for the six 𝜈ΛCDM parameters (ℎ, 𝑛𝑠, Ωb, Ωm, 𝜎8, and 𝑀𝜈) in redshift space and an additional
+nuisance parameter 𝑀min. Error bars are obtained using Eq. 7 and Eq. 9 for 𝑀𝜈. The sensitivity to each parameter can be assessed by the significance of
+deviations away from 𝜕𝑁 (𝑠)/𝜕𝜃 = 0 (dotted black line). The derivatives are shown for three binning schemes (𝑁bins): 200 (blue), 100 (orange), and 40 (green).
+MNRAS 000, 1–11 (2020)

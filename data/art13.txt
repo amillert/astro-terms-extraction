@@ -1,1627 +1,1470 @@
-COVID-19 in low-tolerance border quarantine systems:
-impact of the Delta variant of SARS-CoV-2
-Cameron Zachreson,1 Freya M. Shearer,2 David J. Price,2, 3 Michael J. Lydeamore,4
-Jodie McVernon,2, 3 James McCaw,2, 3, 5 and Nicholas Geard1, 3
-1School of Computing and Information Systems,
-The University of Melbourne, Australia
-2Melbourne School of Population and Global Health,
-The University of Melbourne, Australia
-3The Peter Doherty Institute for Infection and Immunity,
-The Royal Melbourne Hospital and The University of Melbourne, Australia
-4Department of Infectious Diseases, The Alfred and
-Central Clinical School, Monash University, Australia
-5School of Mathematics and Statistics,
-The University of Melbourne, Australia
-(Dated: September 28, 2021)
+Automated algorithms to build Active Galactic Nuclei classifiers
+ABSTRACT
+We present a machine learning model to classify Active Galactic Nuclei (AGN) and galaxies (AGN-galaxy classifier) and a
+model to identify type 1 (optically unabsorbed) and type 2 (optically absorbed) AGN (type 1/2 classifier). We test tree-based
+algorithms, using training samples built from the X-ray Multi-Mirror Mission -Newton (XMM-Newton) catalogue and the Sloan
+Digital Sky Survey (SDSS), with labels derived from the SDSS survey. The performance was tested making use of simulations
+and of cross-validation techniques. With a set of features including spectroscopic redshifts and X-ray parameters connected
+to source properties (e.g. fluxes and extension), as well as features related to X-ray instrumental conditions, the precision and
+recall for AGN identification are 94 and 93 per cent, while the type 1/2 classifier has a precision of 74 per cent and a recall
+of 80 per cent for type 2 AGN. The performance obtained with photometric redshifts is very similar to that achieved with
+spectroscopic redshifts in both test cases, while there is a decrease in performance when excluding redshifts. Our machine
+learning model trained on X-ray features can accurately identify AGN in extragalactic surveys. The type 1/2 classifier has
+a valuable performance for type 2 AGN, but its ability to generalise without redshifts is hampered by the limited census of
+absorbed AGN at high redshift.
+Key words: methods: statistical – galaxies: nuclei
+1 INTRODUCTION
+Active Galactic Nuclei (AGN) are the brightest persistent sources in
+the sky and their luminosities emitted in their innermost compact regions are a sign of accretion onto supermassive black holes. X-ray
+surveys have helped to expand our knowledge of AGN, challenging the sensitivity limits and continuously expanding the AGN census (e.g., Nandra et al. 2015; Luo et al. 2017; Hasinger et al. 2021).
+The advantage of X-ray surveys is that they allow us to detect
+sources obscured in other wavelengths, since X-ray spectra emitted
+from the nuclei do not strongly interact with surrounding material.
+Telescopes such as X-ray Multi-Mirror Mission - Newton (XMMNewton; Jansen et al. 2001) have helped to identify a larger number of AGN, including absorbed and low-luminosity AGN, helping
+to distinguish them from galaxies without an active nucleus (e.g.,
+Caccianiga et al. 2007, Elías-Chávez et al. 2021, Torbaniuk et al.
+2021). On the other hand, optical surveys such as the Sloane Digital Sky Survey SDSS (York et al. 2000) have provided information
+about identifications and redshifts over ∼ 30 per cent of the sky.
+The survey provides, besides multi-colour data, also spectroscopic
+information which gives information on absorption along the line of
+sight, with broad optical lines observed in unabsorbed AGN (also
+called type 1 AGN) and not typically detected in absorbed AGN
+(also called type 2 AGN), the difference being commonly interpreted
+as an orientation effect of the absorbing material.
+Large surveys are planned for the next years and the incom-
+⋆ E-mail: falocco@kth.se, agn−ml@virgilio.it
+ing huge data sets will bring information about galactic and extragalactic sources. For instance, in the field of optical - near infrared astronomy, the Legacy Survey of Space and Time (LSST,
+Ivezic et al. 2019 ´ ) will bring a dramatic improvement in AGN demography across cosmic times: with its wide and deep field observations, it will provide data of millions of sources per night. The data
+flows will be beyond the limits of human ability to analyse and the
+volume of the archives will grow fast. Classifying sources in these
+conditions is a challenging task and, given the complexity of the algorithms, they cannot be built manually. Automated tools become
+useful to analyse such large data sets, but also in a more general
+context of moderately-sized surveys, since they have the power to
+quickly perform the desired tasks (e.g., classification or prediction)
+for new data flows. The expression machine Learning (ML) refers to
+building automated procedures which directly learn from data in order to perform the above-mentioned tasks (Samuel 1959). A specific
+branch of ML is supervised learning, which makes use of labeled
+data, i.e. data with the desired outputs. These techniques provide the
+machine with instructions for how to process the information behind
+labeled data in order to learn a model from them. Finding a relationship between a set of measurements (features) and a target variable
+(label), ML methods use this relationship or model to predict the
+target variable for new data.
+Supervised learning algorithms are broadly used in different fields
+where the labels are commonly referred to as ’ground truth’, since
+they are trusted identifications, while features usually have some degree of uncertainty (Mitchell 1997). The techniques developed so
+far are suitable whenever the level of uncertainty and noise are sim-
+© 2021 The Authors
+2 S. Falocco et al.
+ilar across the features (Zhu & Wu 2004). Techniques of data cleaning are usually employed to filter noisy samples (e.g., Wilson 1972,
+Sánchez et al. 2003), while dimensionality reduction can help reduce the number of features by ignoring those that bring redundant
+information or noise (Pearson 1901; Tipping & Bishop 1999).
+ML has successfully been used in astronomy in several contexts,
+for instance to identify transient sources (D’Isanto et al. 2016) and
+AGN using their optical variability (De Cicco et al. 2021) or their
+magnitudes in optical surveys (Cavuoti et al. 2014). ML methods
+have also allowed to address other aspects of extragalactic surveys,
+such as to estimate redshifts: for instance, Mountrichas et al. (2017)
+estimated photometric redshifts of more than 1000 X-ray sources.
+Redshifts were also estimated in Ruiz et al. (2018) for more than
+50 per cent of the 3XMM catalogue, with an outliers rate ranging from 4 to 40 per cent, depending on the amount of available
+data. For the classification of X-ray sources, ML methods have
+been applied to classify sources in the 4XMM-DR9 catalogue by
+Zhang et al. (2021), additionally using infrared data. The authors
+classified galaxies, quasars and stars with a total accuracy of around
+95 per cent. ML has also been valuable for expanding the census
+of quasars at high redshift (Wenzl et al. 2021). Finally, the high predictive power of ML methods enables assessment studies for new
+instruments, for instance forecasting background contamination for
+the future X-ray mission Athena (Kronberg et al. 2020).
+The aim of this work is to determine the performance of ML
+methods to identify sources in X-ray surveys, investigating the relevance of features from X-ray and optical surveys. In view of data
+from recent facilities such as eRosita (Merloni et al. 2012) and future X-ray observatories such as Athena (Nandra et al. 2013), this
+work aims at exploring frameworks and building models that can
+be deployed for incoming data. The aim of this paper is twofold:
+in the first part we build a supervised learning algorithm to identify
+AGN and galaxies (test case 1); a second algorithm aims at distinguishing between two subclasses of AGN, specifically unabsorbed
+(type 1) AGN and absorbed (type 2) AGN (test case 2). The algorithms are built from training on two of the largest existing data sets
+in the archives, namely the XMM-Newton and SDSS surveys (details
+about the data are provided in Section 2). For our classification tasks,
+the features are derived from the XMM-Newton X-ray catalogue and
+the labels from SDSS (in test case 1) and the Million quasar survey
+(combined with SDSS and XMM-Newton, in test case 2).
+This paper is organised as follows: data and sample construction
+are described in Section 2; methods are described in Section 3; results are discussed in Section 4, conclusions and future applications
+are described in Section 5. Additional information on the samples
+used to train the models are provided in Appendix A, while results
+on the AGN-galaxy classifier trained after having relabeled highluminosity galaxies are described in Appendix B, a test to check the
+impact of features is shown in Appendix C.
+2 DATA COLLECTION
+The first catalogue involved in this study is the XMM-Newton Catalogue. We used the 4XMM DR9 19/12/2019 detection catalogue
+presented in Webb et al. (2020)
 1
-arXiv:2109.12799v1 [q-bio.PE] 27 Sep 2021
-Abstract
-In controlling transmission of COVID-19, the effectiveness of border quarantine strategies is a key
-concern for jurisdictions in which the local prevalence of disease and immunity is low. In settings like this
-such as China, Australia, and New Zealand, rare outbreak events can lead to escalating epidemics and
-trigger the imposition of large scale lockdown policies. Here, we examine to what degree vaccination
-status of incoming arrivals and the quarantine workforce can allow relaxation of quarantine requirements.
-To do so, we develop and apply a detailed model of COVID-19 disease progression and transmission
-taking into account nuanced timing factors. Key among these are disease incubation periods and the
-progression of infection detectability during incubation. Using the disease characteristics associated
-with the ancestral lineage of SARS-CoV-2 to benchmark the level of acceptable risk, we examine the
-performance of the border quarantine system for vaccinated arrivals. We examine disease transmission
-and vaccine efficacy parameters over a wide range, covering plausible values for the Delta variant
-currently circulating globally. Our results indicate a threshold in outbreak potential as a function of
-vaccine efficacy, with the time until an outbreak increasing by up to two orders of magnitude as vaccine
-efficacy against transmission increases from 70% to 90%. For parameters corresponding to the Delta
-variant, vaccination is able to maintain the capacity of quarantine systems to reduce case importation
-and outbreak risk, by counteracting the pathogen’s increased infectiousness. To prevent outbreaks,
-heightened vaccination in border quarantine systems must be combined with mass vaccination. The
-ultimate success of these programs will depend sensitively on the efficacy of vaccines against viral
-transmission.
-I. INTRODUCTION
-Mitigation of pandemics requires a continuous analysis of risk trade-offs in order to respond
-proportionately and efficiently. Border quarantine systems are designed to allow travel between
-jurisdictions while limiting the risk of disease transmission between them. Rigorously limiting
-disease transmission between regions is appropriate when large differences exist in pathogen
-prevalence. While strict border measures are effective at preventing disease incursions, they are
-also costly to operate and reduce international travel to a trickle. Given the enormous economic
-and social costs associated with the international travel restrictions that come with stringent
-border quarantine policies, such systems should only be used when they can prevent a catastrophic
-2
-public health crisis [1, 2].
-During the COVID-19 pandemic, border quarantine strategies have been implemented in most
-parts of the world in various forms [3, 4]. In regions with tightly controlled borders, screening
-of international travellers has provided an effective means of limiting the importation rate of
-individuals infected with SARS-CoV-2 [5–7]. This has facilitated the success of outbreak control
-strategies relying on targeted test-trace-isolate-quarantine (TTIQ) responses. This combination
-of approaches has been largely successful in preventing widespread epidemics of COVID-19 in
-countries such as China, New Zealand, and Australia [8–11]. In Australia, this has meant that
-many citizens abroad at the outset of the pandemic have been stranded overseas due to quarantine
-capacity constraints. It has also stressed the higher education and tourism sectors and devastated
-the airline industry [12–14]. The design of a quarantine system needs to balance the benefits
-of reducing the risk of importation against the associated costs. In order to assess this tradeoff, analytical frameworks must incorporate emerging evidence about pathogen characteristics to
-provide accurate estimates of the risk associated with alternative quarantine strategies.
-Two potential factors motivating a revaluation of quarantine stringency include changes in the
-properties of a pathogen, and changes in what is deemed an acceptable level of breach risk. In
-the case of COVID-19, the development and rollout of effective vaccines provided an opportunity
-for countries that had previously maintained stringent border controls to contemplate a future in
-which these measures could be relaxed.
-However, the emergence of the Delta variant of SARS-CoV-2 has produced the need to evaluate
-risk trade-offs in the context of a virus exhibiting higher transmissibility, higher clinical severity,
-and against which existing vaccines are less effective [15–22]. In this shifting context, the role
-of vaccination and the acceptable risk of border quarantine breach events must be re-evaluated.
-The emergence of new variants with broadly different disease characteristics can be viewed as the
-onset of a new pandemic. Therefore, risk trade-offs and mitigation measures need to be assessed
-based on up-to-date information. In this work, we evaluate the efficacy of border quarantine
-systems as a function of the following pathogen characteristics:
-• transmissibility
-• efficacy of vaccines against transmission (the combination of efficacy against infection, and
-efficacy against transmission from breakthrough cases)
-3
-As our primary purpose is to estimate reduction in transmission risk, we focus on pathogen
-and vaccine characteristics associated with transmission. The efficacy of vaccines for preventing
-infection and onward transmission is a primary consideration when designing modified border
-quarantine pathways for vaccinated travellers, which is currently becoming a widely adopted
-framework [23].
-We evaluate the performance of a simulated border quarantine system consistent with the
-recommendations of the World Health Organization (WHO) for countries that choose to quarantine all international arrivals [24]. This includes a 14-day minimum stay, a testing regime, and
-a response strategy that isolates confirmed cases and their contacts from the other travellers in
-quarantine (Figure 1 and Figure 2). The chosen model reproduces general features adopted by
-the Chinese, Australian, and New Zealand border quarantine systems.
-We examine the performance of the quarantine system over a range of vaccine efficacy levels
-and reproductive ratios, relative to an unvaccinated baseline condition (0% vaccine efficacy).
-We then investigate how the risk of outbreaks seeded by quarantine breach events changes with
-the emergence of a more transmissible strain (i.e., the Delta variant of SARS-CoV-2). For
-our outbreak scenarios, we examine the effect of varying levels of population-wide vaccination
-coverage. This model, and the ensemble of results presented here can help guide adaptation
-of border quarantine measures as the virus evolves, vaccination coverage increases, and vaccine
-efficacy changes.
-II. METHODS
-A. Model overview (structure, inputs, outputs)
-We simulate virus transmission, case detection, and isolation response pathways within a
-single quarantine facility with a capacity of 100 travellers. The facility is staffed by 20 vaccinated
-workers who have intermittent contact with those in quarantine. Individuals are processed subject
-to testing and case isolation. The structure of the quarantine environment is generic, but captures
-the main principles typically applied in border quarantine facilities. The output of the quarantine
-model is used in a separate branching process model to evaluate the potential for outbreaks of
-community transmission. A schematic of the overall system is shown in Figure 1.
-The population is structured in two distinct groups, one of these comprising workers who staff
-4
-arrivals
-quarantine
-14-day
-extension
-isolation
-community
-workers
-workers
-close contact groups
-10 days
-FIG. 1. Schematic of the quarantine system model. Arrivals enter quarantine in groups of four
-close contacts. These groups are in weak contact with one another and with the workforce. If a case
-is detected, the infected individual is placed into 10-day isolation, and their contacts are placed
-into a 14-day quarantine extension. Travellers in extended quarantine are still in contact with the
-workforce and with other close-contact groups within the facility. A separate branching process
-model is used to evaluate the potential for outbreaks in the community based on the breach event
-statistics produced by the quarantine system model.
-the facility, and the other comprising the quarantined travellers. Travellers move through the
-system as indicated in Figure 2. After arriving in close contact groups of 4 individuals, travellers
-remain in the system for 14 days unless an infection is detected within their group. The 14 day
-minimum stay means that, typically, 50 travellers exit the system each week.
-The model used to simulate border quarantine incorporates a detailed description of COVID-19
-progression and transmission that captures the following salient features:
-• A lognormally distributed incubation period (mean approx. 5.5 d [µ = 1.62, σ = 0.418],
-Figure S8)
-• Time-varying infectiousness, increasing from the moment of exposure, peaking just before
-symptom onset, and declining until recovery (Figure S4)
-5
-• Time-varying RT-PCR test sensitivity with a peak before symptom onset followed by a
-gradual decline (Figure S6)
-• An over-dispersed secondary case distribution (Figure S2)
-These features allow the model to capture two important effects of the quarantine environment.
-The first of these is the truncation of the naturally over-dispersed secondary case distribution due
-to physical separation of close contact groups. The second is the tendency for false negative tests
-to occur during the early stages of infection. Detailed descriptions of disease natural history and
-test sensitivity models can be found in the Supporting Information.
-Detection of infection can occur due either to positive RT-PCR tests (conducted on days
-3 and 12), or symptom onset. The model assumes that 1/3 of all cases are asymptomatic.
-Asymptomatic cases can only be detected through testing. Symptomatic cases may be detected
-during the pre-symptomatic period through RT-PCR. If not, they are detected at the end of their
-incubation period, when they begin expressing symptoms (all symptomatic individuals are treated
-as confirmed cases).
-Case detection in travellers results in a 10-day isolation period for the case, as well as a 14-day
-quarantine extension for close contacts with additional tests on days 3 and 12 of the extension
-period. Subsequent detection within the same group of contacts results in isolation of cases,
-but does not incur additional extensions for remaining contacts. Therefore, the maximum period
-for which an individual can remain in the system is 38 days. This would occur if an individual
-were the close contact of a case detected on day 14 of the initial stay, were detected as a case
-themselves on the 14th day of their extension period, and were subsequently isolated for 10
-additional days. While in quarantine extension, transmission dynamics are not altered. While in
-isolation, individuals may not transmit infection to any other individuals. When all members of a
-close contact group are discharged from the system, they are replaced by a new group.
-In a simulated quarantine facility, the workforce is composed of 20 individuals who come and
-go each day. Workers are tested via RT-PCR on each day they attend the site. Each worker
-attends for 5 days per week and has two days off per week. Workers may become infected
-through contact with quarantined travellers, or through contact with infected co-workers. The
-force of infection applied between travellers and workers is reduced by a factor of 100 to simulate
-infection control measures (e.g., mask wearing), and limited contact. On the other hand, the force
-6
-arrival first test results discharge
-test results
-day 1 day 4 day 13
-day 17
-extension
-Infected individuals
-enter community
-(breach events) false negative
-discharge
-discharge
-susceptible
- infected
-(undetected)
- infected
-(detected)
-isolation (10 days)
-discharge
-(day 14)
-discharge
-(day 27)
-isolation (10 days)
-FIG. 2. Schematic of event sequence from arrivals entering quarantine, through testing, isolation
-of detected infections, extension of quarantine for close contacts (i.e., family groups), and eventual
-discharge from quarantine. False negative discharge tests lead to infected individuals entering the
-community.
-of infection between workers is only reduced by a factor of 10 relative to unmitigated contact. This
-accounts for infection control, with higher levels of mixing. Because workers are tested frequently,
-infections are typically detected during the pre-symptomatic period. Infected workers are replaced
-with susceptible ones after either detection or recovery. We note that replacement after recovery
-is not strictly realistic but avoids eventual saturation of the recovered worker population over long
-simulations.
+, referred to as ’XMM’ hereafter.
+The ML methods used in this paper are based on supervised learning, which makes use of labeled data from existing catalogues in order to build a classifier. For the galaxy - AGN identification, which
+1 See http://xmm-catalog.irap.omp.eu
+is the first step of this work, the classifications (i.e., the labels)
+have been derived from optical spectra in SDSS data release 16
+(2019, Aguado et al. 2019). Redshifts and labels are therefore obtained from the DR16 SDSS spectral information2
+, which results in
+three classes: AGN, galaxies and stars.
+The type 1 - type 2 AGN identifications are derived from the Million quasar survey: Version 7.0, 30 September 2020 (Milliquas)3
+in
+Flesch (2019). This catalogue mainly takes information from SDSS,
+and in part also from AllWISE (Secrest et al. 2015). The procedure
+used to build the training sample is illustrated in Fig. 1 and described below. More details on sample construction are included in
+Appendix A and Fig. A1.
+2.1 AGN and galaxies from XMM and SDSS
+As a first step to construct our sample, a catalogue of sources in
+common between XMM and SDSS was constructed (using the full
+table SpecObj of SDSS). This was done matching the coordinates
+of XMM and SDSS at 5 arcsec. We selected the closest match (in
+sky distance) if more than one SDSS source was within the 5 arcsec
+radius. The cross-correlation radius is the same used in many previous works such as Falocco et al. (2014), Traulsen et al. (2019) and
+Webb et al. (2020); its value is limited by the angular resolution of
+X-ray instruments: the PSF has Full Width Half Maximum of 6 arcsec and Half Energy Width of 15 arcsec4
+in XMM-Newton. In this
+step we obtained 33647 detections (XMM-SDSS sample hereafter),
+corresponding to 33469 individual sources. The starting X-ray catalogue contains all detections in XMM, 810795 in total, that have
+not been filtered. Though in the XMM-SDSS sample the difference
+between the number of detections and the number of sources is only
+∼200, it is useful to exploit all available detections for each source.
+This is because each of them results in different observational features due to variability of the source itself as well as different observational conditions. Including a variety of observations of the same
+source in the training sample helps to train a classifier on a broad
+range of conditions that would not be captured if only one observation for each source was selected.
+AGN objects are defined extracting labels from SDSS using the
+columns ’class’ and ’subclass’ in that catalogue. In SDSS the class
+can assume three values; QSO, galaxy and stars. The sources labeled
+as stars have been excluded from this work because we focus on exploring ML classification of extragalactic surveys. With respect to
+this, we note that a simple cut in latitude (e.g. between -30 and 30
+degrees) would remove 72 per cent of stars if this label had been unavailable. The AGN class is composed of sources with evidence for
+a compact nucleus as per the SDSS catalogue5
+; the class of galaxies
+is also based on the SDSS classification6
+. The resulting catalogue is
+composed of detections divided as follows:
+• 25599 AGN,
+• 7262 galaxies
+2 https://www.sdss.org/dr16/spectro/spectro_access/
+3 https://heasarc.gsfc.nasa.gov/W3Browse/all/milliquas.html
+4 See Section 3.2.1.1 of XMM-Newton Users Handbook
+5 AGN were selected based on two conditions: 1): CLASS = QSO; 2):
+CLASS = GALAXY and (SUBCLASS = AGN or SUBCLASS = AGN
+BROADLINE)
+6 Galaxies were selected based on the condition: CLASS = GALAXY and
+SUBCLASS other than AGN and AGN BROADLINE (they might have no
+subclass provided in SDSS or STARFORMING, or STARBURST)
+MNRAS 000, 1–17 (2021)
+Machine learning classifiers for AGN 3
+❚❡st ❝❛s❡ ★✶
+❚❡st ❝❛s❡ ★✷
+❳▼▼
+❳▼▼✲❙❉❙❙
+✸✸✻✹✼
+❘❡♠♦✈❡ st❛rs ✭✼✽✻✮
+❙❉❙❙
+▼✐❧❧✐q✉❛s
+❳▼▼✲❙❉❙❙✲▼✐❧❧✐
+✷✺✷✹✻
+❘❡♠♦✈❡ ❥❡ts✲❧♦❜❡s ✭✸✻✾✮
+❆●◆ ✭✷✺✺✾✾✮
+●❛❧❛①② ✭✼✷✻✷✮
+◆❡✇ t②♣❡ ✷ ❝❛♥❞✐❞❛t❡s✯ ✭✹✸✺✺✮
+❚②♣❡ ✶ ✭✷✹✵✷✾✮
+❚②♣❡ ✷ ✭✽✹✽✮
+❚②♣❡ ✶ ✭✷✹✵✷✾✮
+❚②♣❡ ✷ ✭✺✷✵✸✮
+Figure 1. Sample construction in the two test cases. The two squares enclose,
+respectively, test case 1 to identify AGN and galaxies, and test case 2 to
+divide the AGN class into type 1 and type 2 AGN. The sample construction
+of XMM-SDSS is described in Section 2.1, while the construction of XMMSDSS-Milli is described in Section 2.2. New type 2 candidates*: galaxies
+not included in Milliquas, with L > 1042 erg s−1
+(see text for details). More
+details of the sample construction are illustrated in Fig. A1.
+The definition of galaxies may in principle have some mislabeling due to the fact that very faint AGN could be difficult to identify
+from the optical spectra. This could for instance happen for obscured
+nuclei or intrinsically faint AGN, also called Low Luminosity AGN
+(LLAGN). In order to better investigate this aspect, we crossmatched
+the full sample of AGN and galaxies with Milliquas, which contains
+extra information in addition to that included in SDSS (AllWISE is
+also used as mentioned above). Details of the crossmatch with Milliquas are reported in Section 2.2.
+Finally, we created a version of the AGN-galaxy sample with
+photometric redshifts, which allows us to test how the type of redshift information affects the ML classification. The photometric
+redshifts were obtained from the Kilo-Degree-Survey (KiDS) by
+Kuijken et al. (2019)
 7
-B. Scenarios: vaccine efficacy and pathogen transmissibility
-The scenarios we selected are designed to determine how the risk associated with quarantine
-breaches is mitigated within a pathway exclusive to fully vaccinated travellers. Such a pathway
-would be staffed exclusively by vaccinated workers as well, for 100% vaccination coverage within
-the system. In this context, we examine performance over a wide range of vaccine efficacy and
-viral transmissibility parameters. Performance is determined relative to a baseline scenario, in
-which vaccine efficacy (V E) is set to 0, and disease transmission parameters are aligned to
-COVID-19 strains in circulation prior to the emergence of the Delta variant.
-In the quarantine and community transmission model systems, vaccines play three important
-roles:
-• vaccination of travellers prior to departure reduces the proportion of infected arrivals by a
-factor of (1 − V E) from the base rate of 1%
-• vaccination of workers and travellers limits transmission within quarantine (which reduces
-the rate of breach events)
-• mass vaccination prevents outbreaks in the community when quarantine breach events occur
-For efficacy of vaccination against transmission, we investigate the range between 0% and 90%
-total efficacy. While the quarantine model treats vaccine efficacy as a combination of efficacy
-against infection VI and efficacy against onward transmission from breakthrough infections VT ,
-we simplify to a single efficacy parameter for the scenarios investigated here. This is because we
-assume all individuals in the system are vaccinated. We note that for scenarios in which only
-a subset of individuals are vaccinated, this simplifying assumption would need to be relaxed to
-account for interactions involving combinations of vaccinated and unvaccinated individuals. As
-noted above, we consider efficacy of 0% as a baseline, accounting for the levels of incursion
-risk existing before vaccines became available. Efficacy levels of 80%-90% are indicative of the
-conditions existing for the COVID-19 ancestral lineage and Alpha variants previously in circulation
-[25, 26]. Lower efficacy ranges can account for the emergence of variants capable of higher levels
-of breakthrough infection (such as the currently dominant Delta variant).
-The emergence of viral variants also requires us to investigate a broad range of transmission
-rates. The transmissibility of the Delta variant has been estimated to be approximately twice
-8
-that of the ancestral (non VOC) lineages [27]. Based on a well-traced outbreak in China (Guangdong province, May 2021), the basic reproductive ratio for the Delta variant is estimated to be
-approximately 6 [16, 17]. Therefore, in order to understand the scaling of quarantine system
-performance with disease transmissibility, we examine a wide range of possibilities from R0 = 1
-to R0 = 10.
-C. Model variations: shorter incubation period
-In our baseline model, we sample the viral incubation period (time between infection and
-symptom onset) as described in studies of the ancestral lineage [28]. This estimate also influences
-our model of test sensitivity as a function of time from symptom onset [29] (see Supporting
-Information).
-Quarantine systems operating under the “test and release” framework are primarily designed
-to prevent individuals infected elsewhere from entering the community. The timing considerations
-applied to this operational framework (i.e., a 14-day minimum stay) are designed to exceed the
-disease incubation period. From this perspective, the emergence of variants with incubation
-periods different to those for which the system was designed, can be expected to alter system
-performance. System performance should, in general, improve for shorter incubation periods.
-In the context of COVID-19, recent reports suggest that the Delta variant may have a shorter
-incubation period than that of the ancestral lineage [16]. However, other reports using data
-from the same outbreak indicate that the incubation period of the Delta variant has not changed
-substantially [17]. Given the preliminary evidence for a shorter incubation period, we performed
-a sensitivity analysis of this key parameter (see Supporting Information).
-D. Model outputs
-The quarantine facility model produces a timeseries of “breach events” each of which corresponds to an infected individual (worker or traveller) interacting with the community outside of
-quarantine. For an infected traveller, this can occur for two reasons: (1) leaving case isolation
-while still infectious (i.e., after the 10-day isolation period), or (2) leaving quarantine after a
-false negative test result. The recorded breach event accounts for the number of days over which
-9
-the individual will remain infectious after leaving quarantine, and the integrated force of infection produced by the individual over that period. For infected workers, recorded breach events
-account for the time from infection to either detection or recovery, and the integrated force of
-infection over that period. In general, the community force of infection produced by a breach
-event associated with case i is given as:
-βi =
-X
-t ∈ tc
-β(t, i)∆t , (1)
-where βi
-is the integrated force of infection produced by agent i outside of quarantine, tc represents
-the set of discrete timepoints over which individual i is infectious in the community, β(t, i) is
-the time-dependent force of infection for case i, and ∆t is the discrete time step used in the
-simulation (here, ∆t = 0.1 days).
-Breach events are rare due to the effectiveness of the quarantine system, particularly when
-those within it are vaccinated at high efficacy. To generate a large number of breach events for
-use in comparing outbreak statistics between scenarios, each simulation lasts for 106 days. Recall
-that workers are tested daily so that infections are typically detected during the pre-symptomatic
-period. Infected workers are replaced after either detection or recovery (the latter avoids eventual
-saturation of the recovered worker population over long simulations). The different conditions
-for breach events involving travellers and workers produce qualitatively different breach statistics
-that depend also on vaccine efficacy and R0 (Figure 3). More details of the quarantine simulation
-model can be found in the Supporting Information.
-We evaluated the effectiveness of the quarantine system by examining the integrated force of
-infection introduced into the community due to breach events. This value is computed as:
-βtot =
-Xn
+. Crossmatching the sample of 25599 AGN
+plus 7262 galaxies with ∼ 2 million KiDS sources, which includes
+quasars from Nakoneczny et al. (2021) and bright galaxies from
+Bilicki et al. (2021), we obtained 260 galaxies and 710 AGN with
+photometric redshifts. The crossmatch was done between the optical SDSS coordinates and the KiDS coordinates using a 1 arcsec
+radius. This value is widely used in the literature as a reasonable
+matching radius for optical catalogues (e.g., Falocco et al. 2015 and
+De Cicco et al. 2019). The photometric sample constructed in this
+way has a similar redshift distribution as the initial spectroscopic
+sample, similar selection effects in redshift, as well as a similar degree of imbalance between the majority and minority classes. The
+results of training the ML algorithm on this sample and using photometric instead of spectroscopic redshifts are reported in Section
+4.1.
+2.2 AGN from XMM, SDSS and Milliquas
+We further investigate the AGN-galaxy sample defined above by
+cross-correlating it with Milliquas. Matching the coordinates at at
+a radius of 1 arcsec (value motivated above) results in 25246 extragalactic sources in common between the parent surveys (see Fig. A1
+in Appendix A and Fig. 1). Out of these sources, 24691 were defined
+as AGN from the SDSS survey and 555 were defined as galaxies in
+SDSS (as explained in the previous section). These 555 SDSS galaxies clearly show some evidence for being AGN since they are in the
+Milliquas sample. They represent ∼ 7 per cent (555 out of 7262) of
+sources identified as galaxies in SDSS. The effect of relabeling these
+555 sources on the classification performance will be described in
+Section 4.1. An opposite problem could arise if sources identified as
+AGN in SDSS have no nucleus, but this is expected to have a lower
+incidence, given that optical spectroscopy is one of the most solid
+methods to find and classify AGN.
+There is a group of ∼900 sources labeled as AGN in SDSS which
+do not appear in Milliquas, most probably because the Milliquas
+survey removed all sources that have a probability of being AGN
+lower than 80 per cent, thus excluding faint SDSS objects with low
+S/N spectra. This resulted in removing over 20k SDSS objects in the
+Milliquas survey, as explained in Section 2 of Flesch (2019). We call
+the full sample of 25246 extragalactic sources XMM-SDSS-Milli.
+2.3 Type 1 - Type 2 AGN from XMM-SDSS-Milli
+Among XMM-SDSS-Milli, we further selected only those sources
+identified as type 1 or type 2 following the identifications in the
+Milliquas catalogue. Other kinds of sources like lobed or jetted AGN
+(369 sources) have not been included in this sample to explore the
+potential of ML classification in finding type 2 AGN versus type 1
+AGN. Type 1 AGN are those with evidence for an unabsorbed nucleus in the optical and Type 2 include those with evidence for an
+obscured nucleus8
+. This selection results in 24877 observations of:
+• 24029 type 1
+• 848 type 2
+7 http://kids.strw.leidenuniv.nl/DR4/
+8 Type 1 are defined as ’q’ (QSO, type-I broad-line core-dominated) and ’a’
+(AGN, type-I Seyferts/host-dominated) in the Milliquas survey, while Type 2
+AGN have labels ’K’ (NLQSO, type-II narrow-line core-dominated) and ’N’
+(LAGN, type-II Seyferts/host-dominated).
+MNRAS 000, 1–17 (2021)
+4 S. Falocco et al.
+We added to this sample new type 2 candidates from the parent XMM-SDSS sample. These candidates were not included in
+the parent Milliquas survey and labeled as galaxies in SDSS; their
+X-ray luminosities9
+are above 1042 erg s−1
+(between 0.2 and and
+12 keV, corresponding to band 8 of the XMM catalogue). Literature
+reports convincing evidence that galaxies with X-ray luminosities
+higher than this threshold indeed have some kind of AGN activity
+(Ranalli et al. 2003; Maiolino et al. 2003; Castelló-Mor et al. 2012).
+There are 4355 optical galaxies excluded from the Milliquas survey
+with X-ray luminosities above the limit of 1042 erg s−1
+that can be
+interpreted as extra candidate type 2 AGN. These sources are classified as galaxies in the optical band, but most likely have obscured
+nuclei as attested by their high X-ray luminosities. Test case 2 is
+therefore based on a sample of 29232 observations of:
+• 24029 type 1
+• 5203 type 2
+This sample is used for training the type 1 type 2 AGN (type 1/2)
+classifier. The sample and its composition is detailed in Fig. A1. It
+includes 24476 sources defined as AGN in SDSS and 4756 sources
+defined as galaxies in SDSS.
+In test case 1 we have 7262 SDSS sources classified as galaxies in
+SDSS (as detailed in the Section 2.2), but 555 of them have evidence
+(from Milliquas) for an AGN nucleus. On the other hand, there are
+4355 SDSS galaxies that do not have evidence for a nucleus from
+optical spectroscopy, but where active nuclei can be inferred from
+their high X-ray luminosities. We found that these sources have a
+small impact on the final results on the AGN-galaxy classification,
+as will be explained in Section 4.1 and Appendix B.
+As for test case 1, we performed an additional experiment also
+for the type 1/2 classifier in order to explore its performance when
+substituting spectroscopic with photometric redshifts. This was done
+crosscorrelating the optical coordinates of the above sample of type
+1 and type 2 AGN with the KiDS survey as described in Section
+2.1 for test case 1. The starting sample of 24029 type 1 AGN plus
+5203 type 2 AGN crossmatched with the KiDS sources results in
+687 type 1 AGN and 155 type 2 AGN with photometric redshifts.
+This photometric sample has a very similar imbalance and selection
+effects in redshifts as the corresponding spectroscopic sample, as we
+also noted in test case 1. The results of training the ML algorithm on
+this sample using photometric redshifts are reported in Section 4.2.
+3 METHODS
+The workflow follows the main steps detailed in this section:
+1. Features selection (see Section 3.1 below)
+2. Define the ML algorithms most suitable for the data (described in
+Section 3.2)
+3. Estimate the performance of the classifiers with the 10 fold cross
+validation (see Section 3.3)
+4. Features importance (see Section 3.4)
+This work used the following PYTHON libraries: SKLEARN for the
+ML algorithms application and feature importance (Pedregosa et al.
+2011); IMBALANCED-LEARN (Lemaître et al. 2017) was used to apply oversampling techniques as described below. Catalogues have
+9 The luminosity is determined as F × 4 π d
+2 where F is the flux and d is
+the luminosity distance extracted from the redshift using the cosmological
+parameter H0 = 72 km s−1Mpc−1
+.
+been handled with PANDAS (Wes McKinney 2010); most plots have
+been made with MATPLOTLIB (Hunter 2007), some plots made use
+of SEABORN, presented in Waskom (2021). Decision tree-based algorithms make use of probabilistic decisions and some degree of
+randomness (i.e. when a feature is selected to split the sample in a
+tree-based model). For this reason, every time a ML algorithm is
+trained and evaluated over the same data set, it will give slightly
+different results. In order to reproduce exactly the same numbers at
+every run, we fixed the random seed in PYTHON to 42. We note that
+changing the random seed would cause a change in the performance
+metrics of less than 0.1 per cent, and all results described below are
+unaffected by this.
+3.1 Features selection
+Keeping the dimension of the training set small is useful when applying ML algorithms with the purpose to both reduce the computing time and to avoid feeding the ML algorithm with redundant features. The features used to train the classifiers (defined in Table 1)
+are selected with the procedure described below.
+The training samples have columns from the XMM catalogue, besides the optional redshifts and the labels. We defined the features
+set after a first filtering of the columns. First of all, we only used
+columns whose values were present for all sources in the sample,
+which left 94 columns. We preferred to filter columns, not rows,
+in order to have a reasonable size of the dataset (filtering rows
+with missing values would leave only a few sources in the sample).
+Strongly correlated features (defined as having a Pearson correlation
+coefficient with a p-value P≥ 0.9) have been eliminated, because
+they give redundant information.
+A group of features related to source properties are retained in our
+selection. Firstly, we decided to keep the flux in the full X-ray band,
+namely band 8 in the catalogue (0.2 - 12.0 keV), for the AGN-galaxy
+classification, because it can provide hints for an active nucleus.
+These full-band fluxes are often used to check for the presence of
+an AGN in a galaxy (Ranalli et al. 2003; Castelló-Mor et al. 2012).
+This was not done for the type 1/2 classification because the individual bands can be more instructive when searching for type 1 and
+type 2 AGN. Specifically, the fluxes below 2 keV and above 2 keV
+have proven useful to select type 2 AGN (e.g., Terashima et al. 2015)
+and to train ML algorithms (Farrell et al. 2015). Fluxes in bands 2,
+3 and 4 of XMM have been combined into a single value covering the energy range between 0.5 and 4.5 keV. The total number
+of counts in the band between 0.2 and 12 keV (EP−8−CT S ) has
+been included in both test cases, as well as the net exposure time
+of the observation (EP−ONT IME). These two parameters are relevant because they give information on how many X-ray counts can
+be collected in a given exposure time (i.e. their ratio is the source
+count-rate). We further included S C−DET−ML in the full band because sources with different redshifts may have different detection
+likelihoods (e.g., at high redshifts, there is a higher probability to
+detect high-luminosity sources rather than faint sources). We also
+include parameters related to the extent in the merged observation;
+S C−EXT ENT and S C−EXT−ML. We prefer to use these features
+from the merged observation rather than the individual ones because
+they are more robust (the extent is not expected to change across the
+observations).
+Features related to instrumental conditions are included in a first
+run and then excluded in a second run to quantify their actual influence on the the trained model. S UM−FLAG and N−DET ECT IONS
+are part of this group: while the first one is a summary of the quality
+flags in each camera, the second one gives the number of detections
+MNRAS 000, 1–17 (2021)
+Machine learning classifiers for AGN 5
+of each unique source, and thus how many detections contribute to
+the merged parameters. The distance from the nearest neighbours
+(DIS T−NN) is also used in order to check its relevance in the classification, since it has been included in previous works (Farrell et al.
+2015); the offaxis angle (EP−OFFAX) has also been kept to check
+if it might affect the classification (in principle it might affect the
+extension, thus the ability to distinguish genuine extent from artefacts). We will see, however, that EP−OFFAX has no influence in
+our ML algorithms, so our classification tasks are not affected by
+this parameter. We used spectroscopic redshifts in a first run; photometric redshifts have been used to replace them in a second run; the
+last training run was done without redshifts.
+The selection just described includes the features listed in Table
+1. As can be noted, there are directly source-related properties (from
+feature 1 to 8 of the table) and other features more connected with
+the instrumental conditions (i.e., from feature 9 to the end of the
+list in the same table). We demonstrate the consistency of results
+by retraining our models including all of the features, and only the
+directly source-related properties, as described in the C. Our feature
+selection just described results in 13 columns for the AGN-galaxy
+classification (those defined in Table 1) and 12 columns in the type
+1/2 classification. The reason for this difference is that we decided to
+add the flux in the full band, EP−8−FLUX, in test case 1, following
+the literature as mentioned above.
+3.2 Supervised learning algorithms
+Several models have been used in this work for classification. The
+subset of the survey used to fit the classifier is referred to as training sample, while the subset used to test the sample is composed
+by different datapoints not included in the training sample, which
+constitute to the so-called test sample.
+The methods tested in this work are tree-based algorithms, which
+are a sequence of if-else conditions to split the survey. This process
+is optimised in order to build meaningful splits. This is done minimising the Gini impurity (Breiman et al. 1984). The Gini impurity
+for a split is the probability for a datapoint to be identified with the
+right label i p(i) multiplied for the probability to be misclassified
+(1 − p(i)). The formula of the Gini impurity is:
+Xi=c
 i=1
-βi
-, (2)
-where n is the total number of breach events simulated in a given scenario, and βi
-is the force of
-infection in the community produced by breach i. Because all other model parameters are held
-constant (see Methods), βtot is a useful representation of the relative performance of the system
-for different combinations of V E and R0. In Figure 4, βtot computed for each set of parameters
-is shown relative to the value computed for the baseline scenario with R0 = 3 and V E = 0%.
-Here, we assume that breakthrough cases are just as contagious as infections in unvaccinated
-individuals. That is, we assume the vaccine acts primarily to protect those immunised from
-10
+p(i)(1 − p(i))
+which sums over the classes in the data set. An ideal perfect split
+would give a Gini impurity of 0 and can be achieved if all datapoints
+in the split fall into a single class. We point out that the Gini criterion is not used to evaluate the goodness of a ML model. Instead, it
+is used only to estimate how homogeneous a split is. The Gini criterion is used to optimise the sample splitting in the decision tree: it
+determines the selection of features and threshold to define the nodes
+and the leaves of the tree, as will be explained below.
+In ensemble methods such as random forest (Breiman 2001), the
+decision tree represents only a starting point to develop better algorithms. This is due to the fact that the simple decision tree could
+result in overfitting. Overfitting is detected when the performance of
+the training set is excellent while the performance of the test dataset
+is poor, and this occurs because the model has learnt noise patterns in
+the training dataset. We have taken several measures to avoid overfitting: keeping the dataset dimension low, N fold cross validation to
+properly estimate performance metrics, and making use of ensemble
+algorithms. The 10 fold cross validation (Stone 1974) is described
+in the next section and the features selection has been explained in
+the previous section, below we describe the algorithms that we have
+used and which help to address the problem of overfitting.
+An advantage of tree based algorithms is that they do not make
+specific assumptions on the data distribution, as for instance the
+mean and the standard deviation for a normal gaussian distribution
+(Friedman 1977). On the contrary, these models learn from the data
+with high flexibility. For this reason we do not use the Naive Bayes
+algorithm, that instead assumes a gaussian distribution of the data
+in the parameter space (e.g. Zhang 2004). We did not explore in detail Support Vector Machine approaches either (Crammer & Singer
+2001), because they might not be suitable for data sets where the
+classes overlap in the parameter space. This is expected in our classification problem, since there is a continuous distribution between
+AGN and galaxies; indeed, LLAGN and Low Ionisation Nuclear
+Emission Line Regions have intermediate luminosity between AGN
+and galaxies. There is also a continuous distribution between type
+1/2 AGN (Hasinger 2008).
+Below, we briefly describe the ML algorithms used in this work.
+Tree The decision tree is a sequence of if-else conditions to split a labeled sample. Optimisation methods are used to build meaningful
+splits, estimating the homogeneity of the labels in the subsets. The
+splitting is continued until a stopping criterion is met, which prevents
+overfitting. In our setting of hyperparameters, the optimisation criterion is the Gini impurity. The stopping criterion adopted is to have a
+minimum of 100 sources in each split or a maximum tree depth of
+10. The tree depth is the number of iterations of the decision tree.
+The decision tree algorithm was presented in Breiman et al. (1984)
+RF Random Forest starts from a set of decision trees to build a better
+classifier starting from the idea that a large number of uncorrelated
+trees will outperform any of the individual tree models. The reason
+for this behaviour is that each tree will make errors in a different
+direction and some trees will perform better than others, as a consequence their combination might improve the result. Random Forest
+builds a forest of trees trained on different random sets, drawn from
+the training samples with the bootstrap method. Each bootstrap sample given as input to the decision tree is not a chunk of the training
+dataset, but it instead has the same size as the training sample. A
+bootstrap sample is composed by a number U of unique datapoints
+from the initial training sample of dimension N, the rest N−U of the
+bootstrap sample are duplicates. Moreover, each tree uses a random
+subset of the features, composed by f features. This is a parameter of the model, for instance it can be equal to the total number of
+features n, log2
+(n), √
+n, or even an arbitrary number. Randomness
+introduced by the choice of features and the choice of the bootstrap
+samples is a benefit of this method, since it is able to produce different individual trees. The combination of these individual, randomly
+chosen trees, is less prone to overfitting than one individual deep
+tree. In our specific settings, the number of features f is √
+n and the
+number of weak learners (decision trees) in the forest has been set
+to 100. Random forests were presented in Ho (1998) and Breiman
+(2001)
+AB The AdaBoost algorithm starts from a set of simple decision trees
+and acts iteratively to improve the resulting classification. The algorithm is designed to improve the performance at each iteration. The
+algorithm is built such that, in each subsequent iteration, the incorrectly identified data will have an increased weight, while the correctly identified ones will have a lower weight so that the model will
+focus more on the most difficult data. The final prediction is therefore the weighted average (or the mode of the labels in classification
+problems) of the predictions obtained from the previous tree models.
+In this work, it is built with 100 weak learners (simple decision trees
+MNRAS 000, 1–17 (2021)
+6 S. Falocco et al.
+Parameter Definition
+1 S C−EXT ENT Extent in the merged observations in arcsec
+2 S C−EXT−ML Average of extent likelihood in the detections of the source1
+3 EP−8−FLUX Flux in EPIC in 0.2-12 keV 2
+4 EP−FLUX−2−3−4 Sum of EPIC fluxes in 0.5-1, 1-2, 2-4.5 keV 2
+5 S C−DET−ML Maximum detection likelihood in band 0.2 - 12 keV
+6 EP−5−FLUX EPIC flux in band 4.5-12 keV 3
+7 EP−8−CT S EPIC combined counts in band 0.2-12 keV
+8 Z Spectroscopic redshifts
+9 DIS T−NN Distance to the nearest neighbour detection (arcsec)
+10 EP−ONT IME Net exposure time after filtering (s)
+11 S UM−FLAG Quality flag3
+12 EP−OFFAX Offaxis angle (arcsec)
+13 N−DET ECT IONS Number of detections in merged observations
+1 The extent likelihood is defined in XMM as − ln p, where p is the probability of the extent
+occurring by chance; 2 Flux units: erg cm−2
+s
+−1
+;
+3 Sum of the quality flags of individual cameras, it can assume zero value for the most reliable detections and values increasing
+until 4 in the worse cases when the source is most likely spurious.
+Table 1: Features used to train the classifiers. All features are used for the AGN-galaxy
+classification, while EP−8−FLUX is not included in the type 1/2 classifier training. All
+features except for redshifts are from the XMM catalogue.
+with depth = 1). This algorithm was presented in Freund & Schapire
+(1997)
+grad Gradient Boosting is another iterative algorithm that trains weak
+learners in sequence, similarly to AB. The main difference between
+the two algorithms is that grad does not use the weights to train the
+new model at each iteration. It uses instead the optimisation of a loss
+function, a function which measures the error rate in the classification. In our settings, the weak learners are again 100 simple decision
+trees (with depth=1). The learning rate (an optimisation parameter
+which indicates the gain of the model) has been set to 1.0. This algorithm was presented in Friedman (2001)
+vote Voting algorithm with different weights (w) attributed to the estimators. This algorithm takes the weighted majority vote among
+these estimators. We initially setup the algorithm such that AB
+(w=2), Tree (w=1), RF (w=1), grad (w=2). The weights were chosen in this way to consider preferentially the boosting algorithms AB
+and grad which are most often free from overfitting. However, our
+ML algorithms have a similar performance and converge to the best
+performing tree-based algorithm, as will be discussed in Section 4,
+thus the specific weights of each of them are not relevant. We have
+indeed noticed that adopting the same weight = 1 for all estimators
+does not affect the results. Therefore, to simplify the discussion, we
+report the results with equal weights for all estimators in the next
+sections. The voting algorithm was presented in Zhang et al. (2014)
+Different hyperparameters of the above models have been tested
+proving that the above specified values are reasonable in terms of
+performance. In particular, when there is no limit on the depth of the
+decision tree, its performance is lower. We have checked the reason
+for this and we found that this is due to overfitting, since the training
+performance was good, which is at odds with a low test performance.
+3.3 Performance estimates
+The performance metrics have been calculated comparing the expected labels and the predicted labels in the test set. This has been
+done with an iterative method, the 10 fold cross validation: the procedure divides the sample in ten parts after random shuffling. Based
+on this partition, it does ten iterations: in each of them nine parts of
+the ten folds construct the training set, and one is the testing set. As a
+consequence, a different fold represents the test set at each iteration.
+This procedure is the standard method used in statistics to understand how accurately a model will perform with new data. We highlight that this method does not repeat the random definition of the
+ten folds in each iteration. Indeed, it is fundamental for this method
+to be effective to guarantee that the testing is done on a different
+fold in each iteration (as explained in the original paper by Stone
+1974). The testing set has been used for calculating the performance
+in each iteration. The 10 estimates of the performance metrics (that
+are described below) have finally been averaged. We also checked
+that the performance in the ten iterations is not characterised by a
+large variance, but shows only marginal variations.
+The samples used for the AGN-galaxies classifier and for type
+1/2 AGN classifier are imbalanced (more AGN than galaxies and
+more type 1 than type 2), which might negatively affect the performance of the minority classes represented by galaxies and type
+2 AGN. To mitigate this effect, we used the SMOTE (Synthetic Minority Oversampling Technique) algorithm to oversample the minority class in the training set as was done in Farrell et al. (2015). The
+SMOTE method was independently applied fold by fold to increase
+only the training part, not the testing part of the sample, following
+the standard procedure which consists of creating extra training data
+(Chawla et al. 2011; Ha & Bunke 1997). We oversampled the minority classes up to become 50 per cent of the majority class in the
+training sample. SMOTE produces synthetic data from a real datapoint considering its 5 nearest neighbors, using the algorithm presented in Chawla et al. (2011): for each datapoint selects one of its
+five nearest neighbours at random. It determines the vector that represents the distance between them (in the features space) and multiplies it by a random number between 0 and 1. In this way the new
+synthetic datapoint will be in one point of the distance vector between the original datapoint and its randomly selected neighbour.
+The performance has been estimated starting from the confusion
+matrix (CM), which is a simple but complete way to describe the
+performance of a classification model. For a general class A - class
+MNRAS 000, 1–17 (2021)
+Machine learning classifiers for AGN 7
+B identification, CM is defined as:
+CM =
+
+TA MisA
+MisB TB
+!
+Where TA is the number of true objects of class A identified as A;
+TB is the number of B objects classified as B; MisB is the number of objects belonging to class B but misclassified (classified as
+type A objects); MisA is the number of objects of class A misclassified (classified as B). In the AGN-galaxy classification algorithm
+the CM contains: number of true galaxies Tg, number of true AGN
+TAGN , number of false galaxies (in reality AGN) MisAGN , number of
+false AGN (in reality galaxies) Misg. For the type 1/2 classifier the
+CM contains: number of true type 1 AGN (in the matrix it is called
+Ttype1); number of true type 2 (Ttype2); number of misclassified type
+2 objects, i.e. classified as type 1 (Mistype2), number of misclassified
+type 1 objects, i.e. classified as type 2 (Mistype1). The CM in the last
+case is therefore:
+CM =
+
+Ttype1 Mistype1
+Mistype2 Ttype2
+!
+From the CM, we calculated the following metrics.
+• The precision of each class (AGN or galaxy in the first classifier,
+type 1 or type 2 in the second classifier), for example, the precision
+for type 1 AGN is:
+P(type1) =
+Ttype1
+(Ttype1 + Mistype2)
+As can be seen, the precision is best when minimising the number
+of false identifications of a given class.
+• The recall is a measurement of how many objects have been found
+of a class over the total number of examples of that class, for instance, for type 1 AGN:
+R(type1) =
+Ttype1
+(Ttype1 + Mistype1)
+The recall is instead maximised by minimising the number of objects
+that belong to the class and have been missed by the classifier.
+• The F1 score is the harmonic average of precision and recall:
+F1 =
+(2 ∗ P ∗ R)
+(P + R)
+and it has been calculated for each class separately. This score for a
+perfect performance should be 1, while it would be 0.5 for a random
+election
+• The standard accuracy is:
+a =
+
+Ttype1 + Ttype2
+Ttype1 + Mistype1 + Ttype2 + Mistype2
+!
+• Another performance metric investigated in this paper is the balanced accuracy, defined as the average of the recalls, for instance for
+the type 1/2 classification:
+ba =
 1
 2
-4
-6
-10
-2
-4
-6
-100
-number of breach events
-(travellers)
-0 5 10 15 20
-days infectious in community
-0.1
-2
-4
-6
+
+Rtype1 + Rtype2
+
+The balanced accuracy is suitable for testing a binary classifier
+where the performance is different for the two classes. Its value for
+perfect predictions is 1, for random prediction is 0. There are cases
+where the classifier performs differently for the two classes but the
+standard accuracy is good thanks to the imbalanced test set, in those
+cases the balanced accuracy is preferred.
+3.4 Features importance
+The relevance of the features has been studied using the technique of
+permutation feature importance (Breiman 2001). This method starts
+by computing the performance of the algorithm, after that it starts to
+analyse the features one by one. For each feature, it randomises its
+values in the dataset column producing a perturbed dataset. It repeats
+this randomisation process several times and in each of them it calculates the performance of the algorithm. After having finished all
+iterations, the average performance among all of them is calculated.
+The importance of a feature is defined as the difference between the
+averaged performance (obtained from the randomisation) and its initial value (from the real dataset).
+In our setup, we do 30 iterations for each feature and we compute the algorithm performance using the precision; we applied this
+method to the fitted algorithms adopted in this work.
+4 RESULTS AND DISCUSSION
+The selected features are given as input to the ML algorithms in order to predict labels in the two test cases: AGN-galaxies in the first
+case and type 1/2 AGN in the second case. The performance of the
+different ML algorithms was estimated with the 10 fold cross validation for each of the two classes in both test cases. The performance
+has been evaluated in terms of the metrics described in Section 3.3.
+We also investigated the influence of instrumental features or directly source-related features to the model training. This was done
+to understand if such parameters alone can be enough to identify
+the extragalactic sources in question. We additionally tested the importance of spectroscopic redshifts among the features by checking
+the model performance after having replaced them with photometric
+redshifts; we finally made a test removing redshifts during the model
+training.
+4.1 Classification AGN - galaxies
+The first classification experiment aims at building a classifier based
+on the sample composed by 25599 AGN and 7262 galaxies. The performance metrics are discussed below. The analysis described below
+has also been repeated after relabeling 555 galaxies as AGN, since
+they have some evidence for AGN in the literature (as reported in
+the Milliquas survey), giving similar results. Another test has been
+made retraining the model after relabeling a broader sample of 4355
+galaxies, based on their X-ray luminosity, higher than expected for
+an non-active galaxy; the results of this redefinition of the sample are
+discussed in Appendix B. To simplify the discussion below, we refer
+to the performance metrics of the AB classifier with SMOTE with
+spectroscopic redshifts included among the features (shaded line of
+Table 2), unless differently stated. We note that all ML algorithms
+trained with spectroscopic redshifts give very similar results, therefore any of them could be used as a reference and would lead to the
+same conclusions.
+4.1.1 Performance metrics
+The performance metrics in terms of precision, recall and F1 score,
+are reported in Table 2. The classifiers perform better for AGN than
+for galaxies; removing redshifts degrades the performance of the
+classifiers, especially for galaxies. This can be intuitively understood
+as an effect of sample imbalance and of a better sampling of the
+AGN class in redshift; besides that, the X-ray spectra of AGN come
+MNRAS 000, 1–17 (2021)
+8 S. Falocco et al.
+from well known radiative processes in the nucleus itself, while for
+galaxies there can be radiation of different nature (binaries or star
+formation), which would make their X-ray spectra a mix of these
+contributions. More details on these aspects are discussed below.
+The algorithms reach a good performance and changing their hyperparameters does not impact the results: changing the number of
+SMOTE nearest neighbours from 5 to 10 has no impact as well as
+increasing the SMOTE ratio between the minority and the majority class to 0.9. We also notice that the performance is rather similar
+for the different ML algorithms used. With redshifts included among
+the features, our results show that the precision in identifying AGN
+is ∼ 95 per cent while for galaxies it reaches 77 per cent (see shaded
+line of Table 2). The identification for AGN reaches recall as high as
+93 per cent, while the galaxies recall is ∼82 per cent. The classifiers
+reach such good results mainly thanks to X-ray data which provide
+the most effective way to find AGN: while X-ray radiation above a
+certain threshold constitutes evidence for an active nucleus, it allows
+to detect nuclei obscured in other wavelengths (Brandt 2005). The
+main limitation to the recall of 93 per cent could be the presence
+of sources with low X-ray luminosities, but defined as AGN in the
+optical catalogues. There are 167 misclassified AGN in the test sample in Fig. 2 and part of them cover a low flux - low redshift region
+of the plane in Fig. 2, since they are below the line of luminosity
+1042 erg s−1
+(continuous line in the same scatter plot). Connected to
+this, there is a limitation in the precision of the galaxy classification, which does not reach levels higher than 78 per cent with the
+ML classifiers trained in this work (see Table 2). The precision of
+galaxies is limited due to the AGN classified as galaxies by the ML
+model. This is because part of sources labeled as AGN in the training
+sample (thus, in the optical spectroscopy) are not seen as AGN by
+the ML classifier. One of the likely reasons is that the X-ray features
+used to train the model are affected by absorption; as a consequence
+our ML model classifies them as galaxies, which gives a high rate of
+misclassified AGN. However, heavily absorbed AGN are expected to
+be a small percentage in the survey, so other reasons such as intrinsically faint nuclei could bring the ML classifier to identify sources
+as galaxies, when they are optically classified as AGN.
+On the other hand, the limited recall of galaxies, which can reach
+a maximum 82 per cent level with our ML models, by definition limited by the number of misclassified galaxies, is most probably due
+to the presence of sources in the training sample with galaxy labels
+from optical surveys, but with a conspicuous X-ray emission with
+L> 1042 erg s−1
+. Fig. 2 shows that almost all the 138 misclassified
+galaxies are above that limit. As mentioned in Section 2.3 there are
+4355 sources in total with no evidence for nuclei reported in the optical surveys used in this work, but with high X-ray luminosities.
+High luminosities might cause the model to classify them as AGN,
+even though an AGN was not reported in the optical data. Relabeling these 4355 sources as AGN slightly improves the performance
+metrics in the AGN classification (see Appendix B), with an AGN
+precision and recall improvement of ∼3 per cent (e.g. see AB algorithm with SMOTE and redshifts included in Table 2 and in Table
+B1). On the other hand, the galaxy classification from this test has a
+precision reduced by 12 per cent and a recall improved by 4 per cent
+(comparing the same lines of Table 2 and Table B1). We deduce that
+when relabeling these 4355 optical galaxies with high X-ray luminosity, the classifier is able to achieve a very good performance for
+AGN, but does not significantly improve the galaxy classification
+with a balanced accuracy improvement of only 3 per cent (from the
+same tables as before). More details of this test are shown in the Appendix B. The F1 score of 94 per cent for AGN and 79 per cent for
+galaxies (see shaded line of Table 2) means that our classifier identifies both classes with a performance well above random (which
+would instead be characterised by a F1 score of 50 per cent). The F1
+score also indicates a better performance for AGN than for galaxies,
+reflecting the performance metrics just discussed. There are multiple
+reasons for this: first, again the AGN oversampling; second, galaxies
+are strongly limited in redshift.
+As explained above, the AGN-galaxy classification uses labels
+from optical spectroscopy, but part of the SDSS galaxies might have
+evidence for AGN outside SDSS. We are not dealing here with the
+true intrinsic nature of the sources that we classify as AGN or galaxies, but we rather aim at providing labels as assigned from optical spectroscopic classifications. However, we explored the effect
+of mislabeling in a small percentage of the galaxy class since part
+of the galaxies (∼ 7 per cent, from 555/7262 as mentioned in Section 2.2) have some evidence for an AGN nucleus reported in the
+Milliquas survey. We repeated the analysis relabeling these sources
+as AGN and found very similar results, concluding that 7 per cent
+of mislabeled sources does not negatively affect the ML algorithms
+built with these large data sets.
+MNRAS 000, 1–17 (2021)
+Machine learning classifiers for AGN 9
+Spectroscopic redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.948 0.778 0.934 0.819 0.941 0.798 0.876
+Tree 0.95 0.737 0.916 0.83 0.933 0.781 0.873
+AB 0.947 0.77 0.931 0.817 0.939 0.793 0.874
+grad 0.947 0.777 0.933 0.816 0.94 0.796 0.875
+vote 0.949 0.776 0.932 0.825 0.941 0.800 0.879
+obs
+RF 0.937 0.804 0.947 0.774 0.942 0.789 0.86
+Tree 0.936 0.772 0.935 0.776 0.936 0.774 0.855
+AB 0.934 0.807 0.948 0.762 0.941 0.784 0.855
+grad 0.935 0.816 0.951 0.766 0.943 0.790 0.858
+vote 0.937 0.815 0.95 0.773 0.943 0.793 0.862
+Photometric redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.961 0.844 0.937 0.892 0.949 0.865 0.915
+Tree 0.958 0.862 0.946 0.876 0.951 0.865 0.911
+AB 0.953 0.845 0.939 0.872 0.945 0.856 0.906
+grad 0.955 0.841 0.936 0.88 0.945 0.857 0.908
+vote 0.957 0.855 0.942 0.884 0.949 0.866 0.913
+obs
+RF 0.959 0.858 0.945 0.885 0.951 0.869 0.915
+Tree 0.931 0.898 0.966 0.797 0.948 0.842 0.882
+AB 0.945 0.856 0.946 0.848 0.945 0.85 0.897
+grad 0.948 0.858 0.945 0.857 0.946 0.855 0.901
+vote 0.955 0.868 0.949 0.879 0.951 0.869 0.914
+No redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.848 0.625 0.93 0.412 0.887 0.496 0.671
+Tree 0.849 0.579 0.911 0.427 0.879 0.491 0.669
+AB 0.845 0.644 0.938 0.396 0.889 0.490 0.667
+grad 0.846 0.646 0.938 0.399 0.89 0.493 0.668
+vote 0.847 0.66 0.941 0.401 0.892 0.499 0.671
+obs
+RF 0.839 0.717 0.961 0.349 0.896 0.469 0.655
+Tree 0.837 0.671 0.952 0.348 0.891 0.458 0.65
+AB 0.83 0.775 0.976 0.295 0.897 0.428 0.635
+grad 0.832 0.762 0.972 0.309 0.897 0.440 0.641
+vote 0.837 0.752 0.969 0.333 0.898 0.462 0.651
+Table 2: Performance metrics for AGN-galaxy classification with
+features set including spectroscopic redshifts (top table), photometric redshifts (central table), no redshifts (bottom table). SM indicates
+that the training sample was built with oversampling of the minority
+class (see text). Obs indicates that the training sample only includes
+observed data. PAGN = precision calculated with respect to the AGN
+class. Pg= precision for galaxies class. RAGN = recall of AGN. Rg
+= recall of galaxies. F1AGN = F1 score of AGN. F1g = F1 score of
+galaxies. ba = balanced accuracy. RF, Tree, AB, grad, and vote are
+defined in Section 3.2.
+4.1.2 Importance of features
+The importance of features has been investigated with the permutation method described in Section 3.4. We refer to the results of the
+permutation with the AB classifier, as everywhere else in this section, to simplify our discussion. We note indeed that all algorithms
+give similar permutation feature importance. These results are reported in Table 3. The permutation shows that redshifts represent the
+most relevant feature, which is most likely due to the prevalence of
+galaxies at lower redshifts and the prevalence of AGN at higher redshifts. The permutation importance of the other features is at most
+0.03; this means that the reference performance metrics change less
+Feature importance STD
+Z 0.216 0.004
+S C−DET−ML 0.032 0.002
+S C−EXT−ML 0.010 0.001
+S C−EXT ENT 0.009 0.001
+EP−ONT IME 0.008 0.002
+EP−8−CT S 0.005 0.001
+EP−OFFAX 0.004 0.001
+DIS T−NN 0.001 0.001
+N−DET ECT IONS 0.001 0.001
+S UM−FLAG 0.001 0.001
+EP−FLUX−2−3−4 0.000 0.000
+EP−8−FLUX 0.000 0.000
+EP−5−FLUX 0.000 0.000
+Table 3: Permutation feature importance of the AGN-galaxy classifier using the AB algorithm trained with SMOTE. Importance: mean
+of importances from iterations, STD: standard deviation of the importances.
+than ∼3 per cent when the given feature is randomised. The redshift
+distributions will be discussed in more detail in Section 4.1.3.
+We further investigated the importance of features with an additional test described in Appendix C. This test demonstrated that
+the ML algorithms trained with source - related features only can
+achieve a similar performance as using all features in Table 1.
+4.1.3 Impact of redshifts - X-ray fluxes
+We have investigated how selection effects might affect the classification algorithms. We mainly explore flux and redshift parameters, since galaxies are preferentially found at low redshifts, while
+the AGN distribution is extended up to higher redshifts, with consequences in the classification performance when the data set is used
+to train the ML models. Fig. 2 shows the distribution of a training
+and test sample splitting the dataset, as usual, into 90 per cent for
+the training set and 10 per cent for the testing set. The figure shows
+that the redshift distribution of galaxies is extended up to redshift 1,
+while the AGN distribution peaks at redshift ∼2 and it is extended
+up to very high redshifts (z∼ 8).
+Focusing on the galaxies (yellow triangles and blue crosses in Fig.
+2), most of the misclassified galaxies (labeled as galaxies in the optical surveys but classified as AGN by the ML model) are at redshift
+z between 0.5 and 1, where the model assigns the AGN identification to sources that are galaxies in many cases. However, from Fig.
+2 we notice that most of the misclassified galaxies have luminosities
+above the threshold of 1042 erg s−1
+: i.e., from Fig. 2, almost all 138
+galaxies interpreted as AGN by our ML algorithm have luminosities beyond 1042erg s−1
+(continuous line in Fig. 2). Moreover, many
+of these sources are located in an area at 2 × 10−14 erg cm−2
+s
+−1
+and z∼ 0.9, which corresponds to luminosities of 0.3× 1044 erg s−1
+.
+These luminosities are too high to be emitted from a galaxy without an active nucleus. The histograms in Fig. 2 show that, above
+redshift ∼0.7, the number of misclassified galaxies exceeds the distribution of the correctly identified ones (see blue histogram in Fig.
+2). The distribution of galaxies in X-ray flux shows identified galaxies (true positive galaxies) well above the misclassified galaxies at
+low fluxes, while the misclassified galaxies become more important
+at higher fluxes (larger than 10−13 erg cm−2
+s
+−1
+). This seems to suggest that high fluxes are interpreted by the classifier as an evidence
+for an AGN nucleus, which is somehow expected.
+The AGN classification achieves very good performance at all
+MNRAS 000, 1–17 (2021)
+10 S. Falocco et al.
+1% 1% 1%1 1 11
+$
+1%1	
+1%1
+1%1
+1%1
+1%1
+1%11
+1%1
+#!"%%
+
+ 
+ 
+" 	
+	
+
+"
+1#1	 1#1 1#1 1#1 1#1 1#11 1#1
+" !##
+
+
+
+
+
+!	
+	
+
+!
+1 1 11 1 11
+
 1
-2
-4
-6
-10
-number of breach events
-(workers)
-R0 = 3, VE = 90%
-Traveller breach ( 320 events )
-Worker breach ( 3 events )
-1
-10
-100
-1000
-number of breach events
-(travellers)
-0 5 10 15 20
-days infectious in community
-1
-2
-4
-6
-10
-2
-4
-6
-100
-2
-number of breach events
-(workers)
-R0 = 3, VE = 0%
-Traveller breach ( 5893 events )
-Worker breach ( 422 events )
-1
-10
-100
-1000
-number of breach events
-(travellers)
-0 5 10 15 20
-days infectious in community
-1
-2
-4
-10
-2
-4
-100
-2
-4
-number of breach events
-(workers)
-R0 = 6, VE = 0%
-Traveller breach ( 7614 events )
-Worker breach ( 1747 events )
-1
-2
-4
-10
-2
-4
-100
-2
-4
-number of breach events
-(travellers)
-0 5 10 15 20
-days infectious in community
-0.1
-2
-4
-1
-2
-4
-10
-2
-4
-number of breach events
-(workers)
-R0 = 6, VE = 80%
-Traveller breach ( 922 events )
-Worker breach ( 31 events )
-a) b)
-c) d)
-FIG. 3. Distribution of the days infectious in the community produced by each breach event
-simulated in four illustrative scenarios: (a) ancestral strain without vaccination, (b) ancestral
-strain with vaccination, (c) Delta strain without vaccination, (d) Delta strain with vaccination
-(increased transmissibility, decreased vaccine efficacy). Breach events can occur from infected
-travellers being discharged from quarantine while still infectious. They can also occur or due to
-infected workers that are not detected while pre-symptomatic or asymptomatic due to false-negative
-RT-PCR screening tests. The distribution of days infectious in the community differs qualitatively
-for traveller or worker-related breach events. Each subfigure corresponds to a different combination
-of reproductive ratio R0 and vaccine efficacy V E. Shaded black bars correspond to traveller-related
-breach events while open red bars correspond to worker-related breach events.
-infection (VT = 0, VI = V E). While there is evidence for reduced periods of viral shedding in
-vaccinated individuals, peak viral loads appear to be similar [30]. Therefore, we have presented
-the results based on a conservative assumption, that can be relaxed or modified as new evidence
-emerges (see the Supporting Information for a sensitivity analysis given an alternate assumption
-that VT = V E and VI = 0).
-The influence of the quarantine system on outbreak risk was computed by using the distribution
-of breach events produced by the quarantine simulation to sample seeding events for the branching
 11
-process model. In these outbreak scenarios, the level of population-wide vaccination is varied,
-assuming a negligible level of infection-acquired immunity. The results of the branching process
-model are used to estimate the probability of a community outbreak, given a fixed volume of
-travellers and a set infection prevalence. This produces an absolute outbreak risk, that we express
-as the time until the probability of a transmission cluster containing more than 5 cases exceeds
-95% (t95). These values should be interpreted as a means of comparing alternate scenarios, given
-fixed quantities of incoming arrivals (see the Supporting Information for details of the branching
-process model).
-III. RESULTS
-A. Summary
-Our results demonstrate how the quarantine system would perform under different conditions
-of vaccine efficacy and viral transmissibility under fixed assumptions with respect to details such
-as test schedules and quarantine duration (see Supporting Information). We quantify this in
-terms of the breach events produced under each set of conditions. Breach events occur when an
-infected traveller or quarantine worker comes into contact with the general population. First, we
-examine the force of infection produced by breach events, which serves as a measure of quarantine
-system performance independent of the community in which it is embedded. Then, we examine
-the potential for outbreaks caused by breach events, taking into account the level of vaccination
-coverage in the general population.
-We also investigate the sensitivity of model outcomes to the disease incubation period, which
-may be shorter for the Delta variant of COVID-19. The results of this analysis show that shorter
-incubation periods make the quarantine system more effective because: (i) overall infectious
-periods are shorter, (ii) test sensitivity increases more quickly after infection, and (iii) the shorter
-delay to symptom expression hastens detection after false negative arrival tests.
-Finally, we examine the sensitivity of our results to the choice of vaccine efficacy decomposition. We treat disease transmission as a two-part process first requiring infection (subject to
-the efficacy term VI efficacy against infection, and then requiring onward transmission (subject
-to the efficacy term VT efficacy against onward transmission). In this model the overall efficacy
-12
-against transmission V E is given as
-V E = 1 − (1 − VT )(1 − VI ), (3)
-which means that two extreme interpretations exist: (1) V E = VI , VT = 0 and (2) VT = V E,
-VI = 0. Our main results use the first extreme (see the Methods section for a more detailed
-discussion of this choice). We investigate the second extreme in our sensitivity analysis. This
-gives the range of results over which any decomposition consistent with Equation 3 may fall.
-B. Quarantine system breach risk
-Interpreting βtot as a measure of outbreak potential under each set of conditions, the heatmap
-in Figure 4 illustrates how vaccine efficacy must increase to offset the rise in outbreak potential
-produced by increases in R0. From baseline conditions (V E = 0%, R0 = 3), following the
-outermost contour delineated in Figure 4 illustrates that vaccine efficacy must exceed 60% in
-order for baseline risk levels to be maintained for an R0 of 6, and must exceed 70% for R0 = 8.
-The required V E levels saturate for high values of R0, with efficacy of 70% to 80% sufficient to
-maintain baseline risk levels even for R0 = 10. This saturation occurs because transmission within
-the quarantine environment is partially constrained by the grouping of arrivals into small cohorts
-(i.e., family units). This constraint on transmission is contingent upon substantial reduction
-of exposure risk outside of close contact groups, representative of stringent infection control
-measures within a facility.
-C. Community outbreak risk
-Next we simulate outbreaks based on the distribution of quarantine breach events produced by
-the quarantine model. For these scenarios we investigate a subset of V E and R0 combinations
-corresponding to plausible values for the Delta variant of COVID-19. We investigated population
-outbreak characteristics for V E ∈ [0.5, 0.6, 0.7, 0.8, 0.9] and for R0 ∈ [5, 6, 7, 8, 9, 10], while
-varying mass vaccination coverage levels. For the branching process scenarios, a fixed traveller
-arrival rate of 3000/wk was assumed, with an infection prevalence of 10%. This differed from the
-inflow assumptions of the quarantine model (50 travellers per week, 1% infection prevalence), so
-a scaling factor was used to linearly adjust the breach rate produced by the quarantine model
-13
-FIG. 4. Integrated force of infection relative to baseline computed from quarantine breach events
-simulated by the model. The heatmap and contour demonstrates how this value scales with vaccine
-efficacy (V E), and the basic reproductive ratio of the virus (R0). In these simulations, all incoming
-arrivals and quarantine workers are vaccinated, with susceptibility to infection reduced by the factor
-indicated by V E (i.e., V E = VI , VT = 0). The dotted blue box represents plausible values for the
-baseline condition when the ancestral lineage and Alpha variant of SARS-CoV-2 were dominant
-and no vaccines were available. The green dotted box represents the scenarios corresponding to
-vaccinated quarantine pathways before emergence of the Delta variant. The yellow dashed box
-covers a range of values plausible for Delta variant scenarios.
-(see Methods in Supporting Information). This scaling approximation assumes linear dependence
-of the quarantine breach rate with incoming arrival infection prevalence up to 10%.
-We present t95 values as a function of vaccine coverage (Figure 5), which demonstrates the
-effect of mass vaccination on outbreak risk, for each combination of V E and R0. The results
-illustrate that vaccine efficacy is a crucial determinant of outbreak risk. Even for high coverage,
-14
-a vaccine with efficacy below 60% is not sufficient to dramatically reduce time required for
-outbreaks to occur. On the other hand, a possible threshold behaviour with coverage is observed
-for high vaccine efficacy (80% or higher), with t95 values increasing by an order of magnitude
-for high coverage levels. This threshold effect appears to persist even for very high transmission
-rates (Figure 5f, R0 = 10). The sensitivity of outbreak risk to V E emphasise the importance
-of accurately estimating this crucial parameter (vaccine efficacy against infection and onward
-transmission).
-D. Sensitivity analysis: incubation period
-Our sensitivity analysis of the incubation period demonstrated that shorter incubation periods
-increase the effectiveness of the quarantine system because (i) test sensitivity increases more
-rapidly, and (ii) individuals are infectious for shorter periods of time. These results emphasise
-that shorter incubation periods can make it easier to detect infections in closed systems like
-quarantine facilities. This reduces the risk to the community for the same quarantine length-ofstay.
-E. Sensitivity analysis: Vaccine efficacy against transmission from breakthrough infections
-The results demonstrated in Figure 4 assume no effect of vaccination on the capacity for
-vaccinated individuals who become infected to transmit the virus (VT = 0, VI = V E). The
-alternate assumption that efficacy against onward transmission is equivalent to the total V E
-represents a plausible upper bound, that we investigated in a sensitivity analysis (VT = V E, VI =
-0). The results in Figure S12 demonstrate that under this alternate (optimistic) assumption, the
-vaccine efficacy required to maintain baseline risk levels falls by about 20%. For example, an R0
-of 6 would require a 40% effective vaccine in order to maintain baseline outbreak risk while an
-R0 of 8 would require a 50% effective vaccine.
-IV. DISCUSSION
-The vaccines that have been developed against SARS-CoV-2 remain highly effective at preventing severe disease. However, their efficacy against infection has decreased against the Delta
-15
-a) b) c)
-d) e) f)
-102
-103
-104
-105
-time until 95% outbreak probability (days)
-0.2 0.4 0.6 0.8 1.0
-vaccine coverage
-(proportion of population)
-VE = 0.5
-VE = 0.6
-VE = 0.7
-VE = 0.8
-VE = 0.9
-baseline
-R0 = 10
-102
-103
-104
-105
-time until 95% outbreak probability (days)
-0.2 0.4 0.6 0.8 1.0
-vaccine coverage
-(proportion of population)
-VE = 0.5
-VE = 0.6
-VE = 0.7
-VE = 0.8
-VE = 0.9
-baseline
-R0 = 9
-102
-103
-104
-105
-time until 95% outbreak probability (days)
-0.2 0.4 0.6 0.8 1.0
-vaccine coverage
-(proportion of population)
-VE = 0.5
-VE = 0.6
-VE = 0.7
-VE = 0.8
-VE = 0.9
-baseline
-R0 = 8
-102
-103
-104
-105
-time until 95% outbreak probability (days)
-0.2 0.4 0.6 0.8 1.0
-vaccine coverage
-(proportion of population)
-VE = 0.5
-VE = 0.6
-VE = 0.7
-VE = 0.8
-VE = 0.9
-baseline
-R0 = 7
-102
-103
-104
-105
-time until 95% outbreak probability (days)
-0.2 0.4 0.6 0.8 1.0
-vaccine coverage
-(proportion of population)
-VE = 0.5
-VE = 0.6
-VE = 0.7
-VE = 0.8
-VE = 0.9
-baseline
-R0 = 6
-102
-103
-104
-105
-time until 95% outbreak probability (days)
-0.2 0.4 0.6 0.8 1.0
-vaccine coverage
-(proportion of population)
-VE = 0.5
-VE = 0.6
-VE = 0.7
-VE = 0.8
-VE = 0.9
-baseline
-R0 = 5
-FIG. 5. Time until probability of an outbreak in the community reaches 0.95 (t95) for a set of
-scenarios corresponding to potential Delta variant parameter combinations. The vaccine coverage
-values correspond to the proportion of individuals in the community (outside of quarantine) who are
-vaccinated. Higher vaccine coverage and efficacy reduces the probability of an outbreak occurring,
-given a quarantine breach event. Possible threshold behaviour is observed for high coverage and
-efficacy, with vaccine efficacy of 90% producing t95 values that increase by more than one order of
-magnitude as coverage rises from 0.1 to 1.0 (full vaccine coverage). The baseline scenario (black
-line) shows t95 with no vaccination (V E = 0) and R0 = 3.
-16
-variant of the virus, and efficacy may deteriorate further with the continued emergence of new
-variants [31, 32]. In the context of border quarantine, the capacity to limit transmission is the key
-consideration when determining how best to manage new arrivals, some of whom may be infected
-(asymptomatic or pre-symptomatic). This is because the primary purpose of a border quarantine system is to prevent infectious individuals from entering the community. The management
-of clinical cases within the quarantine system is facilitated by regular surveillance, efficient case
-detection, and the allocation of medical resources. Therefore, the utility of vaccination within
-the context of a quarantine system is not equivalent to the utility of mass vaccination in the
-context of a large outbreak. In large outbreaks, efficacy against clinical severity reduces hospital
-case loads and deaths, mitigating the public health burden and human cost, even if transmission
-continues. However, in modern quarantine systems, the operational goal is to identify and isolate
-cases to limit transmission and keep the required duration of quarantine to a minimum.
-The 14-day minimum stay commonly practiced during the COVID-19 pandemic was implemented due to the long incubation period of the disease. Within 14 days, a case arriving while
-pre-symptomatic would be likely to display symptoms. Testing of arrivals through RT-PCR accelerates the process of case detection and facilitates earlier management. When these case
-detection efforts are unsuccessful, transmission within the quarantine environment at best leads
-to extended stay conditions for cases and their contacts. At worst, it leads to the discharge
-of pre-symptomatic infectious individuals who receive their exit test early in their infection and
-do not yet have high enough viral load for case confirmation. Therefore, the primary benefit of
-vaccination in the context of quarantine facilities is in limiting transmission.
-In this context, the increased transmissibility and decreased vaccine efficacy against transmission associated with the Delta variant requires a re-evaluation of risk. Our results demonstrate
-that vaccination may allow quarantine systems to remain effective. On the other hand, quarantine
-requirements for vaccinated travellers must remain stringent due to the increased transmissibility
-of the virus. To emphasise the implications of this result, had conditions remained consistent
-with the Alpha variant (R0 ≈ 3, V E ≈ 90%), Figure 4 indicates that vaccination would have
-decreased border quarantine breach risk to 3% of baseline. In effect, the vaccinated quarantine pathway would have allowed the number of arrivals to increase by a factor of approx. 30
-(assuming sufficient system capacity), while maintaining baseline community exposure levels.
-Under the existing circumstances, our analysis suggests that quarantine policies for vaccinated
-17
-individuals will need to approximate those that were used for unvaccinated cohorts prior to the
-emergence of the Delta variant. Unvaccinated cohorts of travellers, on the other hand, will pose
-a much greater risk of quarantine breach events than they did previously (e.g., increased by a
-factor of 3 for R0 = 6, Figure 4).
-Ultimately, the level of stringency in requirements for quarantine of new arrivals should be
-assessed as a function of the prevalence of viral variants between jurisdictions. Where these
-relative levels are similar for variants of concern, there is little justification for limitations on
-travel. However, with the spatially-localised emergence of new variants, quarantine systems must
-be capable of rapidly responding to slow, or eliminate, the global diffusion of variants. This is
-particularly true for variants with increased transmissibility and clinical severity (of which the
-Delta variant of SARS-CoV-2 is a primary example).
-V. CONCLUSION
-To summarise, our results demonstrate that, in the context of SARS-CoV-2, border quarantine systems cannot be used to compensate for low levels of community vaccination. For the
-Delta variant, this is true even when all individuals within the quarantine environment are vaccinated. This is because the Delta variant is more transmissible and likely to produce breakthrough
-infections in individuals vaccinated against the ancestral lineage. Our findings illustrate a key
-aspect of the drawn-out global battle to mitigate the public health crisis produced by COVID-19.
-Just as regions with low community prevalence were becoming confident that international travel
-could increase for vaccinated individuals, the virus changed to become more transmissible, and
-to partially avoid vaccine-induced immunity. Our results show that these changes nullified the
-prospective benefits of quarantine systems in terms of international travel volumes. However, it
-is important to emphasize the alternative scenario: had a vaccine not become available prior to
-the emergence of the Delta variant, the capacity for existing border quarantine systems to mitigate outbreaks would have dramatically deteriorated. Currently, comprehensive vaccination in
-quarantine facilities is allowing countries such as Australia, New Zealand, and China to continue
-allowing low levels of international travel.
-Moving forward, the expansion of quarantine systems should focus on preparing for future
-variants of COVID-19, and ultimately, for future pandemics with higher clinical severity and
-18
-infection fatality ratios. COVID-19 has revealed the unprecedented capacity for populations
-around the world to dramatically alter their behaviour to prevent disease spread. Quarantine
-systems amplify the payoff of these population-wide responses by limiting incursions. The coupling
-of border quarantine measures with elimination strategies buys critical time for the development
-of vaccines and effective clinical practices.
-VI. ACKNOWLEDGEMENTS
-Funding: This work was directly funded by the Australian Government Department of
-Health Office of Health Protection. Additional support was provided by the National Health
-and Medical Research Council of Australia through its Centres of Research Excellence (SPECTRUM, GNT1170960) and Investigator Grant Schemes (JMcV Principal Research Fellowship,
-GNT 1117140). MJL is supported by an NHMRC Project Grant (GNT1156742) Conflicts of
-interest: The Authors declare no conflicts of interest. Author Contributions: CZ, NG, and J.
-McVernon designed the model of quarantine facility environments; CZ, FS, DJP, and J. McCaw
-designed the individual-based model of COVID-19 disease progression and test sensitivity; MJL,
-DJP and FS designed the outbreak branching process model; CZ implemented the individualbased models and analysed outputs; ML implemented the outbreak model and analysed outputs;
-All authors contributed to manuscript composition and study design.
-VII. SOURCE CODE AND DATA AVAILABILITY
-Source code for the individual-based models of COVID-19 and the raw data used to produce
-Figure 4 is available at: github.com/cjzachreson/COVID-19 Quarantine ABM.
-Source code for the branching process model is available at: github.com/MikeLydeamore/
-COVIDQuarantine/tree/quarantinemodel.
-All data presented in this work can be reproduced from the source code above. It can also be
-19
-made available upon request to the corresponding author.
-[1] Guan D, Wang D, Hallegatte S, Davis SJ, Huo J, Li S, et al. Global supply-chain effects of
-COVID-19 control measures. Nature human behaviour. 2020;4(6):577–587.
-[2] Organization WH, et al. Policy considerations for implementing a risk-based approach to international travel in the context of COVID-19, 2 July 2021. World Health Organization; 2021.
-[3] Wells CR, Sah P, Moghadas SM, Pandey A, Shoukat A, Wang Y, et al. Impact of international
-travel and border control measures on the global spread of the novel 2019 coronavirus outbreak.
-Proceedings of the National Academy of Sciences. 2020;117(13):7504–7509.
-[4] Haug N, Geyrhofer L, Londei A, Dervic E, Desvars-Larrive A, Loreto V, et al. Ranking
-the effectiveness of worldwide COVID-19 government interventions. Nature human behaviour.
-2020;4(12):1303–1312.
-[5] Steyn N, Plank MJ, James A, Binny RN, Hendy SC, Lustig A. Managing the risk of a COVID-19
-outbreak from border arrivals. Journal of the Royal Society Interface. 2021;18(177).
-[6] Gostic K, Gomez AC, Mummah RO, Kucharski AJ, Lloyd-Smith JO. Estimated effectiveness of
-symptom and risk screening to prevent the spread of COVID-19. Elife. 2020;9:e55570.
-[7] Ashcroft P, Lehtinen S, Angst DC, Low N, Bonhoeffer S. Quantifying the impact of quarantine
-duration on COVID-19 transmission. Elife. 2021;10:e63704.
-[8] Lau H, Khosrawipour V, Kocbach P, Mikolajczyk A, Schubert J, Bania J, et al. The positive impact
-of lockdown in Wuhan on containing the COVID-19 outbreak in China. Journal of travel medicine.
-2020;27(3):taaa037.
-[9] Zachreson C, Mitchell L, Lydeamore MJ, Rebuli N, Tomko M, Geard N. Risk mapping for
-COVID-19 outbreaks in Australia using mobility data. Journal of the Royal Society Interface.
-2021;18(174):20200657.
-[10] Baker MG, Kvalsvig A, Verrall AJ, Wellington N. New Zealand’s COVID-19 elimination strategy.
-Med J Aust. 2020;213(5):198–200.
-[11] Summers J, Cheng HY, Lin HH, Barnard LT, Kvalsvig A, Wilson N, et al. Potential lessons from
-the Taiwan and New Zealand health responses to the COVID-19 pandemic. The Lancet Regional
-Health-Western Pacific. 2020:100044.
-20
-[12] Thatcher A, Zhang M, Todoroski H, Chau A, Wang J, Liang G. Predicting the impact of COVID-19
-on Australian universities. Journal of risk and financial management. 2020;13(9):188.
-[13] Tisdall L, Zhang Y, Zhang A. COVID-19 Impacts on General Aviation–Comparative Experiences,
-Governmental Responses and Policy Imperatives. Transport Policy. 2021.
-[14] Beck MJ, Hensher DA. Insights into the impact of COVID-19 on household travel and activities
-in Australia–The early days under restrictions. Transport policy. 2020;96:76–93.
-[15] Fisman D, Tuite A. Progressive Increase in Virulence of Novel SARS-CoV-2 Variants in Ontario,
-Canada, February to June, 2021. medRxiv. 2021.
-[16] Zhang M, Xiao J, Deng A, Zhang Y, Zhuang Y, Hu T, et al. Transmission Dynamics of an Outbreak
-of the COVID-19 Delta Variant B. 1.617. 2—Guangdong Province, China, May–June 2021. China
-CDC Weekly. 2021;3(27):584–586.
-[17] Kang M, Xin H, Yuan J, Ali ST, Liang Z, Zhang J, et al. Transmission dynamics and epidemiological
-characteristics of Delta variant infections in China. medRxiv. 2021.
-[18] Dagpunar JS. Interim estimates of increased transmissibility, growth rate, and reproduction number
-of the Covid-19 B. 1.617. 2 variant of concern in the United Kingdom. medRxiv. 2021.
-[19] Brown CM. Outbreak of SARS-CoV-2 infections, including COVID-19 vaccine breakthrough infections, associated with large public gatherings—Barnstable County, Massachusetts, July 2021.
-MMWR Morbidity and Mortality Weekly Report. 2021;70.
-[20] Chia PY, Ong SWX, Chiew CJ, Ang LW, Chavatte JM, Mak TM, et al. Virological and serological
-kinetics of SARS-CoV-2 Delta variant vaccine-breakthrough infections: a multi-center cohort study.
-medRxiv. 2021.
-[21] Lopez Bernal J, Andrews N, Gower C, Gallagher E, Simmons R, Thelwall S, et al. Effectiveness of
-Covid-19 vaccines against the B. 1.617. 2 (delta) variant. New England Journal of Medicine. 2021.
-[22] Elliott P, Haw D, Wang H, Eales O, Walters C, Ainslie K, et al.. REACT-1 round 13 final report:
-exponential growth, high prevalence of SARS-CoV-2 and vaccine effectiveness associated with
-Delta variant in England during May to July 2021; 2021.
-[23] Osama T, Razai MS, Majeed A. Covid-19 vaccine passports: access, equity, and ethics. British
-Medical Journal Publishing Group; 2021.
-[24] Organization WH, et al. Considerations for quarantine of contacts of COVID-19 cases: interim
-guidance, 25 June 2021. World Health Organization; 2021.
-21
-[25] Nasreen S, He S, Chung H, Brown KA, Gubbay JB, Buchan SA, et al. Effectiveness of COVID-19
-vaccines against variants of concern, Canada. medRxiv. 2021.
-[26] Zachreson C, Chang SL, Cliff OM, Prokopenko M. How will mass-vaccination change COVID19 lockdown requirements in Australia? The Lancet Regional Health - Western Pacific.
-2021;14:100224.
-[27] Campbell F, Archer B, Laurenson-Schafer H, Jinnai Y, Konings F, Batra N, et al. Increased transmissibility and global spread of SARS-CoV-2 variants of concern as at June 2021. Eurosurveillance.
-2021;26(24):2100509.
-[28] Lauer SA, Grantz KH, Bi Q, Jones FK, Zheng Q, Meredith HR, et al. The incubation period
-of coronavirus disease 2019 (COVID-19) from publicly reported confirmed cases: estimation and
-application. Annals of internal medicine. 2020;172(9):577–582.
-[29] Hellewell J, Russell TW, Beale R, Kelly G, Houlihan C, Nastouli E, et al. Estimating the effectiveness
-of routine asymptomatic PCR testing at different frequencies for the detection of SARS-CoV-2
-infections. BMC medicine. 2021;19(1):1–10.
-[30] Riemersma KK, Grogan BE, Kita-Yarbro A, Jeppson GE, O’Connor DH, Friedrich TC, et al. Vaccinated and unvaccinated individuals have similar viral loads in communities with a high prevalence
-of the SARS-CoV-2 delta variant. medRxiv. 2021.
-[31] Puranik A, Lenehan PJ, Silvert E, Niesen MJ, Corchado-Garcia J, O’Horo JC, et al. Comparison
-of two highly-effective mRNA vaccines for COVID-19 during periods of Alpha and Delta variant
-prevalence. medRxiv. 2021. Available from: https://www.medrxiv.org/content/early/2021/
-08/09/2021.08.06.21261707.
-[32] Pouwels KB, Pritchard E, Matthews P, Stoesser NB, Eyre DW, Vihta KD, et al. Impact of Delta
-on viral burden and vaccine effectiveness against new SARS-CoV-2 infections in the UK. medRxiv.
-2021.
-[33] Ferretti L, Wymant C, Kendall M, Zhao L, Nurtay A, Abeler-D¨orner L, et al. Quantifying SARS-CoV-2 transmission suggests epidemic control with digital contact tracing. Science.
-2020;368(6491).
-[34] Ferretti L, Ledda A, Wymant C, Zhao L, Ledda V, Abeler-Dorner L, et al. The timing of COVID-19
-transmission. medRxiv. 2020.
-22
-[35] Lloyd-Smith JO, Schreiber SJ, Kopp PE, Getz WM. Superspreading and the effect of individual
-variation on disease emergence. Nature. 2005;438(7066):355–359.
-[36] Madewell ZJ, Yang Y, Longini IM, Halloran ME, Dean NE. Household transmission of SARS-CoV-2:
-a systematic review and meta-analysis. JAMA network open. 2020;3(12):e2031756–e2031756.
-[37] Johansson MA, Quandelacy TM, Kada S, Prasad PV, Steele M, Brooks JT, et al. SARSCoV-2 transmission from people without COVID-19 symptoms. JAMA network open.
-2021;4(1):e2035057–e2035057.
-[38] W¨olfel R, Corman VM, Guggemos W, Seilmaier M, Zange S, M¨uller MA, et al. Virological assessment of hospitalized patients with COVID-2019. Nature. 2020;581(7809):465–469.
-23
-Supporting Information
-S1. MODEL DETAILS
-This work utilised two distinct models of COVID-19 disease transmission. One of these is
-an abstract model, implemented as a branching process to approximate community transmission dynamics. This is applied to quantify the tendency for quarantine breach events to initiate
-outbreaks, and to characterise those outbreaks. The other model is an agent-based simulation
-describing disease progression and transmission on the individual level. This is implemented in two
-scenarios, one used for calibration of fundamental parameters, and the other for investigation of
-quarantine system efficacy. The calibration scenario is homogeneous, and allows characterisation
-of the basic reproductive ratio, over-dispersed secondary case rates, and timing of transmission
-detection events in an effectively open system. The quarantine scenario is designed to reproduce the general features of controlled border screening environments, and implements a defined
-population structure.
-A. Outbreak transmission (Branching process) model
-To simulate infectious individuals entering the community and potentially seeding an outbreak,
-we use a branching process community transmission model with an inhomogenous offspring distribution. Branching process models are considered in terms of generations, and each generation
-acts independently from the last. We term ‘generation zero’ to be the index case that leaves
-quarantine.
-1. Transmission potential of cases in the community
-We define the transmission potential, which represents the expected number of cases caused
-by a single case in the community. The transmission potential combines the biological features
-of the virus, vaccine status of the index case, vaccination coverage in the wider community and
-vaccine efficacy parameters.
-We break down vaccine efficacy into two components: efficacy against infection, denoted VI ,
-and efficacy against onward transmission, denoted VT . The overall reduction in transmission is
-S1
-given by,
-V = (1 − VI )(1 − VT ).
-For a given starting transmission potential, T P0, the effective transmission potential in the population, T Pp, is given by,
-T Pp = T P0 · (1 − cV ),
-where c is the proportion of the population vaccinated. For a breach caused by a vaccinated
-traveller, the first generation transmission potential is given by,
-T Pu = T P0 · (1 − cVI ).
-For a breach caused by an unvaccinated traveller, the first generation transmission potential is
-given by,
-T Pv = T P0 · (1 − cVI )(1 − VT ).
-2. Secondary case distribution and public health measures
-The number of secondary infections generated by a single case is taken from a negative binomial
-distribution, with n = 0.1 samples, and the probability of success being p = 0.1/(0.1 + T P), in
-order to match the dispersion in the number of secondary cases (fixed at 0.1), and the expected
-number of secondary cases.
-The calendar times at which these infections occur is drawn from a Weibull distribution with
-mean 5.5 days and standard deviation 1.8, in line with literature estimates [33].
-If the case is the index case and thus in quarantine, only infections that occur after the
-individual has left quarantine are retained. If the individual enters isolation at some point, as
-per worker protocols, then only infections that occur before the individual has entered isolation
-are retained. All future generations are assumed to not be in quarantine or have any proactive
-isolation applied to them.
-3. Probability of a breach becoming an outbreak
-To calculate the probability of a single breach event becoming an outbreak, we simulate 105
-breaches into the community. The index cases for these breaches are chosen randomly from the
-quarantine model. The probability is calculated separately for travellers and workers.
-S2
-A breach is defined as an outbreak if it reaches at least five cumulative cases before extinction.
-4. Time until significant breach event
-The time between breach events are assumed to occur at a frequency defined by the quarantine
-model. To scale this time according to the number of travellers and the prior probability of arriving
-to the system infected, we construct a scaling factor,
-s =
-A
-A¯
-I
-¯I
-,
-where A is the targeted number of arrival, I is the targeted prevalence of the arrival’s country, A¯
-is the number of arrivals modelled in the quarantine model and ¯I is the prevalence of infection
-assumed in the quarantine model. The time between breaches obtained from the quarantine
-model is divided by s.
-A breach is determined to be an outbreak according to a binomial distribution, with probability
-of success defined by the probability of causing an outbreak. Traveller and worker breach events
-are chosen in the same proportion at which they occur from the quarantine model.
-B. Individual-based COVID-19 disease model
-For the agent-based model of quarantine scenarios, we developed a model of COVID-19 disease
-and transmission designed to match three salient features:
-1. The distribution of delays between symptom onset of a primary case and transmission to
-secondary cases. Following the definition used by Ferretti et al., we refer to this quantity
-as Time from Onset of Symptoms to Transmission (TOST) [34].
-2. The household secondary attack rate, and secondary case dispersion.
-3. The dependence of RT-PCR test sensitivity on time from symptom onset.
-Matching these distributions with an individual-based model required the definition a detailed
-model of disease natural history on the within-host level. The distribution of incubation periods
-is a key ensemble statistic that informs the model dynamics (see below). There are many possible
-implementations of within-host models that could generate the required ensemble statistics. Our
-S3
-specific choices follow the logic that virus initially grows exponentially, until recognition by the
-host immune systems triggers the onset of symptoms (the end of the incubation period). This
-immune response produces an exponential decline in viral load until recovery occurs, at which
-time no replication-competent viral shedding is possible. The sections below detail the specifics
-of the agent-based model.
-1. The basic reproductive number R0
-The transmission rate scalar for each individual βmax ∼ Gamma(κ, θ) controls the transmission
-rate for any given transmission environment. The shape parameter κ = 0.1 translates directly
-to the dispersion parameter of the derived secondary case distribution (distributed as a negative
-binomial, see below). The scale parameter θ = hβmaxi/κ is a function of the mean peak force of
-infection hβmaxi, which is proportional to R0 in the calibration model (Figure S1).
-To calibrate the basic reproductive number R0, we performed a systematic scan of hβmaxi,
-keeping all other parameters constant. To produce a generic calibration of the basic reproductive
-number R0, we performed this scan on an unstructured population with N = 500 individuals,
-and simulated a large ensemble of single transmission generations without interaction effects
-(N = 10,000 instances). For each instance, the index case properties are sampled from the
-parameter distributions specified and transmission is simulated until recovery of the index case.
-We then count the secondary cases produced, ignoring the additional force of infection produced
-by secondary cases. The average of these values approximates R0, and we observe a linear
-relationship with the control parameter hβmaxi (Figure S1). To set the value of R0 in a given
-scenario, we use the line of best fit R0 = 3.83hβmaxi to determine the corresponding value of
-hβmaxi required to produce the desired value of R0.
-2. Secondary case dispersion
-The distribution of secondary cases produced by the index case ensemble used to compute R0
-conforms to a negative binomial distribution with dispersion parameter r = 0.1 (Figure S2). This
-is implemented as follows: for each index case, independent transmission probabilities produce
-Poisson-distributed secondary case numbers. The transmissibility parameter for each index case
-βmax is sampled from a Gamma distribution, so the secondary case numbers aggregated over
-S4
-10
-8
-6
-4
-2
-0
-Basic Reproductive Ratio (R0)
-0.0 0.5 1.0 1.5 2.0 2.5 3.0
-〈βmax〉
-R0 (simulated)
-linear fit, R0 = [3.83 � 0.02] 〈βmax〉
-R0 = 1
-R0 = 2.14
-R0 = 6.3
-0.0001
-0.001
-0.01
-0.1
-1
-Frequency (Ntot = 10,000)
-0 50 100 150 200
-number of secondary cases (N = 500)
-secondary case distribution
-〈βmax〉 = 2.6 ; R0 ≈10
-〈βmax〉 = 1.6 ; R0 ≈6.1
-〈βmax〉 = 0.6 ; R0 ≈2.3
-〈βmax〉 = 0.3 ; R0 ≈1.1
-a) b)
-FIG. S1. Calibration of the basic reproductive number R0. (a) Linear dependence between the
-global transmission scalar hβmaxi and the derived parameter R0. (b) The distribution of secondary
-cases produced for different values of R0, these are effectively drawn from a negative binomial
-distribution with dispersion parameter (“number of successes” r = 0.1), and mean R0.
-all index cases are effectively drawn from an ensemble of Poisson distributions with Gammadistributed rate parameters. This gives a negative binomial with dispersion r = κ [35]. Therefore,
-the model controls secondary case dispersion directly by assigning βmax a Gamma-distributed
-random variable. The choice of dispersion does not alter the calibration of R0, which describes
-only the average number of secondary cases.
-3. Household secondary attack rate
-To check that our parameterisation of R0 and r produce reasonable correspondence with
-observed household secondary attack rates, we ran the calibration model setting the population
-size N = 5. Under these conditions, the number of possible transmissions is akin to a generic
-number of household contacts (N - 1) and individuals with high transmissibility have restricted
-transmission potential. This calibration produces average household secondary attack rates in
-a range between 10% and 25%, consistent with observations of COVID-19 transmission among
-household contacts (Figure S3) [17, 36]. The low end of the range (10%) is typical for the
-ancestral lineage of SARS-CoV-2, and this increases consistently with R0, reaching 25% for
-S5
-0.001
-2
-4
-6
-8
-0.01
-2
-4
-6
-8
-0.1
-2
-4
-6
-8
-1
-probability
-0 10 20 30 40 50
-secondary cases
- simulated
- R0 = 2.94, k = 0.1
- fit, negative binomial
- mean = 2.94, dispersion = 0.101
-FIG. S2. The secondary case distribution of the calibration model follows a negative binomial with
-mean R0. The dispersion parameter (r) is controlled by the shape parameter (κ) of the Gamma
-distribution from which maximum force of infection (βmax) is sampled for each individual.
-R0 = 6.3, corresponding to the Delta variant.
-S6
-0.30
-0.25
-0.20
-0.15
-0.10
-0.05
-0.00
-secondary attack rate (N = 5)
-0.5 1.0 1.5 2.0 2.5 3.0
-〈βmax〉
-R R0 = 6.3 0 = 2.14
-0.01
-2
-3
-4
-5
-6
-0.1
-2
-3
-4
-5
-6
-1
-Frequency (Ntot = 10,000)
-0 1 2 3 4
-number of secondary cases (N = 5)
-〈βmax〉 = 1.6
-〈βmax〉 = 0.6
-a) b)
-FIG. S3. Secondary attack rate values produced by the calibration model for transmission within
-small groups (N = 5). (a) Secondary attack rate as a function of the global transmission scalar
-hβmaxi. The values plotted correspond to the number of secondary infections produced on average
-divided by the number of contacts (N - 1 = 4). (b) Frequency distributions of the secondary case
-numbers produced by 10,000 independent trials each corresponding to a single index case over
-a single generation of transmission to four close contacts. The values of hβmaxi chosen for (b)
-correspond broadly to estimates of R0 for the ancestral lineage of SARS-CoV-2 (hβmaxi = 0.6,
-R0 = 2.14) and the Delta variant (hβmaxi = 1.6, R0 = 6.3).
-4. Individual-based disease transmission model
-Our individual-based model of within-host viral dynamics follows a three-part function, the
-precise form of which is determined by each individual’s incubation period. An individual trajectory of infectiousness as a function of time from exposure β(t) is illustrated in Figure S4. This
-function features an initial exponential increase, followed by a brief plateau and subsequent exponential decline. The start of the exponential decline phase corresponds to the end of individual’s
-incubation period (onset of symptoms). Note that individuals become infectious immediately
-after they are infected, with no latent period preceding the onset of infectiousness. In our model,
-we assume that 1/3 of infected individuals never develop symptoms, which reduces the probability
-they will be detected within the quarantine system. In our model we use the same functional
-S7
-form of β(t) to describe all infections, regardless of whether or not they are asymptomatic. It
-may be that asymptomatic individuals are marginally less contagious, in which case our model
-would overestimate the number of secondary cases they produce [37]. In this work, we opted for
-the conservative assumption that no difference exists.
-The within-host dynamics are implemented as a piecewise function, with a plateau between
-growth and decay phases describing β(t), the time-dependent infectiousness of an individual:
-β(t) =
-
-
-
-βmax
-Vmax
+1
+
+
+
+1	
+1
 
-exp(k1t) − 1
-
-t ≤ tinc − Tp
-βmax tinc − Tp ≤ t < tinc
-βmax
-exp
-k2[t − tinc]
-
-− [Vmax]
-−1
-
-t ≥ tinc
-, (S1)
-where tinc is the incubation period of the individual, Tp is the duration of the infectiousness plateau
-(set equal to 0.1tinc), and βmax is the maximum infectiousness of that individual. The parameter
-Vmax is a scaling factor controlling the shape of the growth curve (smaller values of Vmax produce
-broader growth and decay functions, higher values produce steeper growth and decay). The rate
-parameters k1 and k2 are determined by the value of Vmax, and the duration of incubation and
-post-incubation periods:
-k1 = ln(Vmax) [tinc − Tp]
-−1
-, (S2)
-and
-k2 = ln
-[Vmax]
-−1
-
-t
-−1
-r
-, (S3)
-where tr is the time between symptom onset and recovery, which is drawn uniformly at random from the range [5d, 10d], to approximately match the duration of replication-competent
-viral shedding after symptom onset [38]. For an interaction between infected individual i and
-susceptible individual j, the probability of transmission is computed as:
-pij (t) = 1 − exp(−β(t, i)σij∆t), (S4)
-where β(t, i) is the force of infection produced by an infected individual i at time t since infection,
-∆t = 0.1 days is the duration of a discrete time step, and σij is a scaling factor that incorporates
-the effects of contact frequency and intensity for a given transmission event between infected
-individual i and susceptible individual j:
-σij = Fijh
-−1
-j
-, (S5)
-
-where Fij is a context-specific transmission mitigation factor, and hj
-is the number of contacts of
-a given type in the local mixing environment. In the calibration model, Fij = 1 and hj = N − 1.
-In the full quarantine model, Fij is given as follows:
-• For close contacts between travellers in the same group,
-Fij = 1, and hj = ni − 1, where ni
-is the number of close contacts in the same group as
-individual i (n = 4 initially but can decrease if members are moved into isolation).
-• For interactions between travellers in different close contact groups,
-Fij = 0.01 and hj =
-P
-g|i /∈g
-ng is the number of travellers in the quarantine system who are
-not isolated and who are not in the same group g as individual i).
-• For interactions between infected travellers and susceptible workers,
-Fij = 0.01 and hj = nw, where nw is the number of workers present in the facility at time
-t.
-• For interactions between infected workers and susceptible travellers,
-Fij = 0.01, hj = ntot where ntot is the number of travellers not in isolation.
-• For interactions between infected workers and susceptible workers,
-Fij = 0.1 and hj = nw − 1, where nw is the number of workers present in the facility at
-time t.
-S9
-1.0
-0.8
-0.6
-0.4
-0.2
-0.0
-force of infection
-(rescaled to maximum)
-0 2 4 6 8 10 12 14
-time from infection
-βmax ~ Gamma( k , 〈 βmax 〉�� k )
-〈 βmax 〉 ∝ R0 β(t)
-p(t) = 1 - e
--β∆t
-incubation period
-(symptom onset)
-incubation periods ~ lognormal ( ����������σ ������� )
-post-incubation periods ~ uniform ( 5, 10 )
-βmax
-FIG. S4. An example of the force of infection produced by an infected individual as a function of
-time from infection. The force of infection increases exponentially from the time of infection to the
-start of the plateau, at which point it reaches its maximum value. The plateau phase lasts until
-the end of the incubation period and has a duration equal to 1/10 of the total incubation period.
-Incubation periods are drawn from a log-normal distribution. During the post-incubation period,
-infectiousness decreases exponentially until it reaches a cutoff at the time of recovery. The duration
-between the end of the plateau phase and recovery is drawn from a uniform distribution bounded
-between 5 and 10 days. The y-axis values are re-scaled to βmax, which is drawn from a Gamma
-distribution parameterised for a specified R0 value as described in Section S1 B 1.
-5. Time from Onset of Symptoms to Transmission (TOST)
-The functional form used for β(t) was developed to match the ensemble distributions of time
-from onset of symptoms to transmission (TOST), reported by Ferretti et al. [34]. A comparison
-of the statistics produced by the calibration model and the distribution reported by Ferretti et
-al. is shown in Figure S5. The qualitative match between our model’s case statistics and the
-empirical TOST distribution is sensitive to the choice of individual disease trajectory function
-S10
-0.25
-0.20
-0.15
-0.10
-0.05
-0.00
-probability density
--10 -5 0 5 10
-Time from Onset of Symptoms to Transmission (TOST, days)
-empirical TOST
-( scaled students-t, Ferretti et al. )
-simulated TOST (ABM, n = 104
-trials, N = 500 agents)
-〈βmax〉�� 1.0
-〈βmax〉�� 2.0
-〈βmax〉�� 3.0
-FIG. S5. Time from Onset of Symptoms to Transmission (TOST) distributions produced by the
-calibration model with N = 500 individuals in a fully-connected (homogeneous) contact network.
-The TOST distribution does not depend on the transmissibility of the disease, and matches closely
-with the best-fit model from Ferretti et al. [34].
-(Equations S1 through S3).
-6. Time from Onset of Symptoms to Detection (TOSD)
-The model of test sensitivity discussed in the following subsections is designed to capture
-the variability in RT-PCR test sensitivity as a function of time relative to symptom onset. These
-models are based on a study by Hellewell et al. [29]. Here, the general objective is to describe test
-sensitivity as a piecewise sigmoid with a single breakpoint, Tc. Before the breakpoint sensitivity
-increases (t < Tc, where t represents time from infection). After the breakpoint (t > Tc),
-sensitivity decreases slowly. In this case, the function is expressed as a logistic regression:
-S11
-parameter 95% CI
-Tc [2.01, 5.11]
-b1 [0.8, 2.31]
-b2 [1.26, 3.47]
-b3 [-1.2, -1.05]
-TABLE S1. Parameter ranges used in Hellewell et al., to describe the progression of test sensitivity
-during COVID-19 infections in healthcare workers. In the model reported here, these parameter
-ranges were adjusted to account for individual variability in incubation periods.
-p(positive|infected) =
-
-
-
-[1 + exp(−(b1 + b2τ ))]−1
-t ≤ Tc
-[1 + exp(−(b1 + b2τ + b2b3τ )]−1
-t > Tc
-, (S6)
-where τ = t − Tc, the maximum test sensitivity depends only on b1 as [1 + exp(−b1)]−1
-, the
-initial growth of sensitivity is controlled by b2, and the decay of sensitivity after Tc is given by b2
-and b3. The parameter ranges (95% credible intervals) provided in Hellewell et al. are shown in
-table S1.
-The parameter ranges shown in Table S1 were produced by fitting to ensemble data. That
-is, the study examined a timeseries of tests and test results for a cohort of 27 individuals, and
-aggregated this timeseries in order to fit the parameters of the model. Therefore, the parameter
-ranges above are not suitable for all individual test sensitivity trajectories. Our individual-based
-model translates the specified functional form (piece-wise logistic function) and parameter ranges
-into a set of trajectories describing test sensitivity as a function of the incubation period (time
-between infection and symptom onset) for each individual in the system. By doing so, we reconcile
-the ensemble characteristics observed by Hellewell et al., with the requirements of individual
-trajectories. In our model, the requirements are specified as follows:
-• An individual may not test positive before they are infected.
-S12
-• The peak of test sensitivity must have some correspondence to the timing of the peak viral
-load (peak infectiousness).
-• The probability of detection should be high during the first week of symptoms.
-These requirements have the following implications for the model framework specified by Hellewell
-et al.:
-• the specified range of Tc will not fit trajectories with longer-than-average incubation periods
-(average incubation period is 5.5 days).
-• The rate of increase (b2) must be higher for individuals with shorter incubation periods
-(this imposes a correlation when specifying individual trajectories).
-To address these discrepancies, we relax the parameter restrictions in Table S1, and set the
-breakpoint position relative to an individual’s incubation period. The delay between the breakpoint
-Tc and the onset of symptoms tinc is distributed in the range [0, 4.11].The rationale for this choice
-is based on the observation that the upper 95% credible interval reported by Hellewell, Tc = 5.11,
-is approximately equivalent to the median incubation period. Here, we infer that this corresponds
-to using the incubation period as an upper limit for Tc. Additionally, our model correlates the
-length of the delay with the incubation period of each agent by quantile matching, to ensure the
-that Tc is always positive:
-Tc,i = tinc, i − 4.11qi
-, (S7)
-where i denotes a specific individual, qi
-is the value of the incubation period CDF evaluated at
-tinc(i), and 4.11 is the range of possible delays (in units of days) between peak test sensitivity
-and symptom onset.
-To provide a better match to ensemble statistics, we also chose to impose a negative correlation
-between individual incubation periods and the term (b2) that specifies the growth rate of test
-sensitivity before the peak, and (along with b3) the decay rate of test sensitivity after the peak:
-b2,i = 1.26 − 2.21(1 − qi), (S8)
-where 1.26 is the lower bound for b2 and 2.21 is the range of b2 values given in Table S2. The
-modified parameter ranges are shown in Table S2, samples of individual trajectories are shown in
-Figure S6, and a comparison of ensemble statistics is shown in Figure S7. On the other hand,
-S13
-parameter 95% CI
-Tc tinc - [0, 4.11]
-b1 [0.8, 2.31]
-b2 [1.26, 3.47]
-b3 [-1.14, -1.05]
-TABLE S2. Parameter ranges used in order to fit the ABM ensemble statistics to those reported
-by Hellewell et al..
-the b1 and b3 parameters are chosen uniformly at random for each individual from the ranges
-specified in S2.
-The model as-implemented approximately matches the proportion of infections detected before
-symptom onset, given daily RT-PCR test, estimated by Hellewell et al. (approx. 75%). The
-corresponding distribution of time from onset of symptoms to detection (TOSD), is shown in
-Figure S7(c). In this system, daily testing detects approximately 78% of cases prior to symptom
-onset.
-S14
-1.0
-0.8
-0.6
-0.4
-0.2
-0.0
-Relative Infectiousness
-0 2 4 6 8 10 12 14
-Time from Infection
-0.8
-0.6
-0.4
-0.2
-0.0
-Test Sensitivity
-relative infectiousness
-test sensitivity
-symptom onset
-peak test sensitivity
-1.0
-0.8
-0.6
-0.4
-0.2
-0.0
-Relative Infectiousness
-0 5 10 15 20 25
-Time from Infection
-0.6
-0.4
-0.2
-0.0
-Test Sensitivity
-relative infectiousness
-test sensitivity
-symptom onset
-peak test sensitivity
-1.0
-0.8
-0.6
-0.4
-0.2
-0.0
-Relative Infectiousness
-0 5 10 15 20 25
-Time from Infection
-0.8
-0.6
-0.4
-0.2
-0.0
-Test Sensitivity
-relative infectiousness
-test sensitivity
-symptom onset
-peak test sensitivity
-a)
-b)
-c)
-FIG. S6. Individual trajectories of test sensitivity and force of infection as a function of time
-since exposure. (a) Short incubation periods produce alignment of peak test sensitivity and peak
-infectiousness, both of which occur close to the onset of symptoms. (b) Average incubation periods
-produce a test sensitivity peak that lags symptom onset and peak infectiousness by several days,
-and extend the tail of the test sensitivity curve after symptom onset. (c) Long incubation periods
-correspond to longer lag times between peak test sensitivity and symptom onset, and further extend
-the tail of the test sensitivity trajectory.
-S15
-1.0
-0.8
-0.6
-0.4
-0.2
-0.0
-Test Sensitivity
-0 5 10 15 20 25 30
-Time from Infection
-sample median (n = 1000)
-95% quantile
-5% quantile
-mean incubation period (5.5 days)
-median lower 95%CI (Hellewell et al.)
-median upper 95%CI (Hellewell et al.)
-1.0
-0.8
-0.6
-0.4
-0.2
-0.0
-Test Sensitivity
--10 -5 0 5 10 15 20 25
-Time from Onset of Symptoms
-sample median (n = 1000)
-95% quantile
-5% quantile
-symptom onset
-0.20
-0.15
-0.10
-0.05
-0.00
-probability density
--10 -8 -6 -4 -2 0 2 4
-Time from Onset of Symptoms to Detection
-1.0
-0.8
-0.6
-0.4
-0.2
-0.0
-cumulative probability
-p (detect before onset) ≈0.78
-a) b)
-c)
-FIG. S7. Ensemble statistics of test sensitivity as a function of time from infection, aggregated
-from the Agent based model. (a) Test sensitivity as a function of time from infection. Grey
-dashed lines give the 95% credible intervals of the mean from Hellewell et al., while the solid black
-trace shows the ensemble average produced by 1000 samples from the Agent-based model. Solid
-red traces give the 5% and 95% quantiles from the Agent-based model. (b) Test sensitivity as a
-function of time from symptom onset produced by the Agent-based model. The black trace gives
-the ensemble average while the red traces give 5% and 95% quantiles. The vertical dashed lines
-in (a) and (b) represent the onset of symptoms. (c) Time from Onset of Symptoms to Detection
-given daily tests via RT-PCR, derived from the Agent-based model. The solid trace indicates the
-cumulative distribution, while the dashed lines indicate the proportion of cases (0.78) detected
-more than one day prior to symptom onset (assuming a test turnaround of 1 day, this corresponds
-to the proportion detected prior to symptom onset).
-S16
-C. Model of quarantine environment
-The model of quarantine system in which transmission occurs, explicitly represents individual
-travellers and quarantine workers. We describe the model in terms of an Input layer, Filter layer
-and Output layer.
-1. Input layer
-Arriving travellers are characterised in terms of:
-• the proportion of arriving travellers who are infected
-• the proportion of arriving travellers who are vaccinated
-Here, we set the proportion of infected arrivals to 1% and the proportion vaccinated to 100%.
-Additionally, it is assumed that infected arrivals are either pre-symptomatic or asymptomatic. If
-an arrival is pre-symptomatic their time since infection is sampled at random from the individual’s
-incubation period. If a traveller is asymptomatic, their time since infection on arrival is sampled
-from the sum of their incubation period and post-incubation period.
-2. Filter layer
-Travellers: Quarantined travellers are structured into groups who are quarantined together
-(e.g., in the same room). For the results presented here, the size of these groups is set to 4, and
-the number of travellers in the facility is set to 100. Travellers are discharged from the system
-in groups. Once all travellers in a group meet the discharge criteria, the group is removed and a
-new group generated to replace them.
-Workforce: The quarantine workforce is also represented. The workforce model specifies a
-weekly work schedule for each individual, including 5 days working and 2 days off. On days and
-off days are scheduled randomly, and a work schedule configuration is accepted by the model as
-long as at least 5/20 workers are present each day of the week.
-Transmission control: We assume that the rate of transmission between travellers who
-belong to different groups is reduced by a factor of 100, compared to that between travellers
-S17
-who belong to the same group. Similarly, we assume a factor of 100 reduction in transmission
-between travellers and workers, and a factor of 10 reduction between workers.
-Vaccination: The efficacy of vaccination may be varied to reflect available evidence. As
-above, we assume that some proportion of the workforce, and some proportion of arriving travellers
-will have been vaccinated. Vaccine efficacy parameters can be varied to reflect the characteristics
-of vaccines used in particular source countries of interest. In this work, we assume that all
-individuals in the quarantine system are vaccinated. We implement vaccination by setting efficacy
-against infection (VI = V E) and efficacy against onward transmission VT = 0. This choice is
-not significant when computing transmission within the quarantine system, because all individuals
-are assumed vaccinated. However, the components of vaccine efficacy could play a significant
-role when interpreting the force of infection produced by breach events (see sensitivity analysis
-below).
-Testing: Testing of workers can be scheduled at varying frequencies (e.g., daily, every three
-days, or weekly) and workers will only be tested on days that they attend the workplace. In the
-results reported here, testing of the workforce is performed daily, as long as a worker is present.
-The model includes testing of travellers that can be scheduled to occur on given days during
-their quarantine period. For the results reported here, travellers were tested on days 3 and 12
-after entering quarantine. We calibrated test sensitivity as specified above, to represent detection
-via RT-PCR.
-Response to a positive test or symptoms: If a worker tests positive or develops symptoms,
-we assume that they are removed from the workforce and replaced by a new worker (irrespective
-of whether they attend work that day or not).
-If a traveller tests positive or develops symptoms, they are isolated and removed from the
-quarantine facility (e.g., to a “health hotel” or hospital), the isolation period is set to 10 days,
-after which they are released. A positive test result in a traveller triggers a 14-day quarantine
-extension for other travellers in the same group, and resets their testing schedule (tests performed
-on days 3 and 12 after extension).
-S18
-3. Output
-The output of the quarantine simulation is a time series of “breach events” with the corresponding characteristics of each individual that leaves quarantine while infected. Several properties are
-recorded, and the recorded properties depend on whether the infected individual was a worker or
-traveller. For travellers, the recorded properties are:
-• exposure days: the number of days they will remain infectious
-• days in quarantine: the total number of days spent in the quarantine system
-• days in extended quarantine: the number of days in quarantine extension after detection
-of a case in a close contact
-• days in isolation: the number of days spent in isolation after testing positive or presenting
-symptoms
-• incubation period: the period between infection and symptom onset
-• time post-incubation: the period between symptom onset and recovery
-• time discharged: the timepoint at which the individual was released from quarantine
-• index case (boolean): a flag indicating whether the individual arrived infected or was
-infected while in quarantine
-• symptomatic (boolean): a flag indicating whether the individual would express clinical
-symptoms after their incubation period
-• vaccinated (boolean): a flag indicting the individual’s vaccination status
-• βmax: the maximum force of infection for the individual (i.e., force of infection at symptom
-onset)
-• βcommunity: the integrated force of infection over the period after the individual was discharged from quarantine (these are summed to produce the βtot value for a simulation)
-For workers, the recorded properties are:
-S19
-• exposure days: the number of days between infection and detection or recovery
-• incubation period: same as for travellers (see above)
-• post-incubation period: same as for travellers (see above)
-• tested positive (boolean): a flag indicating whether the individual was removed after testing
-positive
-• expressed symptoms (boolean): a flag indicating whether the individual was removed after
-expressing symptoms
-• time discharged: the timepoint at which the individual was removed from the facility
-• symptomatic (boolean): same as for travellers (see above)
-• vaccinated (boolean): same as for travellers (see above)
-• βmax: same as for travellers (see above)
-• βcommunity: the force of infection integrated over the period from infection to detection
-and discharge.
-This output timeseries is used to generate input statistics for the index cases used in the
-branching process model.
-S2. SENSITIVITY ANALYSIS OF INCUBATION PERIOD
-To estimate the effect of a shorter incubation period, we used the statistics reported by the
-China CDC for an outbreak of the Delta variant in May, 2021 [16]. While their estimates of
-the incubation period may differ from those of others [17], they represent a lower bound for
-this important parameter. Here, we demonstrate how a shorter incubation period affects the
-transmission and detection of the virus in our model system. The main differences are:
-• Without intervention, slightly less transmission occurs prior to symptom onset.
-• Due to a more rapid increase in viral load, detection of cases typically occurs earlier.
-S20
-0.25
-0.20
-0.15
-0.10
-0.05
-0.00
-probability density
-0 5 10 15 20
-incubation period
-lognormal: ����������σ �������
-mean = 5.51 days
-median = 5.05 days
-lognormal: ����������σ �������
-mean = 4.4 days
-median = 4.03 days
-FIG. S8. Incubation period distributions used in the Agent-based model. The black trace indicates
-the distribution used for the main results, while the red trace indicates the distribution used in the
-sensitivity analysis.
-• In the quarantine model scenario, a shorter overall duration of infection increases the efficacy
-of a 14-day quarantine.
-These results demonstrate how shorter incubation periods can correspond to an enhanced capacity
-to control transmission. Our results caution against the use of these preliminary estimates of
-incubation period statistics for use in models of border quarantine systems. As we demonstrate,
-they potentially over-estimate the effectiveness of these systems and do not represent conservative
-assumptions about viral dynamics.
-To investigate the effect of incubation period, we first re-calibrated the base model using the
-modified incubation period distribution (Figure S9). During calibration, we determined the timing
-of symptom onset relative to transmission, and the timing of detection relative to symptom onset,
-given daily testing via RT-PCR in a homogeneous transmission network of 500 individuals (Figure
-S10). We then applied this modified calibration in the full quarantine simulation to examine the
-effectiveness of quarantine over the V E × R0 parameter space. The results are qualitatively
-similar to those produced by the original calibration (average incubation period 5.2 days), but
-show consistently lower levels of breach risk as measured by βtot.
-S21
-10
-8
-6
-4
-2
-0
-Basic Reproductive Ratio (R0)
-0.0 0.5 1.0 1.5 2.0 2.5 3.0
-〈βmax〉
-R0 (simulated) mean incubation period, 5.5 days
-linear fit, R0 = [3.83 � 0.02] 〈βmax〉
-R0 (simulated), mean incubation period, 4.4 days
-linear fit, R0 = [3.39 � 0.02] 〈βmax〉
-R0 = 1
-R0 = 2.14
-R0 = 6.3
-FIG. S9. Calibration of R0 as a function of the global transmission scalar for two different incubation
-periods.
-0.25
-0.20
-0.15
-0.10
-0.05
-0.00
-probability density
--10 -5 0 5 10
-Time from Onset of Symptoms to Transmission (TOST, days)
-empirical TOST
-( scaled students-t, Ferretti et al. )
-simulated TOST (ABM, n = 104
-trials, N = 500 agents)
-〈tinc〉�� 5.5 d
-〈tinc〉�� 4.4 d
-50x10-3
-40
-30
-20
-10
-0
-probability density
--10 -8 -6 -4 -2
-Time from Onset of Symptoms to Transmission (TOST, days)
-empirical TOST
-( scaled students-t, Ferretti et al. )
-simulated TOST (ABM, n = 104
-trials, N = 500 agents)
-〈tinc〉�� 5.5 d
-〈tinc〉�� 4.4 d
-a) b)
-FIG. S10. Distribution of TOST for two different incubation period distributions. (a) Shows the
-full distribution, while (b) zooms in on the negative intervals corresponding to pre-symptomatic
-transmission.
-S22
-1 2 3 4 5 6 7 8 9 10
-R0
-0.9 0.8 0.7 0.6 0.5 0.4 0.3 0.2 0.1 0.0
-VE
-0.0028 0.0114 0.0237 0.0304 0.0411 0.101 0.0521 0.118 0.0972 0.124
-0.00756 0.0274 0.0376 0.0552 0.0995 0.137 0.212 0.288 0.378 0.267
-0.0179 0.0768 0.11 0.25 0.265 0.338 0.352 0.417 0.746 0.67
-0.0345 0.1 0.173 0.256 0.518 0.445 0.868 0.89 1.14 1.34
-0.0441 0.129 0.302 0.35 0.574 0.694 0.959 1.06 1.62 2.49
-0.0535 0.163 0.295 0.577 0.805 0.972 1.19 1.8 2.2 2.1
-0.0698 0.235 0.512 0.667 0.906 1.29 1.87 2.41 3.2 3.36
-0.0867 0.264 0.519 1.13 1.24 1.59 2.8 3.35 3.88 4.44
-0.107 0.344 0.556 1.19 1.65 2.23 2.88 4.35 5.45 5.74
-0.122 0.319 0.836 1.22 2.15 2.59 3.86 5.3 5.71 7.07
+1 1 11 1 11
+
 1
-2
-3
-4
-5
-6
-7
-t
-o
-t
-/
-b
-a
-s
-elin
-e
-FIG. S11. Integrated force of infection (βtot relative to baseline) using an incubation period with
-a mean of 4.4 days. The baseline (denominator) value is taken from the alternate scenario with an
-incubation period of 5.5 days (R0 = 3, V E = 0). Results are shown as a function of vaccine efficacy
-and R0.
-S3. SENSITIVITY ANALYSIS OF VACCINE EFFICACY AGAINST ONWARD TRANSMISSION
-For the results presented in Figure 4, it was assumed that vaccine efficacy against onward
-transmission is negligible. That is, the values reported for βtot represent differences in breach
-statistics rather than the direct effects of vaccine efficacy. Here, we examine the alternate extreme
-case in which efficacy against transmission is equivalent to V E. This equates to multiplication of
-the βtot values in Figure 4 by the factor 1 − V E. Doing so results in a correction applied to the
-force of infection values, which fall linearly as V E increases. Under this alternate assumption,
-for each value of R0 the vaccine efficacy required to maintain baseline outbreak statistics is lower
-(S12). The magnitude of the difference increases with R0, ranging from approximately 10%
-(for R0 = 4) up to approximately 20% (for R0 = 10). While these differences are substantial,
-they represent the largest possible deviation due to efficacy against transmission. Therefore, the
-results presented in Figure 4 may overestimate the vaccine efficacy required to maintain baseline
-risk ratios, but the magnitude of this overestimate cannot exceed 20%.
-S23
-1 2 3 4 5 6 7 8 9 10
-R0
-0.9 0.8 0.7 0.6 0.5 0.4 0.3 0.2 0.1 0.0
-VE
-0.0017 0.0025 0.00357 0.00361 0.00757 0.00816 0.0107 0.0134 0.0138 0.0216
-0.00335 0.0109 0.0211 0.0351 0.0428 0.05 0.0439 0.076 0.0864 0.106
-0.0111 0.0146 0.0367 0.0698 0.103 0.0895 0.164 0.19 0.322 0.351
-0.0161 0.0417 0.0895 0.123 0.182 0.296 0.41 0.478 0.595 0.6
-0.0304 0.0939 0.146 0.234 0.301 0.505 0.511 0.949 1.11 1.2
-0.0583 0.126 0.233 0.383 0.633 0.829 0.983 1.23 1.59 2.4
-0.0891 0.2 0.363 0.642 0.881 1.27 1.94 1.98 2.5 2.81
-0.106 0.273 0.451 0.784 1.32 1.8 2.33 2.87 3.38 3.9
-0.129 0.329 0.841 1.28 1.71 2.3 3.06 3.94 4.63 6.13
-0.163 0.539 1 1.57 2.16 2.98 4.3 5.97 7.34 7.38
+11
+1
+
+
+
+
+
+
+1	
+
+
+Figure 2. Distribution of a test sample (with the corresponding training sample in the background) in redshift and X-ray flux (in band 2+3+4, see text), from
+the AGN-galaxy classification. The model used to obtain the predictions has been obtained from one iteration of the cross validation with redshifts (top panels
+and bottom left panel) and from another iteration without using redshifts (bottom right panel). The training has been done with the AB algorithm with SMOTE.
+The green continuous line in the top left panel corresponds to the luminosity 1042 erg s−1
+.
+fluxes explored in this survey. The identified AGN distribution (red
+line) is above the misclassified AGN distribution (black dashed line)
+at redshift beyond 0.2. Misclassified AGN are instead concentrated
+at redshifts lower than 0.2, most likely because this is where most
+galaxies are found.
+We also made an experiment to quantify the performance achievable without spectroscopic redshifts. With this purpose, we defined
+a training sample that includes only sources with photometric redshifts from KiDS (see details in Section 2). The resulting sample is
+composed by 260 galaxies and 710 AGN; for the test we substituted
+spectroscopic with photometric redshifts. This training experiment
+gave excellent results in term of performance, considering the performance metrics shown in Table 2 (middle table). Precision, recall
+and F1 score are similar for AGN and galaxies with spectroscopic
+or photometric redshifts (looking as usual at the AB classifier with
+SMOTE).
+The performance metrics degrade when redshifts are not included
+among the features. The distribution of the test sample made without using redshifts among the features is shown in the bottom-right
+panel of Fig. 2. The detection of AGN becomes more challenging for
+redshift higher than 1, since the misclassified AGN peak at redshift
+∼ 2. The model trained without redshift does not learn selection
+effects which cause high redshifts to be populated preferently by
+AGN. The AGN recall is unchanged for AGN because on average
+the model is able to find the same rate of AGN. Although we found
+a dramatic decrease of performance for galaxies when training the
+ML algorithms without any redshifts, the ability to classify AGN is
+marginally affected. This shows that including redshifts among the
+features is necessary to achieve a good classification performance of
+galaxies, due to their limited redshift span (and corresponding lack
+of statistics above redshift 1); the performance of the AGN classification is not strongly affected by redshifts since AGN have better
+statistics and a broader redshift coverage.
+Other parameters besides fluxes and redshifts among the list of
+selected features do not give new information in addition to what
+has been discussed in this section. Source extent S C−EXT ENT is
+strongly overlapping for AGN and galaxies. AGN correctly identified are composed by a vast majority of pointlike sources (only 0.4
+per cent of them have extent larger than zero as mentioned in the
+previous section), but galaxies correctly identified are also dominated by pointlike sources in the X-rays (since only the most nearby
+sources would be resolved by XMM-Newton), even though the fraction of extended sources among the galaxies becomes 26 per cent.
+Distributions in the remaining features do not highlight substantial
+difference
+Machine learning classifiers for AGN 11
+4.1.4 Class imbalance
+The sample used for this test case is composed by AGN which populate the survey 3.5 times more than the galaxies; we tried to mitigate
+this imbalance with the SMOTE method to oversample the training
+data. Besides the different statistics, the two classes have a different
+coverage in the parameter space, the minority sample composed by
+galaxies is limited within redshift z≤ 1, while the majority sample
+composed by AGN has a broader redshift distribution. As discussed
+above, the class imbalance affects mostly the ability of the models to
+recognise the minority class. The improvement of the recall for the
+minority class obtained with the SMOTE oversampling (see Table 2)
+is only marginal, from 76 per cent in the real dataset to 82 per cent
+in the dataset including SMOTE (see Table 2, highlighted row). The
+simulations, while slightly improving the recall of galaxies, give a
+marginally lower precision for the same class, consequently the performance in terms of accuracy is similar. Oversampling does not
+affect the performance of AGN classification, since AGN are the
+majority class (see Table 2).
+4.2 Type 1/2 AGN classification
+In this section, we discuss the classifier obtained to distinguish between type 1 and type 2 AGN, this model has been trained over the
+sample of 24029 type 1 AGN and 5203 type 2 AGN. For the discussion below, we use AB algorithm with SMOTE with spectroscopic
+redshifts included among the features as a reference model (shaded
+line of Table 4), unless differently stated. As in the test case 1, all
+algorithms trained with the same features give similar results, therefore our conclusions do not depend on the specific reference algorithm chosen for our discussion. As done in the previous test case,
+we made a consistency check to understand the classification performance with a features set reduced to describe directly source-related
+parameters, therefore the model has been retrained with a reduced
+features set. The test has demonstrated the ability of the model to
+generalize without using the features related to the instrumental conditions of these specific observations.
+4.2.1 Performance metrics
+The performance metrics are reported in Table 4, and have been estimated with the same procedure adopted for the previous test case.
+The different ML algorithms have very similar performance when
+trained on the same dataset. On the other hand, the best performance
+is achieved when the classifiers are trained including redshifts in the
+features.
+Varying the algorithm hyperparameters or the SMOTE number of
+neighbors does not lead to significantly better results. Similarly, the
+impact of changing the SMOTE ratio is very small (as discussed in
+the next paragraph), so we continue to discuss the results with a 0.5
+SMOTE ratio, as was done in the previous paragraph.
+The performance of different algorithms is rather similar when
+using the same features. The best performance is achieved when the
+features include redshifts, with very good results in the identification
+of type 1 AGN. When the training uses spectroscopic redshifts, the
+classifiers reach levels of precision of 96 per cent and a recall of 94
+per cent for the type 1 class (see shaded line of Table 4). For the
+more challenging task of identifying type 2 AGN, the precision is
+74 per cent with a recall of 80 per cent for the reference model. The
+F1 score is 95 per cent for type 1 AGN and 77 per cent for type 2 for
+this model. This results in a balanced accuracy of 87 per cent, which
+is a good result despite the severe selection effects (in redshifts and
+flux, as explained in Section 4.2.3) of the type 2 subsample.
+When redshifts are excluded from the features, the performance
+drops for both classes, impacting in particular the recall of the minority class (type 2). In absence of redshifts, the ML algorithms tend
+to assign the type 1 label to sources that are instead type 2, with a
+very low recall of type 2 (26 per cent obtained with the AB algorithm with SMOTE, see Table 4). This is due to the strong selection
+effects of the type 2 AGN resulting in a smaller redshift span, which
+limits their statistics beyond redshift 1.
+Spectroscopic redshifts
+algorithm Ptype1 Ptype2 Rtype1 Rtype2 F1type1 F1type2 ba
+SM
+RF 0.955 0.754 0.944 0.795 0.949 0.774 0.87
+Tree 0.957 0.699 0.925 0.806 0.94 0.749 0.865
+AB 0.956 0.737 0.938 0.802 0.947 0.768 0.87
+grad 0.957 0.749 0.941 0.807 0.949 0.777 0.874
+vote 0.958 0.746 0.94 0.812 0.949 0.777 0.876
+obs
+RF 0.943 0.807 0.962 0.734 0.953 0.768 0.848
+Tree 0.939 0.77 0.954 0.715 0.946 0.741 0.834
+AB 0.942 0.797 0.96 0.728 0.951 0.760 0.844
+grad 0.944 0.800 0.96 0.739 0.952 0.768 0.849
+vote 0.945 0.809 0.962 0.74 0.953 0.773 0.851
+Photometric redshifts
+algorithm Ptype1 Ptype2 Rtype1 Rtype2 F1type1 F1type2 ba
+SM
+RF 0.973 0.801 0.952 0.887 0.963 0.838 0.92
+Tree 0.958 0.824 0.963 0.816 0.96 0.815 0.889
+AB 0.965 0.794 0.949 0.857 0.956 0.818 0.903
+grad 0.97 0.797 0.951 0.885 0.96 0.832 0.918
+vote 0.973 0.828 0.959 0.889 0.966 0.855 0.924
+obs
+RF 0.965 0.853 0.968 0.853 0.966 0.848 0.911
+Tree 0.952 0.803 0.956 0.795 0.954 0.793 0.876
+AB 0.961 0.837 0.964 0.841 0.962 0.831 0.903
+grad 0.962 0.802 0.954 0.846 0.957 0.815 0.9
+vote 0.968 0.835 0.963 0.867 0.965 0.842 0.915
+No redshifts
+algorithm Ptype1 Ptype2 Rtype1 Rtype2 F1type1 F1type2 ba
+SM
+RF 0.863 0.598 0.957 0.298 0.907 0.398 0.627
+Tree 0.86 0.595 0.958 0.282 0.907 0.382 0.62
+AB 0.859 0.682 0.974 0.261 0.913 0.377 0.617
+grad 0.859 0.655 0.97 0.265 0.911 0.377 0.617
+vote 0.859 0.672 0.972 0.266 0.912 0.380 0.619
+obs
+RF 0.856 0.793 0.987 0.234 0.917 0.361 0.61
+Tree 0.854 0.726 0.981 0.227 0.913 0.346 0.604
+AB 0.850 0.847 0.992 0.194 0.916 0.315 0.593
+grad 0.851 0.840 0.992 0.198 0.916 0.320 0.595
+vote 0.854 0.833 0.991 0.215 0.917 0.341 0.603
+Table 4: Performance metrics for type 1/2 classification with features
+selection including spectroscopic redshifts (top table), photometric
+redshifts (middle table), no redshifts (bottom table). SM indicates
+that the training sample has been built with oversampling of the minority class (see text). Obs indicates that the training sample includes
+observed data only. Ptype1= precision calculated with respect to the
+type 1 AGN class. Ptype2= precision for type 2 AGN class. Rtype1
+= recall of type 1 AGN class. Rtype2 = recall of type 2 AGN class.
+F1type1 = F1 score of type 1. F1type2 = F1 score of type 2. ba =
+balanced accuracy. The ML algorithms are the same as in Table 2.
+MNRAS 000, 1–17 (2021)
+12 S. Falocco et al.
+Feature importance STD
+Z 0.214 0.007
+S C−DET−ML 0.022 0.003
+EP−ONT IME 0.018 0.002
+S C−EXT−ML 0.016 0.002
+S C−EXT ENT 0.012 0.001
+EP−OFFAX 0.007 0.002
+EP−8−CT S 0.003 0.001
+DIS T−NN 0.001 0.000
+S UM−FLAG 0.000 0.001
+N−DET ECT IONS 0.000 0.001
+EP−FLUX−2−3−4 0.000 0.000
+EP−5−FLUX 0.000 0.000
+Table 5: Permutation feature importance of the type 1/2 classifier
+trained using the AB algorithm with SMOTE. Importance: mean of
+importances from iterations, STD: standard deviation of the importances.
+4.2.2 Importance of features
+The list of features was investigated with the permutation feature
+importance as we did in test case 1. The results are given in Table
+5, and show that redshifts are the most relevant features. This is a
+consequence of the type 2 AGN dominating at low redshifts and
+type 1 AGN at higher redshifts, as will be discussed in more detail in
+Section 4.2.3. All other features result in a permutation importance
+at most 2 per cent, which is a similar to what we found in the test case
+1. We have further investigated the impact of features with the same
+procedure adopted for test case 1. The test demonstrates that the
+performance of the ML classifier does not change when the training
+is done with a reduced set of features including only source - related
+parameters. More details are shown in the Appendix C.
+4.2.3 Impact of redshifts - X-ray fluxes
+The distribution of the sample in flux and redshift is shown in Fig. 3,
+which reports the test sample distribution resulting from one iteration of the cross validation. The training has been done with SMOTE
+and training over all features including redshifts in Fig. 3 except for
+the lower panel on the right (which has been trained without redshifts). The distribution of sources shows that the misclassified type
+2 AGN (which have type 2 labels but have been missed by our classifier) are mostly localised in a high density area at redshift ∼ 0.7−1.
+A few sources at higher redshift z>1 have not been labeled as type 2
+AGN given the low occurrence of type 2 AGN in the training dataset
+which reflects, more in general, their low number in the literature.
+On the other hand, the classifier is successful for type 1 AGN, as can
+be seen in the histograms in the top-right and bottom-left panel of
+Fig. 3: the distribution of the identified type 1 AGN is above that of
+the misclassified type 1 AGN at all redshifts and all fluxes.
+We also performed an experiment to test the performance of
+the ML algorithms when trained with photometric redshifts instead
+of spectroscopic redshifts. This was done with the subsample of
+sources in common with the KiDS sample of photometric redshifts,
+resulting in 687 type 1 and 155 type 2 AGN. The ML algorithms
+were trained on this subset and using photometric redshifts instead
+of spectral ones, bringing good results in term of perfomance. As
+shown in Table 4, the metrics are similar to those obtained for spectroscopic redshifts for both type 1 AGN and type 2 AGN.
+The performance of the ML algorithms decreases when redshifts
+are not included among features. The lack of redshift information
+affects the ability to select type 2 AGN, in particular in terms of recall (which decreases from 80% to 26% with the AB classifier, with
+SMOTE). The distribution of type 1 and type 2 AGN in the model
+trained without redshifts is shown in the lower right panel of Fig.
+3: the type 2 AGN classification model results in a distribution of
+misclassified type 2 AGN above the classified type 2 at all redshifts.
+The misclassified type 1 AGN are instead mostly located at redshift
+1-1.2. It is interesting to notice that this is where the type 2 AGN
+distribution decays.
+Besides redshifts and fluxes, other features do not show a similarly
+clear difference in the distributions for type 1 and type 2 classes.
+4.2.4 Class imbalance
+The training sample in each of the cross validation iterations has
+∼21600 (90 per cent of 24029) type 1 AGN and ∼ 4670 (90 per
+cent of 5203) type 2 AGN. The imbalance ratio is ∼5:1 and we have
+tried to mitigate its effects with SMOTE to oversample the training
+data. Running the ML algorithm with SMOTE improves the recall
+of the type 2 AGN, but at the same time decreases their precision.
+The overall accuracy of the AB algorithm improves only by 3 per
+cent introducing the SMOTE simulations (from 84 to 87 per cent
+comparing the AB line in SM and obs sections of Table 4). We tested
+if a different SMOTE ratio might improve the performance of the
+classifier. A slight improvement in recall of the minority class of type
+2 AGN was obtained by increasing the SMOTE ratio from 0.5 to 0.9,
+at the same time with a decrease in precision. This is a well known
+effect when increasing the size of a class with synthetic datapoints:
+a lower number of false negatives with a corresponding better recall
+is achieved (since the algorithms has been trained on a larger sample
+of that class), but the number of false positives is not guaranteed to
+decrease, hence not necessarily increasing the precision.
+4.3 Limitations of binary classification
+This work has presented two binary classifiers to study extragalactic surveys in order to distinguish AGN from galaxies (test case 1)
+and type 1 from type 2 AGN (test case 2), using X-ray features. Intermediate classes, including e.g. LLAGN, have not been taken into
+account to build this binary classifiers.
+Regarding the first test case, even though a significant fraction
+of local galaxies shows some evidence of faint nuclei, they are not
+always detected in X-rays, and it is unfeasible to disentangle the
+nucleus from the host in the majority of the observations with the
+current X-ray instruments. X-ray spectra of galaxies shows a contribution from binaries, with typically hard spectra, which could actually be similar to the spectra of faint nuclei. Literature reports that
+faint nuclei, when successfully disentangled from the light of the
+host, also show a hard powerlaw from the LLAGN (as explained invoking different scenarios, e.g. Connolly et al. 2016 or Ho 2008 or
+Guainazzi et al. 2000).
+Another aspect which may affect the classification is X-ray continuum variability. It has indeed been demonstrated that variability
+features play a role in identifying AGN (Lo et al. 2014). Variability could be found in virtually all AGN, from low to high luminosity, highlighting intrinsic mechanisms in the SMBH (for instance,
+Sobolewska & Papadakis 2009; McHardy et al. 2006).
+While this aspect should not affect the ability to distinguish AGN
+and galaxies in the first test case, we believe it has an impact on the
+performance of type 1 AGN - type 2 AGN classification. From the
+Chandra Deep Field South survey, Paolillo et al. (2004) reported a
+MNRAS 000, 1–17 (2021)
+Machine learning classifiers for AGN 13
+1" 1" 1"1 1 11
+!
+1"1	
+1"1
+1"1
+1"1
+1"1
+1"11
+1"1
+ ""
+
+
+
+ 	
+ 
+
+ 
+ 
+
+
+1"1	 1"1 1"1 1"1 1"1 1"11 1"1
+! ""
+
+
+
+
+!	
+!
+
+!
+!
+
+
+1 1 11 1 11
+
 1
-2
-3
-4
-5
-6
-7
-t
-o
-t
-/
-b
-a
-s
-elin
-e
-FIG. S12. Integrated force of infection (βtot relative to baseline) assuming vaccine efficacy against
-onward transmission is maximised (VT = V E, VI = 0). The baseline (denominator) value is taken
-from the scenario with R0 = 3, and V E = 0. Results are shown as a function of vaccine efficacy
-and R0.
-S24
+11
+1
+
+1
+
+
+	
+1
+1
+
+		
+1 1 11 1 11
+
+1
+11
+1
+
+1
+1
+
+1	
+1
+
+
+	
+Figure 3. Distributions of test sample (and training sample in background) in redshift and X-ray flux (band 2+3+4) from the type 1/2 AGN classification. Top
+panels and bottom-left panel: distribution of the test sample (10 per cent of sample) with predictions from a model trained over 90 per cent of the sample using
+redshifts among the training features. Bottom right panel: results from a different training iteration made without including redshifts among the features. The
+training has been done with the AB algorithm with the SMOTE oversampling. The green continuous line in the top left panel corresponds to the luminosity
+1042 erg s−1
+.
+widespread intrinsic variability among AGN, prevalent in the ones
+unabsorbed in the X-rays. The authors found that the fraction of
+variable sources decreases with increasing intrinsic X-ray absorption. This kind of variability was explained by the authors as due to
+instabilities in the innermost regions of the nuclei. A very different
+scenario is variability of column densities in AGN, which involves
+larger scales. Literature reports variable column densities in X-ray
+absorbed AGN (Risaliti et al. 2002) and extreme cases have been reported with transitions from an absorbed to an unabsorbed phase.
+For instance Panessa et al. (2009) found a mismatch between the
+optical type 1 - type 2 classification and the X-ray absorption that
+was explained with a clumpy absorbing material in the torus. These
+extreme cases may at some extent complicate a type 1/2 classifier
+based on X-ray features when the labels of the training dataset are
+provided from optical spectra.
+5 CONCLUSIONS
+This paper tests several ML algorithms to classify extragalactic
+sources using samples based on XMM and SDSS. The first classifier has been constructed to distinguish between AGN and galaxies
+and another classifier to divide the AGN class into type 1 (unabsorbed) and type 2 (absorbed). We trained the first classifier using
+a sample with 25599 AGN and 7262 galaxies. The model to divide
+AGN into type 1 and type 2 is trained over a data set which contains
+24029 type 1 AGN and 5203 type 2 AGN (using Milliquasar data in
+addition to XMM and SDSS). The performance metrics were calculated with the cross validation, and the training data sets were oversampled such that the minority class constitutes 50 per cent of the
+majority class. We tested several classifiers which reached accuracy
+levels of 87 per cent in both classification problems (balanced accuracy). The maximum difference of balanced accuracy between the
+ML algorithms adopted in this work is less than 1 per cent, demonstrating a similar performance. All of them are indeed based on decision trees, and converge to reach the best performance achievable
+with tree-based algorithms. Our conclusions discussed below refer
+to the performance metrics of the AB algorithm obtained with oversampling and including spectroscopic redshifts among the features,
+unless stated otherwise.
+Good results are found when identifying AGN (94 per cent precision) in a sample of AGN and galaxies (first test case). A similar
+performance is reached when identifying type 1 AGN (96 per cent
+precision) in a sample of type 1 AGN and type 2 AGN (second test
+case). The minority classes represent a major challenge, since the
+precision of identifying galaxies in the first test case is 77 per cent,
+similar to the precision of identif
+14 S. Falocco et al.
+case, which reaches 74 per cent. In the first test case, the precision
+of galaxies is limited due to a number of sources optically classified
+as AGN, but classified as galaxies by the ML algorithm: this is in
+part due to many of them having low redshift and low flux, which is
+a flux-redshift range where galaxies are preferentially found. These
+sources may be AGN that are intrinsically faint or absorbed in the Xray band. The performance in the second test case is limited by the
+decay of the type 2 AGN distribution at redshift 0.5 - 1 in the training sample: better statistics of type 2 AGN at such redshifts would
+help to improve the classification performance.
+The ML algorithms were trained with spectroscopic and photometric redshifts, and we also performed a test without using redshifts
+among the features. The test with photometric redshifts was done
+for the sources in common with KiDS (considering the surveys of
+bright galaxies and quasars). The performance was consistent with
+that obtained using spectroscopic redshifts. By contrast, training the
+ML algorithms without redshifts, the performance is drastically reduced for the minority classes (galaxies in the first test case and type
+2 AGN in the second test case). We also noticed that the minority classes have a much more limited coverage of the flux-redshift
+space, due to stronger selection effects. We conclude that the main
+limitations are connected to the sparse sampling at high redshifts.
+Retraining the model with a reduced features set, which includes only directly source-related features has demonstrated the
+robustness of the results, highlighting the ability of our models to
+generalise well beyond the instrumental conditions of the training
+datasets.
+Concluding, the classifiers trained with the current data can be applied in the future to identify AGN and galaxies as well as to distinguish between type 1 and type 2 AGN, for sources that already have
+some distance information. For new and unknown sources without
+such information, the current methods are suitable to identify AGN
+in extragalactic surveys and to classify type 1 AGN in AGN surveys;
+on the other hand, it cannot be successfully used alone in finding
+galaxies and type 2 AGN. Our expectations are that the current training sample should be complemented with future surveys with better statistics of galaxies without active nuclei and with an improved
+statistics of absorbed AGN: retraining the current model would certainly help to achieve an acceptable accuracy for these two classes.
+Current surveys such as eROSITA or those planned to be carried
+out with the Athena mission will expand the known census of AGN
+by a factor 100, especially improving the demography of minority
+classes from low to high redshift (Nandra et al. 2013). This will help
+to overcome the strong sensitivity limits of current surveys (including the training sample used in this work). With an effective area
+of ∼ 1.4 m2
+at 1 keV, the Athena survey will be sensitive enough
+to build extra-galactic surveys with a variety of different classes, including heavily absorbed AGN up to z ∼ 3, and LLAGN at low
+redshifts.
+APPENDIX A: DETAILS OF SAMPLE SELECTION
+The steps made to build the samples are shown in figure A1, which
+indicate the number of sources of different classes. The test case 1,
+classifying AGN and galaxies, is done with the sample represented
+with red background in the figure. The test case 2 which classifies
+type 1 and type 2 AGN is instead based on the sample with orange background. The boxes represent the sources excluded from
+this study, while the ovals show the different steps and the final samples.
+APPENDIX B: EXPANDING AGN SAMPLE WITH NEW
+TYPE 2 CANDIDATES
+We have redefined the training sample of the AGN-galaxy classifier
+taking into account the presence of the 4355 new type 2 AGN candidates defined in Section 2.3. Specifically, we switched the labels of
+these 4355 sources from galaxies to AGN to account for a possible
+obscured nucleus. The sample is therefore composed by 29954 AGN
+and 2907 galaxies.
+We then retrained the model to classify AGN and galaxies and the
+MNRAS 000, 1–17 (2021)
+16 S. Falocco et al.
+results are reported in Table B1. This model does not show a strong
+improvement in the galaxy classification, which raises its recall by
+only 3 per cent with respect to the previous training described in
+Section 4, focussing on our reference algorithm, AB with SMOTE
+and including redshifts. The improvement in the AGN classification is also around 3 per cent with the reference algorithm. Without
+including redshifts in the features, we notice that, while the AGN
+classification improves with this newly defined dataset, the galaxy
+classification degrades, especially without the SMOTE simulations,
+i.e. the recall is 7 per cent for the classifier without redshifts and
+trained with the observed sample only (see AB algorithm in last section of table B1). This strong degradation in galaxies recall clearly
+reflects the increased imbalance between galaxies (which result in a
+very poor performance) and AGN (with a very good performance),
+where galaxies represent only 9 per cent of the training sample. The
+SMOTE simulations improve the galaxy recall up to levels similar to
+those discussed in Section 4: the recall is around 35 per cent for the
+AB algorithm in the SMOTE section of Table B1 without redshifts
+and 40 per cent in the same line of Table 2.
+Spectroscopic redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.983 0.733 0.971 0.832 0.977 0.778 0.901
+Tree 0.983 0.663 0.959 0.83 0.971 0.736 0.895
+AB 0.985 0.653 0.956 0.849 0.97 0.738 0.902
+grad 0.984 0.676 0.961 0.837 0.972 0.747 0.899
+vote 0.985 0.703 0.965 0.848 0.975 0.768 0.907
+obs
+RF 0.976 0.838 0.986 0.751 0.981 0.791 0.868
+Tree 0.975 0.788 0.981 0.738 0.978 0.761 0.859
+AB 0.974 0.797 0.982 0.736 0.978 0.765 0.859
+grad 0.979 0.642 0.957 0.793 0.968 0.709 0.875
+vote 0.979 0.644 0.958 0.793 0.968 0.71 0.875
+No redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.935 0.353 0.942 0.325 0.939 0.338 0.634
+Tree 0.938 0.292 0.91 0.381 0.924 0.330 0.646
+AB 0.937 0.34 0.934 0.350 0.935 0.344 0.642
+grad 0.935 0.337 0.936 0.337 0.936 0.336 0.636
+vote 0.937 0.365 0.942 0.346 0.935 0.355 0.644
+obs
+RF 0.92 0.517 0.99 0.115 0.954 0.187 0.552
+Tree 0.922 0.407 0.979 0.148 0.95 0.216 0.564
+AB 0.916 0.555 0.995 0.065 0.954 0.116 0.530
+grad 0.918 0.550 0.993 0.083 0.954 0.143 0.538
+vote 0.918 0.550 0.993 0.089 0.954 0.147 0.540
+Table B1: Performance metrics for AGN-galaxy classification with
+features including source related properties and more instrumental
+related parameters. Spectroscopic redshifts are included in the top
+table, photometric redshifts in the middle table, no redshifts are included in the bottom table. SM indicates that the training sample has
+been built with oversampling of the minority class (see text). Obs indicates that the training sample only includes observed data. PAGN =
+precision calculated with respect to the AGN class. Pg= precision
+for galaxies class. RAGN = recall of AGN. Rg = recall of galaxies.
+F1AGN = F1 score of AGN. F1g = F1 score of galaxies. ba = balanced accuracy. RF, Tree, AB, grad, and vote are defined in Section
+3.2.
+APPENDIX C: IMPACT OF FEATURES SELECTION
+In this section we further investigate the impact of features in the
+performance of the ML algorithms in both test cases. Given that the
+permutation method does not highlight the importance of the features beyond the first most relevant one (redshifts), we explore this in
+more detail with an additional experiment which consists of reducing the list of features. The models constructed for the AGN-galaxy
+classification problem were initially trained using the 13 features
+listed in Table 1. The performance of the model has been tested by
+removing all instrumental features in order to see their genuine importance. We therefore trained a new model with the directly sourcerelated features only and checked its performance metrics. The results, shown in Table C1, are very similar to the ones obtained with
+the larger list of features (reported in Table 2). This demonstrates
+that a good model training can be achieved with source-related features only, since the others more connected to instrumental conditions can be removed, still obtaining good results.
+MNRAS 000, 1–17 (2021)
+Machine learning classifiers for AGN 17
+Spectroscopic redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.948 0.739 0.917 0.823 0.933 0.779 0.87
+Tree 0.95 0.725 0.910 0.830 0.93 0.774 0.87
+AB 0.952 0.739 0.916 0.838 0.934 0.785 0.877
+grad 0.953 0.738 0.915 0.841 0.934 0.786 0.878
+vote 0.953 0.741 0.916 0.841 0.934 0.788 0.878
+obs
+RF 0.933 0.788 0.942 0.761 0.937 0.774 0.852
+Tree 0.933 0.769 0.935 0.765 0.934 0.766 0.85
+AB 0.932 0.791 0.943 0.758 0.938 0.774 0.851
+grad 0.933 0.788 0.942 0.762 0.938 0.775 0.852
+vote 0.933 0.792 0.944 0.765 0.938 0.779 0.854
+Photometric redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.96 0.834 0.937 0.893 0.948 0.860 0.915
+Tree 0.959 0.797 0.918 0.887 0.938 0.837 0.902
+AB 0.956 0.811 0.927 0.885 0.941 0.844 0.906
+grad 0.96 0.814 0.927 0.903 0.943 0.853 0.915
+vote 0.960 0.822 0.93 0.920 0.945 0.870 0.920
+obs
+RF 0.952 0.838 0.941 0.869 0.946 0.851 0.905
+Tree 0.966 0.796 0.916 0.910 0.940 0.846 0.913
+AB 0.948 0.814 0.933 0.854 0.940 0.832 0.893
+grad 0.949 0.825 0.936 0.866 0.942 0.842 0.901
+vote 0.962 0.830 0.937 0.890 0.949 0.862 0.915
+No redshifts
+algorithm PAGN Pg RAGN Rg F1AGN F1g ba
+SM
+RF 0.841 0.510 0.888 0.408 0.864 0.453 0.648
+Tree 0.842 0.540 0.903 0.400 0.871 0.459 0.652
+AB 0.845 0.587 0.919 0.405 0.880 0.479 0.662
+grad 0.846 0.583 0.916 0.413 0.880 0.483 0.664
+vote 0.841 0.590 0.920 0.400 0.881 0.468 0.657
+obs
+RF 0.831 0.604 0.939 0.329 0.882 0.426 0.634
+Tree 0.827 0.669 0.959 0.294 0.888 0.408 0.626
+AB 0.822 0.774 0.979 0.250 0.893 0.378 0.615
+grad 0.823 0.758 0.977 0.258 0.893 0.384 0.617
+vote 0.826 0.734 0.971 0.278 0.893 0.403 0.624
+Table C1: Performance metrics for AGN-galaxy classification with
+directly source-related features only. Spectroscopic redshifts were
+included in top table, photometric redshift in the middle table, no
+redshifts were included in bottom table). SM indicates that the training sample was built with oversampling of the minority class (see
+text). Obs indicates that the training sample only includes observed
+data. PAGN = precision calculated with respect to the AGN class. Pg=
+precision for galaxies class. RAGN = recall of AGN. Rg = recall of
+galaxies. F1AGN = F1 score of AGN. F1g = F1 score of galaxies.
+ba = balanced accuracy. RF, Tree, AB, grad, and vote are defined in
+Section 3.2.
+For test case 2, we made the same experiment to further investigate the importance of features used to train the ML algorithms. The
+results are still very similar to the ones shown for the full set of features (comparing Table C2 with Table 4). This proves that the model
+is able to generalise beyond the specific instrumental conditions of
+our training dataset.
+Spectroscopic redshifts
+algorithm Ptype1 Ptype2 Rtype1 Rtype2 F1type1 F1type2 ba
+SM
+RF 0.955 0.706 0.928 0.799 0.941 0.749 0.864
+Tree 0.959 0.681 0.917 0.816 0.937 0.742 0.867
+AB 0.962 0.688 0.918 0.832 0.94 0.753 0.875
+grad 0.963 0.685 0.917 0.836 0.939 0.753 0.876
+vote 0.961 0.698 0.922 0.830 0.940 0.754 0.873
+obs
+RF 0.938 0.77 0.954 0.71 0.946 0.738 0.832
+Tree 0.94 0.762 0.952 0.717 0.946 0.739 0.835
+AB 0.939 0.779 0.956 0.712 0.947 0.744 0.834
+grad 0.939 0.78 0.957 0.71 0.947 0.743 0.834
+vote 0.941 0.782 0.956 0.723 0.949 0.751 0.84
+Photometric redshifts
+algorithm Ptype1 Ptype2 Rtype1 Rtype2 F1type1 F1type2 ba
+SM
+RF 0.971 0.804 0.952 0.864 0.961 0.826 0.908
+Tree 0.965 0.767 0.944 0.845 0.954 0.796 0.895
+AB 0.965 0.771 0.942 0.850 0.953 0.797 0.896
+grad 0.969 0.770 0.944 0.866 0.956 0.809 0.905
+vote 0.970 0.772 0.944 0.870 0.955 0.813 0.907
+obs
+RF 0.967 0.825 0.961 0.844 0.964 0.83 0.902
+Tree 0.962 0.796 0.953 0.838 0.957 0.805 0.896
+AB 0.95 0.782 0.954 0.772 0.951 0.767 0.863
+grad 0.958 0.785 0.952 0.812 0.955 0.791 0.882
+vote 0.964 0.805 0.955 0.840 0.959 0.817 0.898
+No redshifts
+algorithm Ptype1 Ptype2 Rtype1 Rtype2 F1type1 F1type2 ba
+SM
+RF 0.861 0.426 0.905 0.326 0.882 0.369 0.615
+Tree 0.858 0.54 0.949 0.275 0.901 0.364 0.612
+AB 0.859 0.623 0.965 0.265 0.909 0.372 0.615
+grad 0.859 0.606 0.962 0.269 0.907 0.372 0.615
+vote 0.858 0.580 0.955 0.265 0.907 0.367 0.613
+obs
+RF 0.854 0.648 0.972 0.235 0.910 0.344 0.603
+Tree 0.851 0.762 0.986 0.203 0.914 0.320 0.595
+AB 0.849 0.861 0.993 0.184 0.916 0.303 0.589
+grad 0.849 0.859 0.993 0.184 0.916 0.303 0.589
+vote 0.851 0.830 0.992 0.199 0.915 0.323 0.596
+Table C2: Performance metrics for type 1/2 classifier with directly
+source-related features. Spectroscopic redshifts are included in the
+top table, photometric redshifts in the middle table, no redshifts are
+included in the bottom table. SM indicates that the training sample
+was built with oversampling of the minority class (see text). Obs indicates that the training sample only includes observed data. Ptype1=
+precision calculated with respect to the type 1 AGN class. Ptype2=
+precision for type 2 AGN class. Rtype1 = recall of type 1 AGN class.
+Rtype2 = recall of type 2 AGN class. F1type1 = F1 score of type 1.
+F1type2 = F1 score of type 2. ba = balanced accuracy. RF, Tree, AB,
+grad, and vote are defined in Section 3.2.
+This paper has been typeset from a TEX/LATEX file prepared by the author.
+MNRAS 000, 1–17 (2021)
