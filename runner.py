@@ -1,18 +1,17 @@
 import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-import nltk
 from nltk import word_tokenize
 from nltk.corpus import stopwords
-from nltk.util import everygrams
+# from nltk.util import everygrams
 
 import numpy as np
 
 # nlp = spacy.load("en_core_web_sm")
+# import nltk
 # nltk.download("punkt")
 # nltk.download("stopwords")
 
-# astronomy topic
 docs = []
 
 for i in range(1, 21):
@@ -24,12 +23,12 @@ for i in range(1, 21):
         map(lambda l: l.lower(), word_tokenize(doc))))
     docs.append(" ".join(tokens))
 
-with open("out", "w") as fout:
+with open("out-astro", "w") as fout:
   for doc in docs:
     fout.write(doc)
     fout.write("\n")
 
-docs2 = list(map(lambda l: l.strip(), open("out", "r").readlines()))
+# docs = list(map(lambda l: l.strip(), open("out", "r").readlines()))
 
 # TF-IDF based terms extraction
 tfidf_vectorizer = TfidfVectorizer(
@@ -38,6 +37,7 @@ tfidf_vectorizer = TfidfVectorizer(
     max_features=10000,
     stop_words="english",
     ngram_range=(1, 4))
+
 tfidf = tfidf_vectorizer.fit_transform(docs)
 feature_names = np.array(tfidf_vectorizer.get_feature_names())
 
@@ -48,14 +48,12 @@ termScores = [(feature_names[col], tfidf[row, col])
 termScoresFiltered = list(filter(
     lambda l: l[1] > THRESHOLD and len(l[0]) > 1,
     termScores))
-len(set(termScoresFiltered)), len(termScoresFiltered)
 
 extracted_terms = set(map(lambda l: l[0], termScoresFiltered))
 
-print(termScoresFiltered)
-exit(12)
-
 print(extracted_terms)
+
+exit(12)
 
 # prepare docs for classification
 flattened = sorted(set([term for doc in docs for term in doc.split(" ")]))
