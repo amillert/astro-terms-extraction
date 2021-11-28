@@ -1,4 +1,5 @@
 import os
+from numpy.lib.function_base import extract
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from nltk import word_tokenize
@@ -55,10 +56,9 @@ termScoresFiltered = list(filter(
 
 extracted_terms = set(map(lambda l: l[0], termScoresFiltered))
 
-from pprint import pprint
-
-pprint(termScores)
-print(extracted_terms)
+with open("astro-terms", "w") as fout:
+  for term in extracted_terms:
+    fout.write(f"{term}\n")
 
 exit(12)
 
