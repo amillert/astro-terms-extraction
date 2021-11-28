@@ -12,23 +12,27 @@ import numpy as np
 # nltk.download("punkt")
 # nltk.download("stopwords")
 
-docs = []
+# Process and save:
 
-for i in range(1, 21):
-  print(i)
-  with open(os.path.join("./data", f"art{i}.txt")) as f:
-    doc = f.read()
-    tokens = list(filter(
-        lambda l: l.isalpha() and l not in stopwords.words("english"),
-        map(lambda l: l.lower(), word_tokenize(doc))))
-    docs.append(" ".join(tokens))
+# docs = []
+# 
+# for i in range(1, 21):
+#   print(i)
+#   with open(os.path.join("./data", f"art{i}.txt")) as f:
+#     doc = f.read()
+#     tokens = list(filter(
+#         lambda l: l.isalpha() and l not in stopwords.words("english"),
+#         map(lambda l: l.lower(), word_tokenize(doc))))
+#     docs.append(" ".join(tokens))
+# 
+# with open("out-astro", "w") as fout:
+#   for doc in docs:
+#     fout.write(doc)
+#     fout.write("\n")
 
-with open("out-astro", "w") as fout:
-  for doc in docs:
-    fout.write(doc)
-    fout.write("\n")
+# Load:
 
-# docs = list(map(lambda l: l.strip(), open("out-astro", "r").readlines()))
+docs = list(map(lambda l: l.strip(), open("out-astro", "r").readlines()))
 
 # TF-IDF based terms extraction
 tfidf_vectorizer = TfidfVectorizer(
@@ -51,6 +55,9 @@ termScoresFiltered = list(filter(
 
 extracted_terms = set(map(lambda l: l[0], termScoresFiltered))
 
+from pprint import pprint
+
+pprint(termScores)
 print(extracted_terms)
 
 exit(12)
