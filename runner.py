@@ -28,7 +28,7 @@ with open("out-astro", "w") as fout:
     fout.write(doc)
     fout.write("\n")
 
-# docs = list(map(lambda l: l.strip(), open("out", "r").readlines()))
+# docs = list(map(lambda l: l.strip(), open("out-astro", "r").readlines()))
 
 # TF-IDF based terms extraction
 tfidf_vectorizer = TfidfVectorizer(
