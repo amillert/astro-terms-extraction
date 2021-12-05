@@ -15,27 +15,28 @@ import numpy as np
 
 # Process and save:
 
-# docs = []
-# 
-# for i in range(1, 21):
-#   print(i)
-#   with open(os.path.join("./data", f"art{i}.txt")) as f:
-#     doc = f.read()
-#     tokens = list(filter(
-#         lambda l: l.isalpha() and l not in stopwords.words("english"),
-#         map(lambda l: l.lower(), word_tokenize(doc))))
-#     docs.append(" ".join(tokens))
-# 
-# with open("out-astro", "w") as fout:
-#   for doc in docs:
-#     fout.write(doc)
-#     fout.write("\n")
+docs = []
+
+for i in range(1, 21):
+  print(i)
+  with open(os.path.join("./data", f"art{i}.txt")) as f:
+    doc = f.read()
+    tokens = list(filter(
+        lambda l: l.isalpha() and l not in stopwords.words("english"),
+        map(lambda l: l.lower(), word_tokenize(doc))))
+    docs.append(" ".join(tokens))
+
+with open("out-astro", "w") as fout:
+  for doc in docs:
+    fout.write(doc)
+    fout.write("\n")
 
 # Load:
 
-docs = list(map(lambda l: l.strip(), open("out-astro", "r").readlines()))
+# docs = list(map(lambda l: l.strip(), open("out-astro", "r").readlines()))
 
 # TF-IDF based terms extraction
+
 tfidf_vectorizer = TfidfVectorizer(
     max_df=0.95,
     min_df=2,
