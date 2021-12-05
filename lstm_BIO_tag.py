@@ -1,10 +1,8 @@
 import lstm_BIO_train
 import torch
 import transformers
-import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
-import os
 import torch.utils.data as Data
 
 device = 'cuda'

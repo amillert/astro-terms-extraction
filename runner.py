@@ -60,25 +60,3 @@ extracted_terms = set(map(lambda l: l[0], termScoresFiltered))
 with open("astro-terms", "w") as fout:
   for term in extracted_terms:
     fout.write(f"{term}\n")
-
-exit(12)
-
-# prepare docs for classification
-flattened = sorted(set([term for doc in docs for term in doc.split(" ")]))
-
-tok2idx = {tok: idx for idx, tok in enumerate(flattened)}
-tok2idx["<UNKNOWN>"] = len(tok2idx)
-idx2tok = {v: k for k, v in tok2idx.items()}
-
-# convert docs
-docs_converted = [[tok2idx[tok] for tok in doc.split()] for doc in docs]
-
-# convert extracted terms
-extracted_converted = {tuple([tok2idx[tok] for tok in ngram.split()])
-                       for ngram in extracted_terms}
-
-# annotated = []
-#
-# for doc in docs_converted:
-#     for extracted in extracted_converted:
-#         if extracted

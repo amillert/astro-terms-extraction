@@ -1,10 +1,9 @@
+import os
+
 import transformers
 import torch
-import pandas as pd
 from torch.utils.data import DataLoader
-import os
 import torch.utils.data as Data
-import sklearn as sk
 import numpy as np
 
 np_load_old = np.load
