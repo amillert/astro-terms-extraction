@@ -1,0 +1,412 @@
+velocity reconstruction
+light cone
+light cone picture
+quadratic estimator
+velocity field
+galaxy survey
+transverse velocity
+radial velocity
+cmb experiment
+extragalactic foreground
+ml tomography
+radial velocity reconstruction
+statistical anisotropy
+angular scale
+transverse velocity reconstruction
+photometric redshift error
+fiducial cmb experiment
+photometric redshift
+power spectrum
+galaxy redshift survey
+blackbody component
+cosmological information
+optical depth
+scale structure
+cmb lensing
+limber approximation
+primary cmb
+box picture
+cosmic microwave background
+quadratic estimator formalism
+optical depth bias
+peculiar velocity field
+past light cone
+transverse velocity field
+radial velocity field
+small angular scale
+numerical error
+halo model
+principal component
+cmb secondary
+reionization ksz
+cosmological field
+redshift error
+reconstruction pipeline
+temperature anisotropy
+instrumental noise
+remote quadrupole field
+large-angular scale systematic
+n bias parameter
+kinetic sunyaev zel
+ksz temperature anisotropy
+multivariate gaussian distribution
+galaxy shot noise
+cmb instrumental noise
+cosmic infrared background
+thermal sunyaev zel
+radio point source
+frequency dependent component
+ml quadratic estimator
+redshift space distortion
+remote dipole field
+incorporate redshift evolution
+cosmological parameter
+ksz tomography
+gaussian simulation
+late-time isw
+electron density
+primordial non-gaussianity
+near-term experiment
+frequency channel
+spectroscopic survey
+foreground residual
+cmb temperature
+future experiment
+isotropic correlation
+imperial college high performance computing service
+national science foundation grant phy-1607611 sch
+single broad photometric redshift bin
+synchronous gauge dark matter perturbation
+photometric redshift survey other tracer
+single multivariate gaussian distribution
+integrated light cone moment
+n-body simulation
+redshifted 21cm hydrogen line
+anisotropic cross-power
+line intensity mapping survey
+large-scale peculiar velocity field
+small angular scale anisotropy
+covariance matrix
+tomographic reconstruction transverse velocity
+dominant source
+reconstruction noise
+perimeter institute
+imperial college london sch
+johns hopkins university sch
+real space quadratic estimator
+cmb photon
+synchronous gauge
+sky coverage
+cmb map
+fiducial dataset
+galaxy distribution
+future dataset
+joint simulation
+low frequency
+rubin observatory legacy survey
+temperature- galaxy statistical anisotropy
+aspen center
+past light cone coarse
+estimator formalism
+multifrequency information
+large-scale radial velocity field
+cmb model
+dark matter
+newtonian gauge
+relativistic contribution
+photometric galaxy redshift survey
+cmb anisotropy
+dark energy spectroscopic instrument
+linear late-time isw signal
+relevant range
+cmb-galaxy cross-power
+left panel
+velocity reconstruction pipeline
+imperial college president
+ksz velocity reconstruction
+standard harmonic space
+fast bessel integration
+lsst-like galaxy survey
+fiducial experimental noise
+south pole telescope
+cmb lensing signal
+spherical harmonic transform
+newtonian gauge quantity
+additional frequency channel
+engineering research council
+atacama cosmology telescope
+galaxy overdensity field
+non-vanishing off-diagonal term
+relevant cosmological information
+fast radio burst
+anisotropic cmb-galaxy correlation
+narrow window function
+principal component basis
+reconstruction noise curve
+electron density profile
+brute force computation
+haar-binned lc moment
+precision cosmological constraint
+angular power spectrum
+real-space reconstruction pipeline
+gaussian reconstruction noise
+cmb temperature anisotropy
+primary/secondary blackbody component
+partial sky coverage
+low effective noise
+theoretical physics research
+cross-correlation power spectrum
+electron overdensity field
+single temperature spectrum
+galaxy-electron cross-power spectrum
+simulated cmb map
+photometric redshift survey
+cmb temperature spectrum
+galaxy-foreground cross spectrum
+galaxy density field
+electron-scattering optical depth
+single principal component
+future cmb experiment
+ilc-cleaned power spectrum
+ml temperature anisotropy
+radially-projected cmb dipole
+near-term cmb experiment
+unwise galaxy catalogue
+small-angular scale anisotropy
+extragalactic foreground contribution
+analysis galactic foreground
+complex projection integral
+foreground removal technique
+rotation matrix eq.
+self-consistent theoretical framework
+additional bin-bin correlation
+imperial college london
+dominant blackbody component
+random gaussian field
+halo model code
+principal component map
+familiar fourier domain
+power spectrum l2crei/2
+differential optical depth
+optical depth degeneracy
+sub-arcminute angular scale
+redshift calibration error
+non-ksz cmb anisotropy
+cumbersome projection integral
+linear-theory growth rate
+beyond limber approximation
+isotropic cmb anisotropy
+de-beamed instrumental noise
+small sky area
+statistical anisotropy eq.
+reionization ksz component
+cosmological paradigm shift
+double so experiment
+galaxy-electron correlation function
+dark matter density
+non-linear n-body simulation
+gaussian mock map
+accurate harmonic transform
+fiducial cosmological model
+fixed experimental setup
+real space estimator
+economic development canada
+dominant extragalactic foreground
+isocurvature perturbation
+isotropic crosspower
+low signal
+radial direction
+precision science
+redshift bin
+median redshift
+multiplicative factor
+clean foreground
+unprecedented era
+prototype tracer
+resolution nside
+right panel
+lsst scenario
+late-time tracer
+anisotropic stress
+spherical projection
+cmb anomaly
+tomographic reconstruction
+galactic plane
+redshift range
+orange line
+estimator bias
+precision measurement
+numerical code
+coarse graining
+redshift-space distortion
+simulation framework
+non-linear component
+sachs wolfe
+masked sky
+transverse component
+map-based systematic
+discovery grant
+ksz component
+large-scale systematic
+ml component
+integral kernel
+secondary contribution
+transverse gradient
+secondary component
+bulk motion
+off-diagonal term
+line-intensity map
+radial profile
+window w
+formalism build
+anisotropic component
+ilc-cleaned cmb
+de- pendence
+polarization anisotropy
+anisotropic correlation
+radial component
+cmb component
+oscillatory behaviour
+low noise
+temperature-galaxy cross-power
+foreground cleaning
+fouri space
+competitive constraint
+arcminute scale
+cmb dataset
+fundamental physic
+technical detail
+lens contribution
+sky area
+perform radial
+quadratic es-timator
+unbiased estimator
+main limitation
+bulk mode
+blackbody cmb
+dispersion measure
+low redshift
+determine field
+growth rate
+other extension
+a krolewski
+coarse-graining scheme
+foreground model
+consistent modelling
+simple case
+accurate spectrum
+redshift evolution
+small-angle observable
+simultaneous simulation
+ksz-g crosscorrelation
+galactic contamination
+mask bias
+radial distance
+national science
+isw contribution
+challenging aspect
+non-linear evolution
+project mcj
+limited range
+rotational ksz
+cross correlation
+modelling error
+direct observable
+oscillatory integral
+systematic aris
+comprehensive assessment
+accurate forecasting
+free electron
+current dataset
+dark energy
+numerical framework
+postdoctoral fellowship
+computational resource
+noise property
+unifying framework
+early-universe scenario
+electromagnetic scattering
+cmb signal
+dominant component
+bias parameter
+harmonic-space method
+density multipole
+numerical pipeline
+transverse-velocity reconstruction
+probe example
+3d box
+patchy reionization
+separable structure
+map space
+high-resolution frontier
+ksz signal
+redshift tracer
+coarse-graining field
+cosmological constraint
+healpix package
+estimator variance
+unwise datum
+gravitational lensing
+count map
+neutrino mass
+matter fluctuation
+dashed line
+approach cumbersome
+haar wavelet
+galactic emission
+ksz map
+principle component
+redshift distribution
+simons observatory
+sight integral
+near-term survey
+quick inspection
+galaxy measurement
+equal-time contribution
+solid line
+primary goal
+biased reconstruction
+statistical correlation
+negligible impact
+gaussian field
+fiducial experiment
+spectroscopic redshift
+ghz channel
+frequency-dependent component
+close proximity
+hypothetical experiment
+future forecast
+trans-verse component
+simons foundation
+noise model
+frequency-dependent contribution
+effective noise
+simple relation
+multipole moment
+numerical accuracy
+fundamental assumption
+imperfect modelling
+full sky
+free information
+future analysis
+unifying basis
+free parameter
+anisotropic modulation
+galaxy density
+momentum field
+intensity map
+horizon fellowship
+galaxy field
+active area
+scale field
+take-away point
+main goal
+high-resolution map
+temperature-density statistical anisotropy
+mask post-reconstruction
+extragalactic foreground model
+datum analysis
+extragalactic temperature
+large-scale bulk velocity
+realistic scenario
+non-linear n-body simulated dataset

@@ -1,0 +1,640 @@
+cosmological parameter
+cmb photon
+angular resolution
+planck datum
+circular polarization
+n side
+lorentz invariance violation
+planck legacy archive
+magnification bias
+cm signal
+cosmological analysis
+high-z source
+temperature anisotropy
+cosmic dawn
+dark matter
+lorentz invariance
+standard cosmological model
+cosmic microwave background
+cold dark matter
+high-z sub-mm galaxy
+so-called tension problem
+planck temperature datum
+planck pr4 datum
+fast radio burst
+baryon problem
+angular scale
+planck collaboration
+cmb dipole
+planck cmb
+planck product
+angular ps
+open question
+gravitational lensing
+error bar
+primordial b-mode
+energy budget
+planck cosmological implications4.1 new planck thermal sz map
+polarization datum
+osservatorio nel lontano infrarosso montato su palloneorientabileh
+specific model high angular resolution sz mea-surement
+planck sky model simulation tool area
+planck temperature
+component-separated map various sky mask
+alternative perspectives5.1 lorentz invariance violation
+hierarchical equalarea iso latitude pixelization
+planck public low-l temperature-only likelihood
+x-ray un-der low density circumstance
+mistralhigh angular resolution mm observation
+planck legacy archive home page.
+spectral estimation via expectation maximisation
+cross-correlating cosmic microwave background anisotropy
+generalized needlet internal linear combination
+fdmof kids cryogenic detector kid
+kinetic inductance
+cosmic microwave background polarization
+cdm model
+purpose built radio telescope
+cosmic structure
+planck cmb angular ps
+future perspective
+quadratic maximum likelihood estimator
+primordial b-mode tensor signal
+low angular resolution observation
+full width half maximum
+focal plane
+map space analysis.the question
+reionization process
+striping feature pixel resolution
+theoretical understanding.the hi evolution
+scientific information
+planck explanatory supplement documentation
+young field.2.2 highredshift universe
+dipole analysis
+frequency photons.the tsz signal
+current tight b-mode limitson
+alternative scenario
+cross-correlation te angular ps
+european space astronomy centre
+resolution observation
+primordial tensor-to-scalar perturbation ratio
+warm hot intergalactic medium
+standard model
+cosmology discovery.the hubble constant
+ghz frequency channel map
+planck skymodel simulation tool
+planck cosmology product area
+scalar perturbation
+tsz map
+bottom panel
+us planck data center
+electron-photon compton scattering inpresence
+dispersion measure
+cross-power spectrum
+primordial tensor
+foreground model
+official compo-nent separation method
+observational cosmology
+planck satellite
+tensor component
+current standard cosmological mode
+cross modes. tion bump
+radioand ir point source
+far infrared observatory mounted
+planck mission
+frequency spectrum
+late universe
+facility instrument
+atacama large millimeter/submillimeter array
+wilkinson microwave anisotropy probe
+cooper pair binding energy
+low multipole
+modified internal linearcombination algorithm
+angular resolution sz measurement
+posterior distribution
+interesting.protoplanetary disc mm measurement
+planck y-map reconstruction in2015
+modern cosmology var-ious model
+millimeter sardiniaradio telescope receiver
+compton scattering
+tsz cross-ps
+effective field theory approach
+sub-mm wavelength
+cmb sky
+cmb polarizationthe standard model
+sixteenth marcel grossmann meeting
+64m sardinia radio telescopef
+astrophysical survey
+so-called astrophysical component map
+orientable balloon see http
+cosmological probe
+datum product
+usualnon-relativistic matter density parameter
+noise.the planck temperature datum
+gravitational wave
+ultra high molecular weight
+tensor perturbation
+scientific case
+compton scatteringof cmb photon
+istituto nazionale di astrofisica
+extragalactic compact source catalogue
+mod-ulated temperature map
+thcomingwell-defined facility instrument
+thewhole multipole range
+planck products.these tool
+gas column profile
+thermal dust emission
+cm power spectrum
+pixel angular resolution
+observational cosmology experiments.cosmo
+so-called lensing b-mode
+active galactic nucleus
+small error bar
+planck.for historical reason
+via piero gobetti
+thermal sunyaev-zel'dovich effect.three
+cal-ibrated frequency map
+lfi+hfi time-ordered datum
+posterior distribution analysis
+effective beam-averaging inaddition
+hyper fine transition
+theoretical explanation shrink
+foreground polarization prior
+reionization bump feature
+serendipitous direct observation
+inverse compton scattering
+spectacular experimental improvement
+precision cosmology constraint
+main part acknowledgement
+esa space satellite
+anti reflection coated
+thehot electron gas
+square kilometre arrayb
+high-redshift submillimeter galaxy
+high frequency instrument
+magnetic field line
+comptonization fluctuation map
+semi-numerical simulation scripta
+dark matter problem
+cmb temperature anisotropy
+galaxy halo characteristic
+astrophysical diffuse emission
+primordial tensor-to-scalar ratiodiscovering
+cepheidsas distance ladder
+relativistic electrons.hydrodynamical simulation
+dustt emperature profiles.
+low-frequency radio telescope
+late data analysis
+primordial d b
+polarization mode b
+longstanding open problem
+baryonic acoustic oscillation
+component separation method
+unravel tensor perturbation
+small angular scale
+data processing centre
+eppur si muovethe
+planck cmb observation.
+constraintson cosmological parameter
+valuable asa test
+south pole telescope
+low optical depth
+cooper pair density
+electron temperature t
+cosmic electron scatter
+merger pre-merger gc
+simple user interface
+electromagnetic quantum electrodynamic
+pla web interfacec
+future cmb experiment
+exquisite experimental sensitivity
+cosmic background explorer
+missing baryon problem
+thomson optical depth
+observations. 25upcoming facility
+non-relaxed gc infact
+non-overlapping redshift distribution
+cryogenic cold stop
+kinetic inductance l
+particle lorentz symmetry
+asstandard model extension
+pressure profile model
+intensity mapping tool
+intensity aboutt cmb
+galactic cold core
+low frequency photonsand
+herschel space observatory
+compelling theoretical explanation
+queen mary college
+4inch silicon wafer
+semi-numerical theoretical model
+planck polarization datum
+harmonic space analysis
+b-mode c b
+primordial scalar fluctuation
+cdm cosmological parameter
+thecosmology-dependent tsz model
+planck likelihood code
+map unbiased estimate
+cosmic structure growth
+frequency domain multiplexing
+stringent upper limit.
+component separation algorithm
+date.the planck product
+indirect cosmological experiment
+kinetic inductance detector
+fourth planck release
+radiation quasi-optical filter
+component separation code
+residual foreground emission
+cmb blackbody spectrum
+additional perpendicular direction
+inter-nal linear combination
+cosmic infrared background
+universe several experiment
+istituto di radioastronomia
+future cmb project
+thepr3 cmb map
+main scientific aim
+cosmological parameters.2 cosmology
+extreme magnification bias
+science ready timeline
+cosmological parameters.in order
+time allocation committee
+high-z lensing candidate
+cosmic extragalac-tic polarization
+planck all-sky survey
+apparent sky area
+thelow frequency instrument
+high-z radio galaxy
+cold dust re-emission.45what
+he-10 sorption re-frigerator
+long standing issue
+instrument flux densitylimit
+galaxy dust emission
+inflationary gravitational wave
+dark energy survey
+varietyof scientific case
+cm fluctuation signal
+cosmological distance
+density variation
+h tanimura
+pla database
+low-frequency interferometer
+helpdesk support.three
+medium.with respect
+archival datum
+cdm pa-rameter
+post-reionization era
+thin superconductor
+incredible precision
+sight run
+wonderful fit
+temperature fluctuation
+astrophy sicalobservation
+precision science
+linear polarization
+molecular cloud
+refer- ence
+final term
+pla host
+cross-angular ps
+cmb angularps
+cib model
+future planck
+scientific activity
+natural candidate
+matter fluctuations.at
+second-order expansion
+observational attempt
+ambitious goal
+multipole win-dow
+accurate observation
+reionization model
+post-reionization signal
+flux density
+gravitational lens
+primordial eb
+mistral cryostat
+custom optic
+simple convergence
+x-ray radiation
+cm line
+foreground object
+inflationary model
+foreground lens
+n aghanim
+epoch reionization
+fre-quency map
+high-z object
+ionization field
+b-mode analysis
+tensor contribution
+dunneet al.
+intrinsic dipole
+multipole range
+apparent excessin
+cm radiation
+power suppression
+yearly map
+trans-verse axes.
+alternative explanation
+time-ordered datum
+background radiation
+faraday conversion
+cosmology product
+medium promise
+italy arxiv
+cross-correlation measurement
+cryogenic instrument
+likelihood distribution
+galaxy observation
+large-scale structure
+planck source
+microwave sky
+planck catalogue
+outstanding problem
+blackbody assumption
+lensing product
+improved observation
+frb signal
+broad spectrum
+cosmic web
+open space
+dtu space
+gregorian room
+astrophysical signal
+reionization bump
+thom-son scattering
+mass bias
+itself.an instrument
+breakcooper pair
+hi atom
+single pattern
+srt turret
+archives division
+cnrs/insu-in2p3- inp
+signal amplitude
+structure growth
+radio transient
+usa thepla
+outlined above.here
+galaxies.the evolution
+cosmological perturbation
+cosmological perturbations.however
+sky fraction
+observational probe
+cosmological constant
+vertical position
+simple equation
+cosmic electron
+atmospheric window
+classicalpseu do-c
+cmb polarization
+universe inflation
+syn-chrotron emission
+radio sky
+cosmic history
+top panel
+future development
+precision cosmology
+luminous arc
+superconductive detector
+radial profile
+interstellar medium
+magnetic field
+burst travel
+polarization field
+amplitude parameter
+sky pixelization
+astrophysical component
+cos-mological parameter
+single application
+orthographic projection
+auto-angular ps
+population density
+cmb anisotropy
+cmb measurement
+interest thepla
+independent measure
+merging gc
+pixel size
+detector pair
+high-l likelihood
+cosmological pa-rameter
+man euver
+extrinsic dipole
+cosmology datum
+kinetic term
+cosmological parameters.key
+cmpc fig.
+sky coverage
+all-sky compton
+additional information
+inductance l
+host galaxy
+relaxed gc
+background field
+special rotation
+general relativity
+b-mode power
+future.the structure
+discrete source
+bigbang nucleosynthesis
+colour correction
+repeater repeat
+scalar component
+stochastic field
+cib emission
+light ray
+sky area
+mission coverage
+kids-1000 3x2pt
+astrophysical map
+non-commutativity inspace
+foreground emis-sion
+cmba nisotropy
+microwave/sub-mm sky
+systematic uncertainty
+excess flux
+spatial fluctu-ation
+emission signal
+based read-out.mistral
+intrinsic property
+statistical significance.3
+milca y-map
+observational datum
+interval contour
+thick nature
+theoretical standpoint
+dipole pattern
+post-reionization universe
+random case
+observer-covariant operator
+special relativity
+recombi-nation epoch
+anangular resolution
+full database
+map-making code
+radio source
+planck band
+quantum fluctua-tion
+reionization analysis
+cosmological datum
+simple interpretation
+direct detection
+located frb
+ir source
+smgs redshift
+cosmic evolution
+thelinear polarization
+comptonization parameter
+universe herein
+accurate mapping
+circular po-larization
+in-dependent measure
+scale picture
+processing pipeline
+visualization purpose
+modern cosmology
+angular scale.assuming
+radio astrophysic
+horizon problem
+detector detector
+high-z smg
+ionization history
+scale-invariant spectrum
+dust grain
+des experiment
+datum treatment
+pivot scale
+recombination bump
+dark energy
+rare process
+red shiftsz
+sever alclass
+data science
+frequency range
+pro-viding user
+polarization mode
+te mode
+tsz signal
+pressure profile
+cdm spectrum
+hierarchical growth
+cmb signal
+filamentary structure
+late epoch
+equilateral triangle
+pronounced bump
+hi density
+excess signal
+absorption signal
+unit conversion
+gregorian focus
+light propagate
+logarithmic range
+re-combination epoch
+angular spacing
+dipole direction
+statistical noise
+electron sector
+joint reprocessing
+starless core
+scientific reason
+independent componentanalysis
+pressure fluctuation
+cosmology experiment
+neutral form
+slight discrepancy
+periodic fashion
+scanning-induced degeneracy
+excellent candidate
+ground-based experiment
+end-to-end simulation
+compact source
+full mission
+planck release
+mm radiation
+theplanck satellite
+radio2.1 cosmology
+bandpass mismatch
+universe geometry
+hfi datum
+high-density region
+non-relaxed situation
+theoretical breakthrough
+foreground signal
+theory space-yet
+planck collab-oration
+kilo-degree survey
+component subtraction
+efficiency observation
+pulse tube
+gas tracer
+planck constant
+weak lensing
+bandpass transformation
+cosmo-logical signal
+parameter map
+temperature anisotropies.we
+c lcovariance
+po-larised power-spectra
+aspotential instrument
+optical design
+nominal mission
+low-z observation
+detector array
+com-plete compilation
+magnification bias.being
+rotation measure
+cmb project
+small noise
+galactic radiation
+comptonization fluctuation
+rmalperformance. fhttp
+theoretical prediction
+scientific com-munity
+cm linethe
+open problem
+mistral collaboration
+ground-based observatory
+lens source
+cmb radiation
+hyperfine transition
+neutral hydrogen
+promising perspective
+mutual independence
+laboratory frame
+accurate treatment
+observational effort
+planck sensitivity
+joint analysis
+tensor signal
+foreground subtraction
+constellation crater
+source catalogue
+hot electrongas
+ground state
+diffuse emission
+background imaging
+missing baryon
+im-proved reprocessing
+atcosmological distance
+polyetilene window
+star formation
+kids anddes
+cosmological information
+left panel
+cdmcosmological parameter
+scientific output
+e-mode power
+polarised power-spectra
+reconfigurable openarchitecture
+transient observation
+intergalactic medium
+foreground emission
+planck constraint
+global signal
+eb signal
+high angular resolution sz observation
